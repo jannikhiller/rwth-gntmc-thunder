@@ -1,0 +1,15 @@
+[package]
+name = "thunder"
+description = "A simple model checker."
+repository = "https://git.rwth-aachen.de/gntmc24/students/group1/thunder/"
+version = "0.0.0"
+authors = [
+  "Jannik Hiller <jannik.hiller@rwth-aachen.de>",
+  "Andreas Gerhards <andreas.gerhards@rwth-aachen.de>",
+  "Johannes Kurth <johannes.kurth@rwth-aachen.de>",
+  "Peter Lindner <peter.lindner@rwth-aachen.de>",
+]
+license = "MIT"
+rust-version = "1.82.0"
+readme = "README.md"
+edition = "2021"
