@@ -13,3 +13,5 @@ license = "MIT"
 rust-version = "1.82.0"
 readme = "README.md"
 edition = "2021"
+
+[dependencies]
