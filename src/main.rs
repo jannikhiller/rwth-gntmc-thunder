@@ -1,3 +1,10 @@
+mod checker;
+mod common;
+mod parser;
+mod tui;
+
+use common::ds;
+
 use env_logger::Env;
 use log::*;
 
@@ -18,4 +25,11 @@ fn main() {
 
 
     println!("Hello World!");
+
+    // Testing the module structure
+    tui::public();
+    checker::invariant::public();
+    ds::public();
+    parser::gntmc::public();
+    parser::propositional::public();
 }
