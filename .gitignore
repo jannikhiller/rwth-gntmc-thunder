@@ -15,3 +15,6 @@ target/
 
 # RustRover
 .idea/
+
+# tool manager von Jannik (würde ich gerne auch commiten wenn ihr nix dagegen habt)
+.mise.toml
