@@ -9,6 +9,23 @@ pub struct SparseMatrix<ValueType> {
     default_value: ValueType,
 }
 
+#[derive(PartialEq, Debug)]
+pub struct SparseMatrixElement<'a, ValueType> {
+    pub col_index: usize,
+    pub value: &'a ValueType,
+}
+
+pub struct SparseMatrixRowIter<'a, ValueType> {
+    matrix: &'a SparseMatrix<ValueType>,
+    pos: usize,
+    row_end: usize,
+}
+
+pub struct SparseMatrixIter<'a, ValueType> {
+    matrix: &'a SparseMatrix<ValueType>,
+    row_index: usize,
+}
+
 impl<ValueType: Default> Default for SparseMatrix<ValueType> {
     fn default() -> Self {
         SparseMatrix {
@@ -21,8 +38,55 @@ impl<ValueType: Default> Default for SparseMatrix<ValueType> {
     }
 }
 
+impl<'a, ValueType> IntoIterator for &'a SparseMatrix<ValueType> {
+    type Item = SparseMatrixRowIter<'a, ValueType>;
+    type IntoIter = SparseMatrixIter<'a, ValueType>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        SparseMatrixIter {
+            matrix: self,
+            row_index: 0,
+        }
+    }
+}
+
+impl<'a, ValueType> Iterator for SparseMatrixIter<'a, ValueType> {
+    type Item = SparseMatrixRowIter<'a, ValueType>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.row_index >= self.matrix.rows() {
+            return None;
+        }
+        let row_start = self.matrix.row_offsets[self.row_index];
+        let row_end = self.matrix.row_offsets[self.row_index + 1];
+        let row_iter = SparseMatrixRowIter {
+            matrix: self.matrix,
+            pos: row_start,
+            row_end,
+        };
+        self.row_index += 1;
+        Some(row_iter)
+    }
+}
+
+impl<'a, ValueType> Iterator for SparseMatrixRowIter<'a, ValueType> {
+    type Item = SparseMatrixElement<'a, ValueType>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos >= self.row_end {
+            return None;
+        }
+        let item = SparseMatrixElement {
+            value: &self.matrix.values[self.pos],
+            col_index: self.matrix.col_indexes[self.pos],
+        };
+        self.pos += 1;
+        Some(item)
+    }
+}
+
 impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
-    fn from_2d_vec(input_vec: &[Vec<ValueType>]) -> Self {
+    pub fn from_2d_vec(input_vec: &[Vec<ValueType>]) -> Self {
         let rows = input_vec.len();
         if rows == 0 {
             return SparseMatrix::default();
@@ -39,10 +103,11 @@ impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
                 panic!("Inconsistent number of columns");
             }
             for (col_index, value) in row.iter().enumerate() {
-                if *value != default_value {
-                    values.push(*value);
-                    col_indexes.push(col_index);
+                if *value == default_value {
+                    continue;
                 }
+                values.push(*value);
+                col_indexes.push(col_index);
             }
             row_offsets.push(values.len());
         }
@@ -57,22 +122,41 @@ impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
 }
 
 impl<ValueType> SparseMatrix<ValueType> {
-    fn rows(&self) -> usize {
+    pub fn rows(&self) -> usize {
         return self.row_offsets.len() - 1;
     }
-    fn cols(&self) -> usize {
+    pub fn cols(&self) -> usize {
         return self.cols;
     }
-    pub fn get(&self, row: usize, col: usize) -> Result<&ValueType, &str> {
-        if row >= self.rows() || col >= self.cols() {
+    pub fn get(&self, row_index: usize, col_index: usize) -> Result<&ValueType, &str> {
+        if row_index >= self.rows() || col_index >= self.cols() {
             return Err("Index out of bounds");
         }
-        let row_start = self.row_offsets[row];
-        let row_end = self.row_offsets[row + 1];
-        let maybe_index = self.col_indexes[row_start..row_end].binary_search(&col);
+        let row_start = self.row_offsets[row_index];
+        let row_end = self.row_offsets[row_index + 1];
+        let maybe_index = self.col_indexes[row_start..row_end].binary_search(&col_index);
         match maybe_index {
             Ok(i) => Ok(&self.values[row_start + i]),
             Err(_) => Ok(&self.default_value),
+        }
+    }
+    pub fn get_col_indexes_in_row(&self, row_index: usize) -> &[usize] {
+        if row_index >= self.rows() {
+            panic!("Index out of bounds");
+        }
+        &self.col_indexes[self.row_offsets[row_index]..self.row_offsets[row_index + 1]]
+    }
+
+    pub fn get_row(&self, row_index: usize) -> SparseMatrixRowIter<ValueType> {
+        if row_index >= self.rows() {
+            panic!("Index out of bounds");
+        }
+        let row_start = self.row_offsets[row_index];
+        let row_end = self.row_offsets[row_index + 1];
+        SparseMatrixRowIter {
+            matrix: self,
+            pos: row_start,
+            row_end,
         }
     }
 }
@@ -87,6 +171,7 @@ impl<ValueType> Index<(usize, usize)> for SparseMatrix<ValueType> {
     }
 }
 
+// tests partially written by chatgpt
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -123,6 +208,13 @@ mod tests {
             SparseMatrix::from_2d_vec(&vec![vec![1, 2, 3], vec![1]]);
         });
         assert!(result.is_err());
+
+        let input_vec: Vec<Vec<u32>> = vec![vec![], vec![]];
+        let m = SparseMatrix::from_2d_vec(&input_vec);
+        assert_eq!(m.values, vec![]);
+        assert_eq!(m.col_indexes, vec![]);
+        assert_eq!(m.row_offsets, vec![0, 0, 0]);
+        assert_eq!(m.cols, 0);
     }
 
     #[test]
@@ -147,5 +239,113 @@ mod tests {
             matrix[(0, 5)] // This should panic because column index `5` is out of bounds
         });
         assert!(result.is_err());
+    }
+    #[test]
+    fn test_get_col_indexes_in_row() {
+        let matrix = SparseMatrix {
+            values: vec![10, 20, 30],
+            col_indexes: vec![0, 2, 1],
+            row_offsets: vec![0, 2, 3],
+            cols: 4,
+            default_value: 0,
+        };
+
+        assert_eq!(matrix.get_col_indexes_in_row(0), &[0, 2]); // Should return column indexes [0, 2]
+        assert_eq!(matrix.get_col_indexes_in_row(1), &[1]); // Should return column indexes [1]
+        let result = std::panic::catch_unwind(|| {
+            matrix.get_col_indexes_in_row(2); // This should panic because row index 2 is out of bounds
+        });
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_row() {
+        /*
+         * 10  0 20  0
+         *  0 30  0  0
+         */
+        let matrix = SparseMatrix {
+            values: vec![10, 20, 30],
+            col_indexes: vec![0, 2, 1],
+            row_offsets: vec![0, 2, 3],
+            cols: 4,
+            default_value: 0,
+        };
+        let first_row: Vec<SparseMatrixElement<'_, i32>> = matrix.get_row(0).collect();
+        assert_eq!(first_row.len(), 2); // Should have 2 items
+        assert_eq!(
+            first_row[0],
+            SparseMatrixElement {
+                value: &10,
+                col_index: 0
+            }
+        ); // First item in row
+        assert_eq!(
+            first_row[1],
+            SparseMatrixElement {
+                value: &20,
+                col_index: 2
+            }
+        ); // Second item in row
+
+        let second_row: Vec<SparseMatrixElement<'_, i32>> = matrix.get_row(1).collect();
+        assert_eq!(second_row.len(), 1); // Should have 1 item
+        assert_eq!(
+            second_row[0],
+            SparseMatrixElement {
+                value: &30,
+                col_index: 1
+            }
+        ); // Only item in row
+
+        let result = std::panic::catch_unwind(|| {
+            matrix.get_row(2).for_each(|_| {}); // This should panic because row index 2 is out of bounds
+        });
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_sparse_matrix_iter() {
+        let matrix = SparseMatrix {
+            values: vec![10, 20, 30],
+            col_indexes: vec![0, 2, 1],
+            row_offsets: vec![0, 2, 3],
+            cols: 4,
+            default_value: 0,
+        };
+
+        let mut iter = matrix.into_iter();
+
+        // Collect the first row
+        let first_row: Vec<SparseMatrixElement<'_, i32>> = iter.next().unwrap().collect();
+        assert_eq!(first_row.len(), 2); // Should have 2 items
+        assert_eq!(
+            first_row[0],
+            SparseMatrixElement {
+                value: &10,
+                col_index: 0
+            }
+        ); // First item in row
+        assert_eq!(
+            first_row[1],
+            SparseMatrixElement {
+                value: &20,
+                col_index: 2
+            }
+        ); // Second item in row
+
+        // Collect the second row
+        let second_row: Vec<SparseMatrixElement<'_, i32>> = iter.next().unwrap().collect();
+        assert_eq!(second_row.len(), 1); // Should have 1 item
+        assert_eq!(
+            second_row[0],
+            SparseMatrixElement {
+                value: &30,
+                col_index: 1
+            }
+        ); // Only item in row
+
+        // Test that there are no more rows
+        assert!(iter.next().is_none());
     }
 }
