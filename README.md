@@ -9,6 +9,10 @@ Requirements
 
 Usage
 -----
+```bash
+cargo build
+cargo run
+```
 
 Testing
 -------
