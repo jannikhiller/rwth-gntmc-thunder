@@ -1,0 +1,126 @@
+image: "rust:latest"
+
+cache:
+    paths:
+        - target/
+
+stages:
+    - sec_check
+    - test
+    - build
+    - release
+    - docs
+
+
+# check dependencies
+check-dependencies:
+    stage: sec_check
+    script:
+        - cargo outdated
+    when: always
+
+audit-code:
+    stage: sec_check
+    script:
+        - cargo audit
+    when: always
+
+
+# Use cargo to test the project
+build-test: # test if a binary can be build
+    stage: test
+    script:
+        cargo build --release
+    rules:
+        - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+          when: always
+
+test:
+    stage: test
+    script:
+        - rustc --version && cargo --version  # Print version info for debugging
+        - cargo test
+    needs:
+        - job: build-test # only test if it compiles
+    rules:
+        - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+          when: on_success
+
+
+# build release binary
+release-windows:
+    stage: build
+    script:
+        - cargo build --target x86_64-pc-windows-gnu --release
+        - |
+            curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "target/x86_64-pc-windows-gnu/release/gitlab-downloader.exe" "${PACKAGE_REGISTRY_URL}/${CI_COMMIT_TAG}/win-x86_64/gitlab-downloader.exe"
+    rules:
+        - if: '$CI_COMMIT_TAG && $CI_COMMIT_TAG =~ /^v[0-9]\.[0-9]\.[0-9](-rc.+)?/' # change regex/omit
+          when: on_success
+
+release-linux:
+    stage: build
+    script:
+        - cargo build --target x86_64-unknown-linux-gnu --release
+        - |
+            curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "target/x86_64-unknown-linux-gnu/release/gitlab-downloader" "${PACKAGE_REGISTRY_URL}/${CI_COMMIT_TAG}/linux-x86_64/gitlab-downloader"
+    rules:
+        - if: '$CI_COMMIT_TAG && $CI_COMMIT_TAG =~ /^v[0-9]\.[0-9]\.[0-9](-rc.+)?/' # change regex/omit
+          when: on_success
+
+release-mac:
+    stage: build
+    script:
+        - cargo build --target aarch64-apple-darwin --release
+        - |
+              curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "target/aarch-apple-darwin/release/gitlab-downloader" "${PACKAGE_REGISTRY_URL}/${CI_COMMIT_TAG}/mac-aarch64/gitlab-downloader"
+    rules:
+        - if: '$CI_COMMIT_TAG && $CI_COMMIT_TAG =~ /^v[0-9]\.[0-9]\.[0-9](-rc.+)?/' # change regex/omit
+          when: on_success
+
+
+# create release
+deploy:
+    stage: release
+    image: registry.gitlab.com/gitlab-org/release-cli:latest
+    variables:
+        LINUX_ASSET_LINK: "{\"name\":\"gitlab-downloader-linux-86_64-${CI_COMMIT_TAG}\",\"url\":\"${PACKAGE_REGISTRY_URL}/${CI_COMMIT_TAG}/linux-x86_64/gitlab-downloader\",\"type\":\"package\"}"
+        WIN_ASSET_LINK: "{\"name\":\"gitlab-downloader-win-86_64-${CI_COMMIT_TAG}\",\"url\":\"${PACKAGE_REGISTRY_URL}/${CI_COMMIT_TAG}/win-x86_64/gitlab-downloader.exe\",\"type\":\"package\"}"
+        MAC_ASSECT_LINK: "{\"name\":\"gitlab-downloader-mac-86_64-${CI_COMMIT_TAG}\",\"url\":\"${PACKAGE_REGISTRY_URL}/${CI_COMMIT_TAG}/mac-aarch64/gitlab-downloader\",\"type\":\"package\"}"
+    script:
+        - |
+            release-cli create --name "Release ${CI_COMMIT_TAG}" --tag-name "${CI_COMMIT_TAG}" --assets-link "${LINUX_ASSET_LINK}" --assets-link "${WIN_ASSET_LINK}" --assets-link "${MAC_ASSET_LINK}"
+    needs:
+        - job: release-windows
+          artifacts: true
+        - job: release-linux
+          artifacts: true
+        - job: release-mac
+          artifacts: true
+    rules:
+        - if: '$CI_COMMIT_TAG && $CI_COMMIT_TAG =~ /^v[0-9]\.[0-9]\.[0-9](-rc.+)?/' # change regex/omit
+          when: on_success
+
+
+# build docs
+build-docs:
+    stage: docs
+    script:
+        - cargo doc
+    rules:
+        - if: '$CI_COMMIT_TAG && $CI_COMMIT_TAG =~ /^v[0-9]\.[0-9]\.[0-9](-rc.+)?/' # change regex/omit
+          when: on_success
+
+release-docs:
+    stage: docs
+    script:
+        - mkdir public
+        - cp target/doc public/
+    artifacts:
+        paths:
+            - public
+    needs:
+        - job: build-docs
+    rules:
+        - if: '$CI_COMMIT_TAG && $CI_COMMIT_TAG =~ /^v[0-9]\.[0-9]\.[0-9](-rc.+)?/' # change regex/omit
+          when: on_success
