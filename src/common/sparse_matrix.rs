@@ -26,17 +26,6 @@ pub struct SparseMatrixIter<'a, ValueType> {
     row_index: usize,
 }
 
-impl<ValueType: Default> Default for SparseMatrix<ValueType> {
-    fn default() -> Self {
-        SparseMatrix {
-            values: Vec::new(),
-            col_indexes: Vec::new(),
-            row_offsets: vec![0],
-            cols: 0,
-            default_value: ValueType::default(),
-        }
-    }
-}
 
 impl<'a, ValueType> IntoIterator for &'a SparseMatrix<ValueType> {
     type Item = SparseMatrixRowIter<'a, ValueType>;
@@ -86,10 +75,20 @@ impl<'a, ValueType> Iterator for SparseMatrixRowIter<'a, ValueType> {
 }
 
 impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
+    pub fn new() -> Self {
+        SparseMatrix {
+            values: Vec::new(),
+            col_indexes: Vec::new(),
+            row_offsets: vec![0],
+            cols: 0,
+            default_value: ValueType::default(),
+        }
+    }
+
     pub fn from_2d_vec(input_vec: &[Vec<ValueType>]) -> Self {
         let rows = input_vec.len();
         if rows == 0 {
-            return SparseMatrix::default();
+            return SparseMatrix::new();
         }
         let cols = input_vec[0].len();
 
@@ -116,6 +115,57 @@ impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
             col_indexes,
             row_offsets,
             cols,
+            default_value,
+        }
+    }
+
+    pub fn from_list_of_entries(
+        num_rows: usize,
+        num_cols: usize,
+        entries: &[(usize, usize, ValueType)],
+    ) -> Self {
+        let mut values = Vec::with_capacity(entries.len());
+        let mut col_indexes = Vec::with_capacity(entries.len());
+        let mut row_offsets = vec![0; num_rows + 1];
+        let default_value = ValueType::default();
+
+        let mut sorted_entries = entries.to_vec();
+        sorted_entries.sort_by_key(|&(r, c, _)| (r, c));
+
+        for chunk in sorted_entries.chunk_by(|&(r0, _, _), &(r1, _, _)| r0 == r1) {
+            for &(row_index, col_index, value) in chunk {
+                if row_index >= num_rows || col_index >= num_cols {
+                    panic!(
+                        "Element at {:?} is outside the dimensions of the matrix.",
+                        (row_index, col_index)
+                    );
+                }
+                if col_indexes.len() > row_offsets[row_index]
+                    && *col_indexes.last().unwrap() == col_index
+                {
+                    panic!("Found multiple elements with the same coordinates.");
+                }
+                if value == default_value {
+                    continue;
+                }
+                values.push(value);
+                col_indexes.push(col_index);
+                row_offsets[row_index + 1] += 1;
+            }
+        }
+
+        // now row_offsets only contains the length of each row. If we do a cummulative sum on it,
+        // we get the correct offsets:
+        row_offsets.iter_mut().fold(0, |acc, offset| {
+            *offset += acc;
+            *offset
+        });
+
+        SparseMatrix {
+            values,
+            col_indexes,
+            row_offsets,
+            cols: num_cols,
             default_value,
         }
     }
@@ -215,6 +265,32 @@ mod tests {
         assert_eq!(m.col_indexes, vec![]);
         assert_eq!(m.row_offsets, vec![0, 0, 0]);
         assert_eq!(m.cols, 0);
+    }
+
+    #[test]
+    fn test_from_list_of_entries() {
+        let entries = vec![(1, 1, 30), (0, 0, 10), (2, 2, 50), (2, 0, 40), (0, 2, 20)];
+        let matrix = SparseMatrix::from_list_of_entries(3, 3, &entries);
+
+        assert_eq!(matrix.values, vec![10, 20, 30, 40, 50]);
+        assert_eq!(matrix.col_indexes, vec![0, 2, 1, 0, 2]);
+        assert_eq!(matrix.row_offsets, vec![0, 2, 3, 5]);
+        assert_eq!(matrix.cols, 3);
+        assert_eq!(matrix.default_value, 0);
+
+        // double index:
+        let entries = vec![(0, 1, 30), (0, 0, 10), (0, 1, 10)];
+        let result = std::panic::catch_unwind(|| {
+            let matrix = SparseMatrix::from_list_of_entries(2, 2, &entries);
+        });
+        assert!(result.is_err());
+
+        // out of bounds:
+        let entries = vec![(0, 1, 30), (0, 0, 10), (0, 30, 10)];
+        let result = std::panic::catch_unwind(|| {
+            let matrix = SparseMatrix::from_list_of_entries(2, 2, &entries);
+        });
+        assert!(result.is_err());
     }
 
     #[test]
