@@ -18,6 +18,26 @@ impl TransitionSystem {
         panic!("Not implemented")
     }
 
+    pub fn new(
+        transition_matrix: SparseMatrix<bool>,
+        reverse_transition_matrix: SparseMatrix<bool>,
+        num_states: usize,
+        state_names: Vec<String>,
+        state_labels: Vec<BitVec>, // labels are BitVecs encoding a set of ap_indexes
+        label_state_map: HashMap<BitVec, Vec<usize>>,
+        ap: Vec<String>, // this means creating a label takes linear time. We dont expect this to be an
+    ) -> Self {
+        TransitionSystem {
+            transition_matrix,
+            reverse_transition_matrix,
+            num_states,
+            state_names,
+            state_labels, // labels are BitVecs encoding a set of ap_indexes
+            label_state_map,
+            ap,
+        }
+    }
+
     pub fn get_num_states(&self) -> usize {
         self.num_states
     }
