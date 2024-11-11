@@ -6,33 +6,29 @@ pub struct TransitionSystem {
     transition_matrix: SparseMatrix<bool>,
     reverse_transition_matrix: SparseMatrix<bool>,
     num_states: usize,
-    state_names: Vec<String>,
-    state_labels: Vec<BitVec>, // labels are BitVecs encoding a set of ap_indexes
+    inital_states: Vec<usize>,
+    state_labels: Vec<BitVec>, // labels are BitVecs encoding a set of ap indexes
     label_state_map: HashMap<BitVec, Vec<usize>>,
     ap: Vec<String>, // this means creating a label takes linear time. We dont expect this to be an
                      // issue but if it becomes one, we can store a HashMap<String, usize>
 }
 
 impl TransitionSystem {
-    pub fn from_json() -> Self {
-        panic!("Not implemented")
-    }
-
     pub fn new(
         transition_matrix: SparseMatrix<bool>,
         reverse_transition_matrix: SparseMatrix<bool>,
         num_states: usize,
-        state_names: Vec<String>,
-        state_labels: Vec<BitVec>, // labels are BitVecs encoding a set of ap_indexes
+        inital_states: Vec<usize>,
+        state_labels: Vec<BitVec>,
         label_state_map: HashMap<BitVec, Vec<usize>>,
-        ap: Vec<String>, // this means creating a label takes linear time. We dont expect this to be an
+        ap: Vec<String>,
     ) -> Self {
         TransitionSystem {
             transition_matrix,
             reverse_transition_matrix,
             num_states,
-            state_names,
-            state_labels, // labels are BitVecs encoding a set of ap_indexes
+            inital_states,
+            state_labels,
             label_state_map,
             ap,
         }
@@ -40,13 +36,6 @@ impl TransitionSystem {
 
     pub fn get_num_states(&self) -> usize {
         self.num_states
-    }
-
-    pub fn get_state_name(&self, state: usize) -> &String {
-        if state > self.num_states {
-            panic!("{state} is not a valid state.");
-        }
-        &self.state_names[state]
     }
 
     pub fn get_state_label(&self, state: usize) -> &BitVec {
@@ -73,7 +62,7 @@ impl TransitionSystem {
         for s in aps {
             label.set(self.ap.binary_search(s).unwrap(), true);
         }
-        return label;
+        label
     }
 
     pub fn get_successor_states(&self, state: usize) -> impl Iterator<Item = usize> + '_ {
