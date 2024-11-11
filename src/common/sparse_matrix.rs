@@ -1,28 +1,56 @@
 use std::ops::Index;
 
+/// A sparse matrix implementation using Compressed Row Storage (CRS) format.
+///
+/// # Type Parameters
+/// * `ValueType` - The type of the values stored in the matrix.
 #[derive(PartialEq, Debug)]
 pub struct SparseMatrix<ValueType> {
+    /// Non-default values in the matrix.
     values: Vec<ValueType>,
+    /// Column indexes corresponding to the values.
     col_indexes: Vec<usize>,
+    /// Row offsets for each row in the matrix.
     row_offsets: Vec<usize>,
+    /// Number of columns in the matrix.
     cols: usize,
+    /// The default value for unset elements.
     default_value: ValueType,
 }
 
+/// Represents a non-default element of a sparse matrix.
+///
+/// # Type Parameters
+/// * `ValueType` - The type of the value stored in the element.
 #[derive(PartialEq, Debug)]
 pub struct SparseMatrixElement<'a, ValueType> {
+    /// Column index of the element.
     pub col_index: usize,
+    /// Reference to the value at the specified column.
     pub value: &'a ValueType,
 }
 
+/// Iterator over the elements of a single row in a sparse matrix.
+///
+/// # Type Parameters
+/// * `ValueType` - The type of the values stored in the matrix.
 pub struct SparseMatrixRowIter<'a, ValueType> {
+    /// Reference to the parent matrix.
     matrix: &'a SparseMatrix<ValueType>,
+    /// Current position within the row.
     pos: usize,
+    /// End position of the row.
     row_end: usize,
 }
 
+/// Iterator over the rows of a sparse matrix.
+///
+/// # Type Parameters
+/// * `ValueType` - The type of the values stored in the matrix.
 pub struct SparseMatrixIter<'a, ValueType> {
+    /// Reference to the parent matrix.
     matrix: &'a SparseMatrix<ValueType>,
+    /// Index of the current row being iterated.
     row_index: usize,
 }
 
@@ -30,6 +58,7 @@ impl<'a, ValueType> IntoIterator for &'a SparseMatrix<ValueType> {
     type Item = SparseMatrixRowIter<'a, ValueType>;
     type IntoIter = SparseMatrixIter<'a, ValueType>;
 
+    /// Returns an iterator over the rows of the sparse matrix.
     fn into_iter(self) -> Self::IntoIter {
         SparseMatrixIter {
             matrix: self,
@@ -41,6 +70,7 @@ impl<'a, ValueType> IntoIterator for &'a SparseMatrix<ValueType> {
 impl<'a, ValueType> Iterator for SparseMatrixIter<'a, ValueType> {
     type Item = SparseMatrixRowIter<'a, ValueType>;
 
+    /// Advances to the next row and returns an iterator over its elements.
     fn next(&mut self) -> Option<Self::Item> {
         if self.row_index >= self.matrix.rows() {
             return None;
@@ -60,6 +90,7 @@ impl<'a, ValueType> Iterator for SparseMatrixIter<'a, ValueType> {
 impl<'a, ValueType> Iterator for SparseMatrixRowIter<'a, ValueType> {
     type Item = SparseMatrixElement<'a, ValueType>;
 
+    /// Advances to the next element in the current row.
     fn next(&mut self) -> Option<Self::Item> {
         if self.pos >= self.row_end {
             return None;
@@ -74,6 +105,7 @@ impl<'a, ValueType> Iterator for SparseMatrixRowIter<'a, ValueType> {
 }
 
 impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
+    /// Creates a new, empty sparse matrix.
     pub fn new() -> Self {
         SparseMatrix {
             values: Vec::new(),
@@ -84,6 +116,16 @@ impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
         }
     }
 
+    /// Constructs a sparse matrix from a 2D vector.
+    ///
+    /// # Parameters
+    /// * `input_vec` - A slice of vectors representing the matrix rows.
+    ///
+    /// # Returns
+    /// A `SparseMatrix` constructed from the non-default elements of `input_vec`.
+    ///
+    /// # Panics
+    /// Panics if the input vector has inconsistent row lengths.
     pub fn from_2d_vec(input_vec: &[Vec<ValueType>]) -> Self {
         let rows = input_vec.len();
         if rows == 0 {
@@ -118,6 +160,18 @@ impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
         }
     }
 
+    /// Constructs a sparse matrix from a list of entries (row, column, value).
+    ///
+    /// # Parameters
+    /// * `num_rows` - Number of rows in the matrix.
+    /// * `num_cols` - Number of columns in the matrix.
+    /// * `entries` - List of (row_index, col_index, value) tuples.
+    ///
+    /// # Returns
+    /// A `SparseMatrix` constructed from the given entries.
+    ///
+    /// # Panics
+    /// Panics if entries contain duplicates or are out of bounds.
     pub fn from_list_of_entries(
         num_rows: usize,
         num_cols: usize,
@@ -128,6 +182,18 @@ impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
         SparseMatrix::from_sorted_list_of_entries(num_rows, num_cols, &sorted_entries)
     }
 
+    /// Constructs a sparse matrix from a sorted list of entries (row, column, value).
+    ///
+    /// # Parameters
+    /// * `num_rows` - Number of rows in the matrix.
+    /// * `num_cols` - Number of columns in the matrix.
+    /// * `entries` - A sorted list of (row_index, col_index, value) tuples.
+    ///
+    /// # Returns
+    /// A `SparseMatrix` constructed from the given sorted entries.
+    ///
+    /// # Panics
+    /// Panics if entries contain duplicates, are out of bounds, or if the entries are not properly sorted.
     pub fn from_sorted_list_of_entries(
         num_rows: usize,
         num_cols: usize,
@@ -160,7 +226,7 @@ impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
             }
         }
 
-        // now row_offsets only contains the length of each row. If we do a cummulative sum on it,
+        // Now row_offsets only contains the length of each row. If we do a cumulative sum on it,
         // we get the correct offsets:
         row_offsets.iter_mut().fold(0, |acc, offset| {
             *offset += acc;
@@ -178,12 +244,24 @@ impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
 }
 
 impl<ValueType> SparseMatrix<ValueType> {
+    /// Returns the number of rows in the matrix.
     pub fn rows(&self) -> usize {
         return self.row_offsets.len() - 1;
     }
+
+    /// Returns the number of columns in the matrix.
     pub fn cols(&self) -> usize {
         return self.cols;
     }
+
+    /// Retrieves a value from the sparse matrix.
+    ///
+    /// # Parameters
+    /// * `row_index` - Row index.
+    /// * `col_index` - Column index.
+    ///
+    /// # Returns
+    /// A `Result` containing a reference to the value if found, or an error message if out of bounds.
     pub fn get(&self, row_index: usize, col_index: usize) -> Result<&ValueType, &str> {
         if row_index >= self.rows() || col_index >= self.cols() {
             return Err("Index out of bounds");
@@ -196,6 +274,17 @@ impl<ValueType> SparseMatrix<ValueType> {
             Err(_) => Ok(&self.default_value),
         }
     }
+
+    /// Returns a slice of column indexes for the specified row.
+    ///
+    /// # Parameters
+    /// * `row_index` - Row index.
+    ///
+    /// # Returns
+    /// A slice of column indexes where the row has non-default values.
+    ///
+    /// # Panics
+    /// Panics if the row index is out of bounds.
     pub fn get_col_indexes_in_row(&self, row_index: usize) -> &[usize] {
         if row_index >= self.rows() {
             panic!("Index out of bounds");
@@ -203,6 +292,16 @@ impl<ValueType> SparseMatrix<ValueType> {
         &self.col_indexes[self.row_offsets[row_index]..self.row_offsets[row_index + 1]]
     }
 
+    /// Returns an iterator over the elements of a specified row.
+    ///
+    /// # Parameters
+    /// * `row_index` - Row index.
+    ///
+    /// # Returns
+    /// An iterator over `SparseMatrixElement` in the specified row.
+    ///
+    /// # Panics
+    /// Panics if the row index is out of bounds.
     pub fn get_row(&self, row_index: usize) -> SparseMatrixRowIter<ValueType> {
         if row_index >= self.rows() {
             panic!("Index out of bounds");
@@ -219,6 +318,17 @@ impl<ValueType> SparseMatrix<ValueType> {
 
 impl<ValueType> Index<(usize, usize)> for SparseMatrix<ValueType> {
     type Output = ValueType;
+
+    /// Indexes into the sparse matrix using row and column indices.
+    ///
+    /// # Parameters
+    /// * `index` - Tuple containing (row_index, col_index).
+    ///
+    /// # Returns
+    /// A reference to the value at the specified position.
+    ///
+    /// # Panics
+    /// Panics if the indices are out of bounds.
     fn index(&self, index: (usize, usize)) -> &Self::Output {
         match self.get(index.0, index.1) {
             Ok(value) => value,
@@ -241,12 +351,12 @@ mod tests {
             cols: 4,
             default_value: 0,
         };
-        assert_eq!(*matrix.get(0, 0).unwrap(), 10); // Value at (0, 0) should be `10`
-        assert_eq!(*matrix.get(0, 2).unwrap(), 20); // Value at (0, 2) should be `20`
-        assert_eq!(*matrix.get(0, 1).unwrap(), 0); // Value at (0, 1) should be `0` (default)
-        assert_eq!(*matrix.get(1, 1).unwrap(), 0); // Value at (1, 1) should be `0` (default)
-        assert!(matrix.get(3, 0).is_err()); // Row index `3` is out of bounds
-        assert!(matrix.get(0, 5).is_err()); // Column index `5` is out of bounds
+        assert_eq!(*matrix.get(0, 0).unwrap(), 10); // Value at (0, 0) should be 10
+        assert_eq!(*matrix.get(0, 2).unwrap(), 20); // Value at (0, 2) should be 20
+        assert_eq!(*matrix.get(0, 1).unwrap(), 0); // Value at (0, 1) should be 0 (default)
+        assert_eq!(*matrix.get(1, 1).unwrap(), 0); // Value at (1, 1) should be 0 (default)
+        assert!(matrix.get(3, 0).is_err()); // Row index 3 is out of bounds
+        assert!(matrix.get(0, 5).is_err()); // Column index 5 is out of bounds
     }
 
     #[test]
@@ -309,16 +419,16 @@ mod tests {
             default_value: 0,
         };
 
-        assert_eq!(matrix[(0, 0)], 10); // Value at (0, 0) should be `10`
-        assert_eq!(matrix[(0, 2)], 20); // Value at (0, 2) should be `20`
-        assert_eq!(matrix[(0, 1)], 0); // Value at (0, 1) should be `0` (default)
-        assert_eq!(matrix[(1, 1)], 0); // Value at (1, 1) should be `0` (default)
+        assert_eq!(matrix[(0, 0)], 10); // Value at (0, 0) should be 10
+        assert_eq!(matrix[(0, 2)], 20); // Value at (0, 2) should be 20
+        assert_eq!(matrix[(0, 1)], 0); // Value at (0, 1) should be 0 (default)
+        assert_eq!(matrix[(1, 1)], 0); // Value at (1, 1) should be 0 (default)
         let result = std::panic::catch_unwind(|| {
-            matrix[(3, 0)] // This should panic because row index `3` is out of bounds
+            matrix[(3, 0)] // This should panic because row index 3 is out of bounds
         });
         assert!(result.is_err());
         let result = std::panic::catch_unwind(|| {
-            matrix[(0, 5)] // This should panic because column index `5` is out of bounds
+            matrix[(0, 5)] // This should panic because column index 5 is out of bounds
         });
         assert!(result.is_err());
     }
