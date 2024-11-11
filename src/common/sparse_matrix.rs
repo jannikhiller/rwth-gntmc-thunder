@@ -26,7 +26,6 @@ pub struct SparseMatrixIter<'a, ValueType> {
     row_index: usize,
 }
 
-
 impl<'a, ValueType> IntoIterator for &'a SparseMatrix<ValueType> {
     type Item = SparseMatrixRowIter<'a, ValueType>;
     type IntoIter = SparseMatrixIter<'a, ValueType>;
@@ -124,15 +123,22 @@ impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
         num_cols: usize,
         entries: &[(usize, usize, ValueType)],
     ) -> Self {
+        let mut sorted_entries = entries.to_vec();
+        sorted_entries.sort_by_key(|&(r, c, _)| (r, c));
+        SparseMatrix::from_sorted_list_of_entries(num_rows, num_cols, &sorted_entries)
+    }
+
+    pub fn from_sorted_list_of_entries(
+        num_rows: usize,
+        num_cols: usize,
+        entries: &[(usize, usize, ValueType)],
+    ) -> Self {
         let mut values = Vec::with_capacity(entries.len());
         let mut col_indexes = Vec::with_capacity(entries.len());
         let mut row_offsets = vec![0; num_rows + 1];
         let default_value = ValueType::default();
 
-        let mut sorted_entries = entries.to_vec();
-        sorted_entries.sort_by_key(|&(r, c, _)| (r, c));
-
-        for chunk in sorted_entries.chunk_by(|&(r0, _, _), &(r1, _, _)| r0 == r1) {
+        for chunk in entries.chunk_by(|&(r0, _, _), &(r1, _, _)| r0 == r1) {
             for &(row_index, col_index, value) in chunk {
                 if row_index >= num_rows || col_index >= num_cols {
                     panic!(
@@ -281,14 +287,14 @@ mod tests {
         // double index:
         let entries = vec![(0, 1, 30), (0, 0, 10), (0, 1, 10)];
         let result = std::panic::catch_unwind(|| {
-            let matrix = SparseMatrix::from_list_of_entries(2, 2, &entries);
+            SparseMatrix::from_list_of_entries(2, 2, &entries);
         });
         assert!(result.is_err());
 
         // out of bounds:
         let entries = vec![(0, 1, 30), (0, 0, 10), (0, 30, 10)];
         let result = std::panic::catch_unwind(|| {
-            let matrix = SparseMatrix::from_list_of_entries(2, 2, &entries);
+            SparseMatrix::from_list_of_entries(2, 2, &entries);
         });
         assert!(result.is_err());
     }
