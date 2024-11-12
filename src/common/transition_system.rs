@@ -16,7 +16,7 @@ pub struct TransitionSystem {
     /// Total number of states in the transition system.
     num_states: usize,
     /// Indices of the initial states.
-    inital_states: Vec<usize>,
+    initial_states: Vec<usize>,
     /// Labels associated with each state, encoded as `BitVec`.
     /// Each bit represents the presence of an atomic proposition (AP) in the state.
     state_labels: Vec<BitVec>, // labels are BitVecs encoding a set of ap indexes
@@ -42,7 +42,7 @@ impl TransitionSystem {
         transition_matrix: SparseMatrix<bool>,
         reverse_transition_matrix: SparseMatrix<bool>,
         num_states: usize,
-        inital_states: Vec<usize>,
+        initial_states: Vec<usize>,
         state_labels: Vec<BitVec>,
         label_state_map: HashMap<BitVec, Vec<usize>>,
         ap: Vec<String>,
@@ -51,7 +51,7 @@ impl TransitionSystem {
             transition_matrix,
             reverse_transition_matrix,
             num_states,
-            inital_states,
+            initial_states: inital_states,
             state_labels,
             label_state_map,
             ap,
