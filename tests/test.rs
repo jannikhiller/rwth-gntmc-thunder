@@ -5,5 +5,4 @@ mod tests {
     fn example_test() {
         println!("This is only printed during tests!");
     }
-
 }
