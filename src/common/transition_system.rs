@@ -63,6 +63,11 @@ impl TransitionSystem {
         self.last_state + 1
     }
 
+    /// Returns a Vec containing the names of all states of the transition system.
+    pub fn get_states(&self) -> Vec<usize> {
+        (0..self.get_num_states()).collect()
+    }
+
     /// Retrieves the label associated with a given state.
     ///
     /// # Parameters
