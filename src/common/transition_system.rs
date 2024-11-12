@@ -13,8 +13,8 @@ pub struct TransitionSystem {
     transition_matrix: SparseMatrix<bool>,
     /// Reverse transition matrix representing the transitions to each state.
     reverse_transition_matrix: SparseMatrix<bool>,
-    /// Total number of states in the transition system.
-    num_states: usize,
+    /// Name of the last state in the transition system.
+    last_state: usize,
     /// Indices of the initial states.
     initial_states: Vec<usize>,
     /// Labels associated with each state, encoded as `BitVec`.
@@ -41,7 +41,7 @@ impl TransitionSystem {
     pub fn new(
         transition_matrix: SparseMatrix<bool>,
         reverse_transition_matrix: SparseMatrix<bool>,
-        num_states: usize,
+        last_state: usize,
         initial_states: Vec<usize>,
         state_labels: Vec<BitVec>,
         label_state_map: HashMap<BitVec, Vec<usize>>,
@@ -50,8 +50,8 @@ impl TransitionSystem {
         TransitionSystem {
             transition_matrix,
             reverse_transition_matrix,
-            num_states,
-            initial_states: inital_states,
+            last_state,
+            initial_states,
             state_labels,
             label_state_map,
             ap,
@@ -60,7 +60,7 @@ impl TransitionSystem {
 
     /// Returns the total number of states in the transition system.
     pub fn get_num_states(&self) -> usize {
-        self.num_states
+        self.last_state + 1
     }
 
     /// Retrieves the label associated with a given state.
@@ -74,7 +74,7 @@ impl TransitionSystem {
     /// # Panics
     /// Panics if the `state` index is out of bounds.
     pub fn get_state_label(&self, state: usize) -> &BitVec {
-        if state > self.num_states {
+        if state > self.last_state {
             panic!("{state} is not a valid state.");
         }
         &self.state_labels[state]
