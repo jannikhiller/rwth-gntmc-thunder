@@ -116,7 +116,7 @@ impl TransitionSystem {
     /// # Returns
     /// A `BitVec` where bits corresponding to the specified APs are set to `true`.
     pub fn get_label_from_aps(&self, aps: &[String]) -> BitVec {
-        let mut label = BitVec::with_capacity(self.ap.len());
+        let mut label = BitVec::from_elem(self.ap.len(), false);
         for s in aps {
             label.set(self.ap.binary_search(s).unwrap(), true);
         }
@@ -153,5 +153,124 @@ impl TransitionSystem {
                  value: _,
              }| col_index,
         )
+    }
+}
+
+// tests written by claude
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::common::sparse_matrix::SparseMatrix;
+    fn create_test_transition_system() -> TransitionSystem {
+        let transitions = vec![
+            vec![false, true, false], // State 0 -> State 1
+            vec![false, false, true], // State 1 -> State 2
+            vec![true, false, false], // State 2 -> State 0
+        ];
+        let transition_matrix = SparseMatrix::from_2d_vec(&transitions);
+        let reverse_transitions = vec![
+            vec![false, false, true], // State 0 <- State 2
+            vec![true, false, false], // State 1 <- State 0
+            vec![false, true, false], // State 2 <- State 1
+        ];
+        let reverse_transition_matrix = SparseMatrix::from_2d_vec(&reverse_transitions);
+        let mut state_labels = Vec::new();
+        let ap = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let mut label0 = BitVec::from_elem(3, false);
+        label0.set(0, true);
+        state_labels.push(label0.clone());
+        let mut label1 = BitVec::from_elem(3, false);
+        label1.set(1, true);
+        state_labels.push(label1.clone());
+        let mut label2 = BitVec::from_elem(3, false);
+        label2.set(0, true);
+        label2.set(2, true);
+        state_labels.push(label2.clone());
+        let mut label_state_map = HashMap::new();
+        label_state_map.insert(label0, vec![0]);
+        label_state_map.insert(label1, vec![1]);
+        label_state_map.insert(label2, vec![2]);
+        TransitionSystem::new(
+            transition_matrix,
+            reverse_transition_matrix,
+            2,       // last_state
+            vec![0], // initial_states
+            state_labels,
+            label_state_map,
+            ap,
+        )
+    }
+    #[test]
+    fn test_get_num_states() {
+        let ts = create_test_transition_system();
+        assert_eq!(ts.get_num_states(), 3);
+    }
+    #[test]
+    fn test_get_states() {
+        let ts = create_test_transition_system();
+        assert_eq!(ts.get_states(), vec![0, 1, 2]);
+    }
+    #[test]
+    fn test_get_state_label() {
+        let ts = create_test_transition_system();
+        let label0 = ts.get_state_label(0);
+        assert!(label0.get(0).unwrap()); // "a" is true
+        assert!(!label0.get(1).unwrap()); // "b" is false
+        assert!(!label0.get(2).unwrap()); // "c" is false
+        let label2 = ts.get_state_label(2);
+        assert!(label2.get(0).unwrap()); // "a" is true
+        assert!(!label2.get(1).unwrap()); // "b" is false
+        assert!(label2.get(2).unwrap()); // "c" is true
+    }
+    #[test]
+    #[should_panic(expected = "is not a valid state")]
+    fn test_get_state_label_invalid_state() {
+        let ts = create_test_transition_system();
+        ts.get_state_label(3); // Should panic
+    }
+    #[test]
+    fn test_get_states_with_label() {
+        let ts = create_test_transition_system();
+        let mut label = BitVec::from_elem(3, false);
+        label.set(0, true);
+        let states = ts.get_states_with_label(&label);
+        assert_eq!(states, &vec![0]);
+    }
+    #[test]
+    fn test_get_label_from_aps() {
+        let ts = create_test_transition_system();
+        let aps = vec!["a".to_string(), "c".to_string()];
+        let label = ts.get_label_from_aps(&aps);
+        assert!(label.get(0).unwrap()); // "a" is true
+        assert!(!label.get(1).unwrap()); // "b" is false
+        assert!(label.get(2).unwrap()); // "c" is true
+    }
+    #[test]
+    fn test_get_successor_states() {
+        let ts = create_test_transition_system();
+        let successors0: Vec<_> = ts.get_successor_states(0).collect();
+        assert_eq!(successors0, vec![1]);
+        let successors1: Vec<_> = ts.get_successor_states(1).collect();
+        assert_eq!(successors1, vec![2]);
+        let successors2: Vec<_> = ts.get_successor_states(2).collect();
+        assert_eq!(successors2, vec![0]);
+    }
+    #[test]
+    fn test_get_predecessor_states() {
+        let ts = create_test_transition_system();
+        let predecessors0: Vec<_> = ts.get_predeccessor_states(0).collect();
+        assert_eq!(predecessors0, vec![2]);
+        let predecessors1: Vec<_> = ts.get_predeccessor_states(1).collect();
+        assert_eq!(predecessors1, vec![0]);
+        let predecessors2: Vec<_> = ts.get_predeccessor_states(2).collect();
+        assert_eq!(predecessors2, vec![1]);
+    }
+    #[test]
+    fn test_get_ap() {
+        let ts = create_test_transition_system();
+        assert_eq!(
+            ts.get_ap(),
+            &vec!["a".to_string(), "b".to_string(), "c".to_string()]
+        );
     }
 }
