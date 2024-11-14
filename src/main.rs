@@ -30,6 +30,5 @@ fn main() {
     tui::public();
     checker::invariant::public();
     ds::public();
-    parser::gntmc::public();
     parser::propositional::public();
 }
