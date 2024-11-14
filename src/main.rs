@@ -7,7 +7,7 @@ use std::fs;
 use env_logger::Env;
 use log::*;
 
-use parser::property::{PropertyTree, PropertyTreeNode, PropertyNodeType, PropertyType};
+use parser::property::{Property, FormulaTreeNode, FormulaTreeNodeType, PropertyType};
 
 
 fn main() {
