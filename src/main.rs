@@ -3,8 +3,12 @@ mod common;
 mod parser;
 mod tui;
 
+use std::fs;
 use env_logger::Env;
 use log::*;
+
+use parser::property::{PropertyTree, PropertyTreeNode, PropertyNodeType, PropertyType};
+
 
 fn main() {
     // We default to logging on debug level for development purposes.
@@ -26,5 +30,4 @@ fn main() {
     tui::public();
     checker::invariant::public();
     parser::gntmc::public();
-    parser::propositional::public();
 }

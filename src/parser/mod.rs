@@ -1,2 +1,2 @@
 pub mod gntmc;
-pub mod propositional;
+pub mod property;
