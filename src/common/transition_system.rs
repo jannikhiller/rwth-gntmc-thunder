@@ -167,6 +167,7 @@ impl TransitionSystem {
     fn bfs_invariant_checking(&self, property: Property<String> ) -> bool {
         let mut visited = HashSet::new();   // visited states
         let mut queue = VecDeque::new();  // states we are going to visit
+        let mut visited_labels: HashSet<BitVec> = HashSet::new(); // only accepted labels
 
         // add all initial states
         for &initial_state in &self.initial_states {
@@ -175,13 +176,22 @@ impl TransitionSystem {
         }
 
         while let Some(current_state) = queue.pop_front() {
-            let  string_labels_of_current =
-                 self.bit_vec_to_ap_strings(self.get_state_label(current_state));
-            if !property.evaluate(&string_labels_of_current){
-                return false; //if property doesn't hold, return false
+            let current_bit_label = self.get_state_label(current_state);
+            let  string_labels_of_current = self.bit_vec_to_ap_strings(current_bit_label);
+
+            // check if the current label has been already checked
+            let is_subset = visited_labels.iter().any(|visited_label| {
+                (current_bit_label == visited_label)
+            });
+            // else check if the current label is correct
+            if !is_subset {
+                if !property.evaluate(&string_labels_of_current){
+                    return false; //if property doesn't hold, return false
+                }
+                visited_labels.insert(current_bit_label.clone());
             }
 
-            // get next states and add them to que
+            // get next states and add them to queue
             for next_state in self.get_successor_states(current_state) {
                 if !visited.contains(&next_state) {
                     visited.insert(next_state);
