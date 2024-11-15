@@ -1,6 +1,8 @@
 use crate::common::sparse_matrix::*;
 use bit_vec::BitVec;
 use std::collections::HashMap;
+use std::collections::{HashSet, VecDeque};
+use crate::parser::property::{Property, PropertyType};
 
 /// Represents a transition system with states, transitions, and labels.
 ///
@@ -77,7 +79,7 @@ impl TransitionSystem {
     /// A reference to the `BitVec` label of the state.
     ///
     /// # Panics
-    /// Panics if the `state` index is out of bounds.
+    ///  if the `state` index is out of bounds.
     pub fn get_state_label(&self, state: usize) -> &BitVec {
         if state > self.last_state {
             panic!("{state} is not a valid state.");
@@ -94,7 +96,7 @@ impl TransitionSystem {
     /// A reference to a vector of state indices that have the specified label.
     ///
     /// # Panics
-    /// Panics if the label length does not match the expected length.
+    ///  if the label length does not match the expected length.
     pub fn get_states_with_label(&self, label: &BitVec) -> &Vec<usize> {
         if label.len() != self.state_labels.len() {
             panic!("{label:?} is not a valid label as the BitVec as a different size.");
@@ -154,6 +156,60 @@ impl TransitionSystem {
              }| col_index,
         )
     }
+
+    /// Returns a boolean over the given Transition System and property.
+    ///
+    /// # Parameters
+    /// - `property`: The Invariant which gets checked.
+    ///
+    /// # Returns
+    /// A boolean over the given Transition System and property.
+    fn bfs_invariant_checking(&self, property: Property<String> ) -> bool {
+        let mut visited = HashSet::new();   // visited states
+        let mut queue = VecDeque::new();  // states we are going to visit
+
+        // add all initial states
+        for &initial_state in &self.initial_states {
+            queue.push_back(initial_state);
+            visited.insert(initial_state);
+        }
+
+        while let Some(current_state) = queue.pop_front() {
+            let  string_labels_of_current =
+                 self.bit_vec_to_ap_names(self.get_state_label(current_state));
+            if !property.evaluate(&string_labels_of_current){
+                return false; //if property doesn't hold, return false
+            }
+
+            // get next states and add them to que
+            for next_state in self.get_successor_states(current_state) {
+                if !visited.contains(&next_state) {
+                    visited.insert(next_state);
+                    queue.push_back(next_state);
+                }
+            }
+        }
+
+        true
+    }
+
+    /// Returns a string vec for the given bit vec.
+    ///
+    /// # Parameters
+    /// - `label`: The BitVec which gets translated into string vec.
+    ///
+    /// # Returns
+    /// A Vec<String> for the given AP-BitVec.
+    fn bit_vec_to_ap_names(&self, label: &BitVec) -> Vec<String> {
+         //get all ap names
+        let ap_names = self.get_ap();
+
+        label.iter()
+            .enumerate() // add index to bit
+            .filter(|(_, bit)| *bit)  // only true bits
+            .map(|(index, _)| ap_names[index].clone()) // get according AP-String
+            .collect()
+    }
 }
 
 // tests written by claude
@@ -161,6 +217,8 @@ impl TransitionSystem {
 mod tests {
     use super::*;
     use crate::common::sparse_matrix::SparseMatrix;
+    use crate::parser::property::{FormulaTreeNode, FormulaTreeNodeType};
+
     fn create_test_transition_system() -> TransitionSystem {
         let transitions = vec![
             vec![false, true, false], // State 0 -> State 1
@@ -272,5 +330,31 @@ mod tests {
             ts.get_ap(),
             &vec!["a".to_string(), "b".to_string(), "c".to_string()]
         );
+    }
+    #[test]
+    fn test_invariant_bfs_true(){
+        //get the ts system
+        let ts = create_test_transition_system();
+
+        //now we build our property
+        //we want to build:  a or b or c
+        let atomic_a = FormulaTreeNode::new(None, None, Some("a".to_string()), FormulaTreeNodeType::ATOMIC);
+        let atomic_b = FormulaTreeNode::new(None, None, Some("b".to_string()), FormulaTreeNodeType::ATOMIC);
+        let atomic_c = FormulaTreeNode::new(None, None, Some("c".to_string()), FormulaTreeNodeType::ATOMIC);
+        let or = FormulaTreeNode::new(Some(Box::new(atomic_b)), Some(Box::new(atomic_c)), None, FormulaTreeNodeType::OR);
+        let root = FormulaTreeNode::new(Some(Box::new(atomic_a)), Some(Box::new(or)), None, FormulaTreeNodeType::OR);
+        let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant, root);
+        assert!(ts.bfs_invariant_checking(property));
+    }
+    #[test]
+    fn test_invariant_bfs_false(){
+        //get the ts system
+        let ts = create_test_transition_system();
+
+        //now we build our property
+        //we want to build:  a
+        let root = FormulaTreeNode::new(None, None, Some("a".to_string()), FormulaTreeNodeType::ATOMIC);
+        let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant, root);
+        assert!(!ts.bfs_invariant_checking(property));
     }
 }
