@@ -176,7 +176,7 @@ impl TransitionSystem {
 
         while let Some(current_state) = queue.pop_front() {
             let  string_labels_of_current =
-                 self.bit_vec_to_ap_names(self.get_state_label(current_state));
+                 self.bit_vec_to_ap_strings(self.get_state_label(current_state));
             if !property.evaluate(&string_labels_of_current){
                 return false; //if property doesn't hold, return false
             }
@@ -200,7 +200,7 @@ impl TransitionSystem {
     ///
     /// # Returns
     /// A Vec<String> for the given AP-BitVec.
-    fn bit_vec_to_ap_names(&self, label: &BitVec) -> Vec<String> {
+    fn bit_vec_to_ap_strings(&self, label: &BitVec) -> Vec<String> {
          //get all ap names
         let ap_names = self.get_ap();
 
