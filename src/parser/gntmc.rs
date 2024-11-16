@@ -58,8 +58,15 @@ fn build_ts(input: InputTs) -> TransitionSystem {
     }
 
     let last_state = input.states.len() - 1;
-    let tmatrix = SparseMatrix::from_list_of_entries(0, 0, &[]);            // TODO
-    let reverse_tmatrix = SparseMatrix::from_list_of_entries(0, 0, &[]);    // TODO
+    let num_states = last_state + 1;
+    let tmatrix = SparseMatrix::from_list_of_entries(num_states, num_states, 
+                                                     &input.transitions.iter()
+                                                         .map(|(s1, _ac, s2)| (*s1 as usize, *s2 as usize, true))
+                                                         .collect::<Vec<_>>());
+    let reverse_tmatrix = SparseMatrix::from_list_of_entries(num_states, num_states,
+                                                             &input.transitions.iter()
+                                                                 .map(|(s1, _ac, s2)| (*s2 as usize, *s1 as usize, true))
+                                                                 .collect::<Vec<_>>());
     let initial_states = input.initial_states.iter().map(|&i| i as usize).collect::<Vec<_>>();
     let atomic_props = input.labelling.values()
         .cloned()
@@ -67,7 +74,7 @@ fn build_ts(input: InputTs) -> TransitionSystem {
         .unwrap()
         .iter().collect::<HashSet<_>>()
         .iter().map(|s| s.clone().clone()).collect::<Vec<_>>();
-    let state_labels = (0 .. last_state + 1).map(|state| {
+    let state_labels: Vec<BitVec> = (0 ..num_states).map(|state| {
         let mut bv = BitVec::from_elem(atomic_props.len(), false);
         let lifehack = Vec::new();
         let labels = input.labelling.get(&(state as u64)).unwrap_or(&lifehack);
@@ -81,7 +88,13 @@ fn build_ts(input: InputTs) -> TransitionSystem {
 
         bv
     }).collect();
-    let label_states = Default::default();                                                  // TODO
+    let label_states = HashMap::from_iter((0 .. atomic_props.len()+1).map(|label_subset| {
+        let label = BitVec::from_bytes(&label_subset.to_ne_bytes());
+        
+        let states = (0 .. num_states).filter(|state| state_labels[*state] == label).collect::<Vec<_>>();
+
+        (label, states)
+    }));
 
     TransitionSystem::new(
         tmatrix,
@@ -114,8 +127,11 @@ mod tests {
 
     #[test]
     fn test_bar() {
-        let mut b: BitVec = Default::default();
-        b.extend(vec![true, true, false]);
-        print!("{:?}", b)
+        (0 .. 10usize).for_each(|label_subset| {
+            let bv = BitVec::from_bytes(&label_subset.to_be_bytes());
+
+            println!("{:?}", bv)
+
+        });
     }
 }
