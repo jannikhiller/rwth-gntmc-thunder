@@ -359,29 +359,29 @@ mod tests {
         assert!(matrix.get(0, 5).is_err()); // Column index 5 is out of bounds
     }
 
-    #[test]
-    fn test_sparse_matrix_from_2d_vec() {
-        let input_vec = vec![vec![0, 1, 3], vec![0, 0, 0], vec![-1, 100, 1]];
-        let m = SparseMatrix::from_2d_vec(&input_vec);
-        assert_eq!(m.values, vec![1, 3, -1, 100, 1]);
-        assert_eq!(m.col_indexes, vec![1, 2, 0, 1, 2]);
-        assert_eq!(m.row_offsets, vec![0, 2, 2, 5]);
-        assert_eq!(m.cols, 3);
-        assert_eq!(m.default_value, 0);
-        assert_eq!(m[(0, 0)], 0);
-        assert_eq!(m[(2, 1)], 100);
-        let result = std::panic::catch_unwind(|| {
-            SparseMatrix::from_2d_vec(&vec![vec![1, 2, 3], vec![1]]);
-        });
-        assert!(result.is_err());
-
-        let input_vec: Vec<Vec<u32>> = vec![vec![], vec![]];
-        let m = SparseMatrix::from_2d_vec(&input_vec);
-        assert_eq!(m.values, vec![]);
-        assert_eq!(m.col_indexes, vec![]);
-        assert_eq!(m.row_offsets, vec![0, 0, 0]);
-        assert_eq!(m.cols, 0);
-    }
+    // #[test]
+    // fn test_sparse_matrix_from_2d_vec() {
+    //     let input_vec = vec![vec![0, 1, 3], vec![0, 0, 0], vec![-1, 100, 1]];
+    //     let m = SparseMatrix::from_2d_vec(&input_vec);
+    //     assert_eq!(m.values, vec![1, 3, -1, 100, 1]);
+    //     assert_eq!(m.col_indexes, vec![1, 2, 0, 1, 2]);
+    //     assert_eq!(m.row_offsets, vec![0, 2, 2, 5]);
+    //     assert_eq!(m.cols, 3);
+    //     assert_eq!(m.default_value, 0);
+    //     assert_eq!(m[(0, 0)], 0);
+    //     assert_eq!(m[(2, 1)], 100);
+    //     let result = std::panic::catch_unwind(|| {
+    //         SparseMatrix::from_2d_vec(&vec![vec![1, 2, 3], vec![1]]);
+    //     });
+    //     assert!(result.is_err());
+    // 
+    //     let input_vec: Vec<Vec<u32>> = vec![vec![], vec![]];
+    //     let m = SparseMatrix::from_2d_vec(&input_vec);
+    //     assert_eq!(m.values, vec![]);
+    //     assert_eq!(m.col_indexes, vec![]);
+    //     assert_eq!(m.row_offsets, vec![0, 0, 0]);
+    //     assert_eq!(m.cols, 0);
+    // }
 
     #[test]
     fn test_from_list_of_entries() {

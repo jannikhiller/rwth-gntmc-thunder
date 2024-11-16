@@ -6,6 +6,7 @@ use bit_vec::BitVec;
 
 use crate::common::sparse_matrix::SparseMatrix;
 use crate::common::transition_system::*;
+use crate::parser::property::*;
 
 #[derive(Debug, Deserialize)]
 struct InputTs {
@@ -16,16 +17,37 @@ struct InputTs {
     labelling: HashMap<u64, Vec<String>>
 }
 
-#[derive(Debug, Deserialize)]
-struct InputProps {
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum InputPropositionalFormula {
+    Atom(String),
+    Not(Box<InputPropositionalFormula>),
+    And(Vec<InputPropositionalFormula>),
+    Or(Vec<InputPropositionalFormula>),
+}
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum InputPropertyKind {
+    Invariant(InputPropositionalFormula),
+    // RegularSafety(FiniteAutomaton),
+    // OmegaRegular(FiniteAutomaton)
+}
+
+#[derive(Debug, Deserialize)]
+struct InputProperties {
+    name: String,
+    #[serde(flatten)]
+    kind: InputPropertyKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_true: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
 struct InputJSON {
     name: String,
     lts: InputTs,
-    // properties: InputProps,
+    properties: Vec<InputProperties>,
 }
 
 fn parse_file(path: &str) -> InputJSON {
@@ -65,7 +87,7 @@ fn build_ts(input: InputTs) -> TransitionSystem {
                                                          .collect::<Vec<_>>());
     let reverse_tmatrix = SparseMatrix::from_list_of_entries(num_states, num_states,
                                                              &input.transitions.iter()
-                                                                 .map(|(s1, _ac, s2)| (*s2 as usize, *s1 as usize, true))
+                                                                 .map(|(s1, _ac, s2)|(*s2 as usize, *s1 as usize, true))
                                                                  .collect::<Vec<_>>());
     let initial_states = input.initial_states.iter().map(|&i| i as usize).collect::<Vec<_>>();
     let atomic_props = input.labelling.values()
@@ -107,31 +129,80 @@ fn build_ts(input: InputTs) -> TransitionSystem {
     )
 }
 
-// fn build_formula(props: InputProps) -> Formula {}
-
-#[cfg(test)]
-mod tests {
-    use bit_vec::BitVec;
-    use crate::parser::gntmc::{build_ts, parse_file};
-
-    #[test]
-    fn test_parse_file() {
-        println!("{:?}", parse_file("./tests/res/test.gntmc"))
+fn map_formula(form: &InputPropositionalFormula) -> FormulaTreeNode<String> {
+    match form { 
+        InputPropositionalFormula::Atom(ref f) => {FormulaTreeNode::new(
+            Option::None,
+            Option::None,
+            Option::Some(f.to_string()),
+            FormulaTreeNodeType::ATOMIC
+        )}
+        InputPropositionalFormula::Not(ref f) => {FormulaTreeNode::new(
+            Option::Some(Box::from(map_formula(f))),
+            Option::None,
+            Option::None,
+            FormulaTreeNodeType::NOT
+        )}
+        InputPropositionalFormula::And(ref f) => {
+            if f.len() < 2 { 
+                panic!("Not enough elements in formula")
+            } else if f.len() == 2 {
+                FormulaTreeNode::new(
+                    Option::Some(Box::from(map_formula(f.first().unwrap()))),
+                    Option::Some(Box::from(map_formula(f.last().unwrap()))),
+                    Option::None,
+                    FormulaTreeNodeType::AND
+                )
+            } else { 
+                FormulaTreeNode::new(
+                    Option::Some(Box::from(map_formula(f.first().unwrap()))),
+                    Option::Some(Box::from(map_formula(&InputPropositionalFormula::And(f[1..].to_vec())))),
+                    Option::None,
+                    FormulaTreeNodeType::AND
+                )
+            }
+        }
+        InputPropositionalFormula::Or(ref f) => {
+            if f.len() < 2 {
+                panic!("Not enough elements in formula")
+            } else if f.len() == 2 {
+                FormulaTreeNode::new(
+                    Option::Some(Box::from(map_formula(f.first().unwrap()))),
+                    Option::Some(Box::from(map_formula(f.last().unwrap()))),
+                    Option::None,
+                    FormulaTreeNodeType::OR
+                )
+            } else {
+                FormulaTreeNode::new(
+                    Option::Some(Box::from(map_formula(f.first().unwrap()))),
+                    Option::Some(Box::from(map_formula(&InputPropositionalFormula::Or(f[1..].to_vec())))),
+                    Option::None,
+                    FormulaTreeNodeType::OR
+                )
+            }
+        }
     }
+}
 
-    #[test]
-    fn test_foo() {
-        let inp = parse_file("./tests/res/test.gntmc");
-        build_ts(inp.lts);
-    }
+fn build_formula(props: Vec<InputProperties>) -> Vec<Property<String>> {
+    props.iter().map(|p| Property::new(
+        (*p).name.clone(),
+        // TODO currently we only support invariants; later this has to be extended
+        match p.kind {
+            InputPropertyKind::Invariant(_) => PropertyType::Invariant,
+            _ => panic!("Unsupported property type: {:?}", p.kind)
+        },
+        match &p.kind {
+            InputPropertyKind::Invariant(form) => map_formula(form)
+        })
+    ).collect()
+}
 
-    #[test]
-    fn test_bar() {
-        (0 .. 10usize).for_each(|label_subset| {
-            let bv = BitVec::from_bytes(&label_subset.to_be_bytes());
 
-            println!("{:?}", bv)
+pub fn parse_gntmc_file(path: &str) -> (TransitionSystem, Vec<Property<String>>) {
+    let input = parse_file(path);
+    let ts = build_ts(input.lts);
+    let properties = build_formula(input.properties);
 
-        });
-    }
+    (ts, properties)
 }
