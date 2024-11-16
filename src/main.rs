@@ -3,8 +3,6 @@ mod common;
 mod parser;
 mod tui;
 
-use common::ds;
-
 use env_logger::Env;
 use log::*;
 
@@ -19,7 +17,7 @@ fn main() {
 
     error!("This is an error log");
     warn!("This is a warn log");
-    info!("This is an info log");  // This is only printed during development
+    info!("This is an info log"); // This is only printed during development
     debug!("This is a debug log"); // This is only printed during development
     trace!("This is a trace log"); // This is never printed
 
@@ -29,6 +27,5 @@ fn main() {
     // Testing the module structure
     tui::public();
     checker::invariant::public();
-    ds::public();
     parser::propositional::public();
 }
