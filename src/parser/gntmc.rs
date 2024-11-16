@@ -199,7 +199,22 @@ fn build_formula(props: Vec<InputProperties>) -> Vec<Property<String>> {
 }
 
 
+/// Takes a filepath to a gntmc file and parses the content into a Transition System
+/// and a vector of properties, respectively.
+///
+/// # Parameters
+/// * `path` - The path to the .gntmc file that shall be parsed
+///
+/// # Returns
+/// A tuple consisting of the transition system and a vector of properties.
+///
+/// # Panics
+/// If an error during the parsing of the file or the mapping afterward occurs.
 pub fn parse_gntmc_file(path: &str) -> (TransitionSystem, Vec<Property<String>>) {
+    if !path.ends_with(".gntmc") {
+        panic!("Entered file path does not point to a gntmc file.");
+    }
+    
     let input = parse_file(path);
     let ts = build_ts(input.lts);
     let properties = build_formula(input.properties);
