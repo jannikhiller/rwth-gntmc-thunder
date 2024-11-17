@@ -39,37 +39,37 @@ pub fn run() {
         })
         .init();
 
-    info!("Parsing gntmc file {:?}...", args.gntmc_file);
+    println!("Parsing gntmc file {:?}...", args.gntmc_file);
     let pre_parsing_time = std::time::Instant::now();
     let (ts, props, _) = parse_gntmc_file(args.gntmc_file.to_str().unwrap());
     let post_parsing_time = std::time::Instant::now();
-    info!(
+    println!(
         "Done. Model building took {}s",
         (post_parsing_time - pre_parsing_time).as_secs_f64()
     );
-    info!("Meta information of model:\n\tnumber of states: {:?}\n\tnumber of transitions: {:?}\n\tinitial states: {:?}\n\ttransitions: {:?}",
+    println!("Meta information of model:\n\tnumber of states: {:?}\n\tnumber of transitions: {:?}\n\tinitial states: {:?}\n\ttransitions: {:?}",
         ts.get_num_states(), 0, ts.get_initial_states(), [(0, 0, 0)]
     );
     let mut total_model_checking_time = std::time::Duration::new(0, 0);
 
     for (i, prop) in props.iter().enumerate() {
-        info!("Checking property {}", i);
+        println!("Checking property {i}: {:?}...", prop.name);
         let pre_checking_time = std::time::Instant::now();
         let result = bfs_invariant_checking(&ts, prop);
         let post_checking_time = std::time::Instant::now();
-        info!(
+        println!(
             "Done. Checking took {}s",
             (pre_checking_time - post_checking_time).as_secs_f64()
         );
         total_model_checking_time += post_checking_time - pre_checking_time;
-        print!("Result for property {i}: {:?}\n", result.is_ok());
+        println!("Result for property {i}: {:?}: {:?}", prop.name, result.is_ok());
         if result.is_err() {
             let (path, trace) = result.err().unwrap();
             println!("\tFound following path as counterexample: {:?}", path);
             println!("\tCorresponding trace: {:?}", trace);
         }
     }
-    info!(
+    println!(
         "Checked all properties. Total time {}s",
         total_model_checking_time.as_secs_f64()
     );

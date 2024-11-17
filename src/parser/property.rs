@@ -10,7 +10,7 @@ pub struct Property<ValueType> {
     /// The type of property represented by this tree.
     property_type: PropertyType,
     /// The name of the property.
-    name: String,
+    pub name: String,
 }
 
 /// Creates a new `Property` with a given name, property type, and root node.
