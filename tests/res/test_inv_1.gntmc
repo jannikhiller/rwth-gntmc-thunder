@@ -1,5 +1,5 @@
 {
-  "name": "examples/dining-philosophers/philosophers-dl/philosophers-dl.3.jani",
+  "name": "Always 'a' with unreachable 'b'",
   "lts": {
     "states": [
       0,
@@ -29,7 +29,7 @@
       [
         5,
         0,
-        13
+        2
       ],
       [
         5,
@@ -54,7 +54,7 @@
       [
         7,
         0,
-        11
+        6
       ],
       [
         7,
@@ -64,7 +64,7 @@
       [
         6,
         0,
-        11
+        5
       ],
       [
         6,
@@ -89,7 +89,7 @@
       [
         0,
         0,
-        10
+        7
       ],
       [
         0,
@@ -114,7 +114,7 @@
       [
         4,
         0,
-        12
+        3
       ],
       [
         9,
@@ -129,7 +129,7 @@
       [
         3,
         0,
-        12
+        4
       ],
       [
         3,
@@ -162,114 +162,79 @@
     ],
     "labelling": {
       "5": [
-        "fork1",
-        "think1",
-        "think2",
-        "think3",
-        "fork2",
-        "fork3"
+        "a"
       ],
       "12": [
-        "think1",
-        "wait2",
-        "eat3"
+        "b"
       ],
       "13": [
-        "fork1",
-        "think1",
-        "wait2",
-        "think3",
-        "fork3"
+        "b"
       ],
       "7": [
-        "fork1",
-        "think1",
-        "eat2",
-        "think3"
+        "a"
       ],
       "2": [
-        "wait1",
-        "wait2",
-        "wait3"
+        "a"
       ],
       "10": [
-        "eat1",
-        "think2",
-        "think3",
-        "fork3"
+        "b"
       ],
       "0": [
-        "wait1",
-        "think2",
-        "think3",
-        "fork2",
-        "fork3"
+        "a"
       ],
       "6": [
-        "wait1",
-        "wait2",
-        "think3",
-        "fork3"
+        "a"
       ],
       "9": [
-        "wait1",
-        "think2",
-        "wait3",
-        "fork2"
+        "a"
       ],
       "3": [
-        "think1",
-        "think2",
-        "eat3",
-        "fork2"
+        "a"
       ],
       "4": [
-        "fork1",
-        "think1",
-        "wait2",
-        "wait3"
+        "a"
       ],
       "11": [
-        "wait1",
-        "eat2",
-        "think3"
+        "b"
       ],
       "1": [
-        "fork1",
-        "think1",
-        "think2",
-        "wait3",
-        "fork2"
+        "a"
       ],
       "8": [
-        "eat1",
-        "think2",
-        "wait3"
+        "a"
       ]
     }
   },
   "properties": [
     {
-      "name": "deadlock_free",
+      "name": "always a and not b",
       "invariant": {
         "and": [
           {
-            "not": {
-              "atom": "wait1"
-            }
+            "atom": "a"
           },
           {
             "not": {
-              "atom": "wait2"
-            }
-          },
-          {
-            "not": {
-              "atom": "wait3"
+              "atom": "b"
             }
           }
         ]
-      }
+      },
+      "is_true": true
+    },
+    {
+      "name": "always a",
+      "invariant": {
+        "atom": "a"
+      },
+      "is_true": true
+    },
+    {
+      "name": "always b",
+      "invariant": {
+        "atom": "b"
+      },
+      "is_true": false
     }
   ]
 }
