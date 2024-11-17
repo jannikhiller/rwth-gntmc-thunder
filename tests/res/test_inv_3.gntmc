@@ -73,14 +73,14 @@
   "properties": [
     {
       "name": "only a",
-      "is_true": "true",
+      "is_true": true,
       "invariant": {
         "atom": "a"
       }
     },
     {
       "name": "a and b or a and c",
-      "is_true": "true",
+      "is_true": true,
       "invariant": {
         "or": [
           {
@@ -108,7 +108,7 @@
     },
     {
       "name": "only c",
-      "is_true": "false",
+      "is_true": false,
       "invariant": {
        "atom": "c"
       }
