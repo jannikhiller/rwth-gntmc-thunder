@@ -41,7 +41,7 @@ pub fn run() {
 
     info!("Parsing gntmc file {:?}...", args.gntmc_file);
     let pre_parsing_time = std::time::Instant::now();
-    let (ts, props) = parse_gntmc_file(args.gntmc_file.to_str().unwrap());
+    let (ts, props, _) = parse_gntmc_file(args.gntmc_file.to_str().unwrap());
     let post_parsing_time = std::time::Instant::now();
     info!(
         "Done. Model building took {}s",
