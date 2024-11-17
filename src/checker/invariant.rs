@@ -1,7 +1,7 @@
+use std::collections::{HashSet, HashMap, VecDeque};
+use bit_vec::BitVec;
 use crate::common::transition_system::TransitionSystem;
 use crate::parser::property::Property;
-use bit_vec::BitVec;
-use std::collections::{HashSet, VecDeque};
 
 /// Returns a boolean over the given Transition System and property.
 ///
@@ -9,14 +9,15 @@ use std::collections::{HashSet, VecDeque};
 /// - `property`: The Invariant which gets checked.
 ///
 /// # Returns
-/// A boolean over the given Transition System and property.
+/// A Result with `Ok` if the property is fulfilled and Err with a path and a trace otherwise.
 pub fn bfs_invariant_checking(
     transition_system: &TransitionSystem,
     property: &Property<String>,
-) -> bool {
+) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
     let mut visited = HashSet::new(); // visited states
     let mut queue = VecDeque::new(); // states we are going to visit
     let mut visited_labels: HashSet<BitVec> = HashSet::new(); // only accepted labels
+    let mut came_from: HashMap<usize, usize> = HashMap::new();  // save predecessor
 
     // add all initial states
     for &initial_state in transition_system.get_initial_states() {
@@ -29,13 +30,11 @@ pub fn bfs_invariant_checking(
         let string_labels_of_current = bit_vec_to_ap_strings(&transition_system, current_bit_label);
 
         // check if the current label has been already checked
-        let labels_been_visited = visited_labels
-            .iter()
-            .any(|visited_label| (current_bit_label == visited_label));
+        let labels_been_visited = visited_labels.contains(current_bit_label);
         // else check if the current label is correct
         if !labels_been_visited {
-            if !property.evaluate(&string_labels_of_current) {
-                return false; //if property doesn't hold, return false
+            if !property.evaluate(&string_labels_of_current){
+                return Err(reconstruct_path(&transition_system, &came_from, current_state)); //if property doesn't hold, return the path
             }
             visited_labels.insert(current_bit_label.clone());
         }
@@ -45,11 +44,12 @@ pub fn bfs_invariant_checking(
             if !visited.contains(&next_state) {
                 visited.insert(next_state);
                 queue.push_back(next_state);
+                came_from.insert(next_state, current_state);  // save predecessor
             }
         }
     }
 
-    true
+    Ok(true)
 }
 
 /// Returns a string vec for the given bit vec.
@@ -71,14 +71,48 @@ pub fn bit_vec_to_ap_strings(transition_system: &TransitionSystem, label: &BitVe
         .collect()
 }
 
+// helper function to reconstruct the path
+fn reconstruct_path(
+    ts: &TransitionSystem,
+    came_from: &HashMap<usize, usize>,
+    end_state: usize
+) -> (Vec<Vec<String>>, Vec<usize>) {
+    let mut path = Vec::new();
+    let mut states = Vec::new();
+    let mut current = end_state;
+
+    // push label of last state
+    path.push(bit_vec_to_ap_strings(
+        ts,
+        ts.get_state_label(current)
+    ));
+    states.push(current);
+
+    // reconstruct path backwards
+    while let Some(&prev) = came_from.get(&current) {
+        path.push(bit_vec_to_ap_strings(
+            ts,
+            ts.get_state_label(prev)
+        ));
+        states.push(prev);
+        current = prev;
+    }
+
+    // reverse path, as we have built it up from behind
+    path.reverse();
+    states.reverse();
+
+    (path, states)
+}
+
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+    use bit_vec::BitVec;
     use crate::checker::invariant::bfs_invariant_checking;
     use crate::common::sparse_matrix::SparseMatrix;
     use crate::common::transition_system::TransitionSystem;
     use crate::parser::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
-    use bit_vec::BitVec;
-    use std::collections::HashMap;
 
     fn create_test_transition_system() -> TransitionSystem {
         let transitions = vec![
@@ -158,7 +192,7 @@ mod tests {
             FormulaTreeNodeType::OR,
         );
         let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant, root);
-        assert!(bfs_invariant_checking(&ts, &property));
+        assert!(bfs_invariant_checking(&ts, &property).is_ok());
     }
     #[test]
     fn test_invariant_bfs_false() {
@@ -174,6 +208,9 @@ mod tests {
             FormulaTreeNodeType::ATOMIC,
         );
         let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant, root);
-        assert!(!bfs_invariant_checking(&ts, &property));
+        assert_eq!(bfs_invariant_checking(&ts, &property).err().is_none(), false);
+
+        //for printing the counter example
+        //println!("{:?}", bfs_invariant_checking(ts, property).err());
     }
 }

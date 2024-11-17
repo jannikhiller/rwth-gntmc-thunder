@@ -62,7 +62,7 @@ pub fn run() {
             (pre_checking_time - post_checking_time).as_secs_f64()
         );
         total_model_checking_time += post_checking_time - pre_checking_time;
-        print!("Result for property {i}: {result}\n");
+        print!("Result for property {i}: {:?}\n", result.is_ok());
     }
     info!(
         "Checked all properties. Total time {}s",

@@ -166,7 +166,6 @@ impl TransitionSystem {
 mod tests {
     use super::*;
     use crate::common::sparse_matrix::SparseMatrix;
-    use crate::parser::property::{FormulaTreeNode, FormulaTreeNodeType};
 
     fn create_test_transition_system() -> TransitionSystem {
         let transitions = vec![
