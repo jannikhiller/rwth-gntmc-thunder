@@ -25,8 +25,4 @@ fn main() {
 
 
     println!("Hello World!");
-
-    // Testing the module structure
-    tui::public();
-    checker::invariant::public();
 }
