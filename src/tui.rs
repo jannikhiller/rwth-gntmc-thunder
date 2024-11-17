@@ -45,7 +45,7 @@ pub fn run() {
     let post_parsing_time = std::time::Instant::now();
     info!(
         "Done. Model building took {}s",
-        (post_parsing_time - pre_parsing_time).as_secs()
+        (post_parsing_time - pre_parsing_time).as_secs_f64()
     );
     let mut total_model_checking_time = std::time::Duration::new(0, 0);
 
@@ -56,13 +56,13 @@ pub fn run() {
         let post_checking_time = std::time::Instant::now();
         info!(
             "Done. Checking took {}s",
-            (pre_checking_time - post_checking_time).as_secs()
+            (pre_checking_time - post_checking_time).as_secs_f64()
         );
-        total_model_checking_time += pre_checking_time - post_checking_time;
-        print!("Result for property {i}: {result}");
+        total_model_checking_time += post_checking_time - pre_checking_time;
+        print!("Result for property {i}: {result}\n");
     }
     info!(
         "Checked all properties. Total time {}s",
-        total_model_checking_time.as_secs()
+        total_model_checking_time.as_secs_f64()
     );
 }
