@@ -14,6 +14,7 @@ pub struct Property<ValueType> {
 }
 
 /// Creates a new `Property` with a given name, property type, and root node.
+/// The given `ValueType` specifies the datatype of the label.
 ///
 /// # Parameters
 /// - `name`: A `String` representing the name of the property.
@@ -69,6 +70,7 @@ impl Property<String> {
 ///
 /// Each node can represent different logical operations (e.g. `AND`, `OR`, `NOT`) or a single
 /// atomic label. Nodes can have left and right children to build expressions recursively.
+/// The given `ValueType` specifies the datatype of the label.
 pub struct FormulaTreeNode<ValueType> {
     /// The left child of this node (if any).
     left: Option<Box<FormulaTreeNode<ValueType>>>,
@@ -95,6 +97,7 @@ impl FormulaTreeNode<String> {
     }
 
     /// Recursively evaluates this node and its children based on the provided labels.
+    /// Note that for NOT nodes only the left child will get evaluated.
     ///
     /// # Parameters
     /// - `labels`: A vector of `String` labels representing the atomic propositions of the state.
