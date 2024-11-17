@@ -28,6 +28,5 @@ fn main() {
 
     // Testing the module structure
     tui::public();
-    checker::invariant::public();
     parser::gntmc::public();
 }
