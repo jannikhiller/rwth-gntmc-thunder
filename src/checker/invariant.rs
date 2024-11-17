@@ -1,5 +1,6 @@
 use std::collections::{HashSet, HashMap, VecDeque};
 use bit_vec::BitVec;
+use log::trace;
 use crate::common::transition_system::TransitionSystem;
 use crate::parser::property::Property;
 
@@ -23,23 +24,30 @@ pub fn bfs_invariant_checking(
     for &initial_state in transition_system.get_initial_states() {
         queue.push_back(initial_state);
         visited.insert(initial_state);
+        trace!("Added initial state {:?}", initial_state);
     }
 
     while let Some(current_state) = queue.pop_front() {
+        trace!("Visiting state {:?}", current_state);
         let current_bit_label = transition_system.get_state_label(current_state);
         let string_labels_of_current = bit_vec_to_ap_strings(&transition_system, current_bit_label);
+        trace!("Found labels {:?}", string_labels_of_current);
 
         // check if the current label has been already checked
         let labels_been_visited = visited_labels.contains(current_bit_label);
+        trace!("Label has been visited: {:?}", labels_been_visited);
         // else check if the current label is correct
         if !labels_been_visited {
             if !property.evaluate(&string_labels_of_current){
+                trace!("Property is violated ... aborting.");
                 return Err(reconstruct_path(&transition_system, &came_from, current_state)); //if property doesn't hold, return the path
             }
+            trace!("Property fulfilled ... continue.");
             visited_labels.insert(current_bit_label.clone());
         }
 
         // get next states and add them to queue
+        trace!("Adding successor states...");
         for next_state in transition_system.get_successor_states(current_state) {
             if !visited.contains(&next_state) {
                 visited.insert(next_state);
