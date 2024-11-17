@@ -1,5 +1,4 @@
 use crate::common::sparse_matrix::*;
-use crate::parser::property::{Property, PropertyType};
 use bit_vec::BitVec;
 use std::collections::HashMap;
 
@@ -60,11 +59,13 @@ impl TransitionSystem {
     }
 
     /// Returns the total number of states in the transition system.
+    #[allow(dead_code)]
     pub fn get_num_states(&self) -> usize {
         self.last_state + 1
     }
 
     /// Returns a Vec containing the names of all states of the transition system.
+    #[allow(dead_code)]
     pub fn get_states(&self) -> Vec<usize> {
         (0..self.get_num_states()).collect()
     }
@@ -100,6 +101,7 @@ impl TransitionSystem {
     ///
     /// # Panics
     ///  if the label length does not match the expected length.
+    #[allow(dead_code)]
     pub fn get_states_with_label(&self, label: &BitVec) -> &Vec<usize> {
         if label.len() != self.state_labels.len() {
             panic!("{label:?} is not a valid label as the BitVec as a different size.");
@@ -120,6 +122,7 @@ impl TransitionSystem {
     ///
     /// # Returns
     /// A `BitVec` where bits corresponding to the specified APs are set to `true`.
+    #[allow(dead_code)]
     pub fn get_label_from_aps(&self, aps: &[String]) -> BitVec {
         let mut label = BitVec::from_elem(self.ap.len(), false);
         for s in aps {
@@ -151,6 +154,7 @@ impl TransitionSystem {
     ///
     /// # Returns
     /// An iterator over state indices that can reach the given state.
+    #[allow(dead_code)]
     pub fn get_predeccessor_states(&self, state: usize) -> impl Iterator<Item = usize> + '_ {
         self.reverse_transition_matrix.get_row(state).map(
             |SparseMatrixElement {
@@ -166,7 +170,6 @@ impl TransitionSystem {
 mod tests {
     use super::*;
     use crate::common::sparse_matrix::SparseMatrix;
-    use crate::parser::property::{FormulaTreeNode, FormulaTreeNodeType};
 
     fn create_test_transition_system() -> TransitionSystem {
         let transitions = vec![

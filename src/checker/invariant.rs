@@ -29,9 +29,7 @@ pub fn bfs_invariant_checking(
         let string_labels_of_current = bit_vec_to_ap_strings(&transition_system, current_bit_label);
 
         // check if the current label has been already checked
-        let labels_been_visited = visited_labels
-            .iter()
-            .any(|visited_label| (current_bit_label == visited_label));
+        let labels_been_visited = visited_labels.contains(current_bit_label);
         // else check if the current label is correct
         if !labels_been_visited {
             if !property.evaluate(&string_labels_of_current) {
