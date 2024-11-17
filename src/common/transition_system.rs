@@ -1,7 +1,6 @@
 use crate::common::sparse_matrix::*;
 use bit_vec::BitVec;
 use std::collections::HashMap;
-use crate::parser::property::{Property, PropertyType};
 
 /// Represents a transition system with states, transitions, and labels.
 ///
@@ -166,7 +165,6 @@ impl TransitionSystem {
 mod tests {
     use super::*;
     use crate::common::sparse_matrix::SparseMatrix;
-    use crate::parser::property::{FormulaTreeNode, FormulaTreeNodeType};
 
     fn create_test_transition_system() -> TransitionSystem {
         let transitions = vec![
