@@ -1,6 +1,7 @@
 use crate::common::sparse_matrix::*;
 use bit_vec::BitVec;
 use std::collections::HashMap;
+use crate::parser::property::{Property, PropertyType};
 
 /// Represents a transition system with states, transitions, and labels.
 ///
@@ -68,6 +69,10 @@ impl TransitionSystem {
         (0..self.get_num_states()).collect()
     }
 
+    pub fn get_initial_states(&self) -> &Vec<usize> {
+        &self.initial_states
+    }
+
     /// Retrieves the label associated with a given state.
     ///
     /// # Parameters
@@ -77,7 +82,7 @@ impl TransitionSystem {
     /// A reference to the `BitVec` label of the state.
     ///
     /// # Panics
-    /// Panics if the `state` index is out of bounds.
+    ///  if the `state` index is out of bounds.
     pub fn get_state_label(&self, state: usize) -> &BitVec {
         if state > self.last_state {
             panic!("{state} is not a valid state.");
@@ -94,7 +99,7 @@ impl TransitionSystem {
     /// A reference to a vector of state indices that have the specified label.
     ///
     /// # Panics
-    /// Panics if the label length does not match the expected length.
+    ///  if the label length does not match the expected length.
     pub fn get_states_with_label(&self, label: &BitVec) -> &Vec<usize> {
         if label.len() != self.state_labels.len() {
             panic!("{label:?} is not a valid label as the BitVec as a different size.");
@@ -161,6 +166,8 @@ impl TransitionSystem {
 mod tests {
     use super::*;
     use crate::common::sparse_matrix::SparseMatrix;
+    use crate::parser::property::{FormulaTreeNode, FormulaTreeNodeType};
+
     fn create_test_transition_system() -> TransitionSystem {
         let transitions = vec![
             vec![false, true, false], // State 0 -> State 1
