@@ -374,7 +374,7 @@ mod tests {
     //         SparseMatrix::from_2d_vec(&vec![vec![1, 2, 3], vec![1]]);
     //     });
     //     assert!(result.is_err());
-    // 
+    //
     //     let input_vec: Vec<Vec<u32>> = vec![vec![], vec![]];
     //     let m = SparseMatrix::from_2d_vec(&input_vec);
     //     assert_eq!(m.values, vec![]);

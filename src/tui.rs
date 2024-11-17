@@ -1,4 +1,9 @@
+use crate::checker::invariant::bfs_invariant_checking;
+use crate::parser::gntmc::parse_gntmc_file;
 use clap::Parser;
+use env_logger::Builder;
+use log::*;
+use std::io::Write;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -13,8 +18,51 @@ struct Cli {
 
 pub fn run() {
     let args = Cli::parse();
-    println!(
-        "file: {:?}, verbosity level: {:?}",
-        args.gntmc_file, args.verbose
+
+    // Initialize the logger with the desired verbosity level
+    let log_level = match args.verbose {
+        0 => log::LevelFilter::Warn,
+        1 => log::LevelFilter::Info,
+        2 => log::LevelFilter::Debug,
+        _ => log::LevelFilter::Trace,
+    };
+    Builder::new()
+        .filter(None, log_level)
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{} [{}] - {}",
+                chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                record.level(),
+                record.args()
+            )
+        })
+        .init();
+
+    info!("Parsing gntmc file {:?}...", args.gntmc_file);
+    let pre_parsing_time = std::time::Instant::now();
+    let (ts, props) = parse_gntmc_file(args.gntmc_file.to_str().unwrap());
+    let post_parsing_time = std::time::Instant::now();
+    info!(
+        "Done. Model building took {}s",
+        (post_parsing_time - pre_parsing_time).as_secs()
+    );
+    let mut total_model_checking_time = std::time::Duration::new(0, 0);
+
+    for (i, prop) in props.iter().enumerate() {
+        info!("Checking property {}", i);
+        let pre_checking_time = std::time::Instant::now();
+        let result = bfs_invariant_checking(&ts, prop);
+        let post_checking_time = std::time::Instant::now();
+        info!(
+            "Done. Checking took {}s",
+            (pre_checking_time - post_checking_time).as_secs()
+        );
+        total_model_checking_time += pre_checking_time - post_checking_time;
+        print!("Result for property {i}: {result}");
+    }
+    info!(
+        "Checked all properties. Total time {}s",
+        total_model_checking_time.as_secs()
     );
 }
