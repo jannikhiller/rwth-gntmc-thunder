@@ -9,7 +9,6 @@ use log::*;
 
 use parser::property::{Property, FormulaTreeNode, FormulaTreeNodeType, PropertyType};
 
-
 fn main() {
     // We default to logging on debug level for development purposes.
     #[cfg(debug_assertions)]
@@ -24,9 +23,6 @@ fn main() {
     debug!("This is a debug log"); // This is only printed during development
     trace!("This is a trace log"); // This is never printed
 
-    println!("Hello World!");
 
-    // Testing the module structure
-    tui::public();
-    parser::gntmc::public();
+    println!("Hello World!");
 }
