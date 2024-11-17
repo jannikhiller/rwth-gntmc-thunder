@@ -42,4 +42,29 @@ mod tests {
             assert_eq!(prop_fulfilled, is_true.unwrap());
         }
     }
+
+
+    #[test]
+    fn test_inv_philosophers_broken() {
+        for i in (3 .. 12) {
+            let (ts, props, _) = gntmc::parse_gntmc_file(&format!("./tests/philosophers/philosophers-dl.{i}.gntmc"));
+            for prop in props.iter() {
+                let prop_fulfilled = bfs_invariant_checking(&ts, prop);
+
+                assert_eq!(prop_fulfilled, false, "Failed at philosphers number {i}.");
+            }
+        }
+    }
+
+    #[test]
+    fn test_inv_philosophers_fixed() {
+        for i in (3 .. 13) {
+            let (ts, props, _) = gntmc::parse_gntmc_file(&format!("./tests/philosophers/philosophers-dl.{i}.gntmc"));
+            for prop in props.iter() {
+                let prop_fulfilled = bfs_invariant_checking(&ts, prop);
+
+                assert_eq!(prop_fulfilled, true, "Failed at philosphers number {i}.");
+            }
+        }
+    }
 }
