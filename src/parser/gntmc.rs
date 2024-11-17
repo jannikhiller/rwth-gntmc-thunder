@@ -184,18 +184,19 @@ fn map_formula(form: &InputPropositionalFormula) -> FormulaTreeNode<String> {
     }
 }
 
-fn build_formula(props: Vec<InputProperties>) -> Vec<Property<String>> {
-    props.iter().map(|p| Property::new(
-        (*p).name.clone(),
-        // TODO currently we only support invariants; later this has to be extended
-        match p.kind {
-            InputPropertyKind::Invariant(_) => PropertyType::Invariant,
-            _ => panic!("Unsupported property type: {:?}", p.kind)
-        },
-        match &p.kind {
-            InputPropertyKind::Invariant(form) => map_formula(form)
-        })
-    ).collect()
+fn build_formula(props: Vec<InputProperties>) -> (Vec<Property<String>>, Vec<Option<bool>>) {
+    props.iter().map(|p| {
+        return (Property::new(
+            (*p).name.clone(),
+            // TODO currently we only support invariants; later this has to be extended
+            match p.kind {
+                InputPropertyKind::Invariant(_) => PropertyType::Invariant,
+                _ => panic!("Unsupported property type: {:?}", p.kind)
+            },
+            match &p.kind {
+                InputPropertyKind::Invariant(form) => map_formula(form)
+            }), p.is_true)
+    }).collect()
 }
 
 
@@ -210,7 +211,7 @@ fn build_formula(props: Vec<InputProperties>) -> Vec<Property<String>> {
 ///
 /// # Panics
 /// If an error during the parsing of the file or the mapping afterward occurs.
-pub fn parse_gntmc_file(path: &str) -> (TransitionSystem, Vec<Property<String>>) {
+pub fn parse_gntmc_file(path: &str) -> (TransitionSystem, Vec<Property<String>>, Vec<Option<bool>>) {
     if !path.ends_with(".gntmc") {
         panic!("Entered file path does not point to a gntmc file.");
     }
@@ -219,5 +220,5 @@ pub fn parse_gntmc_file(path: &str) -> (TransitionSystem, Vec<Property<String>>)
     let ts = build_ts(input.lts);
     let properties = build_formula(input.properties);
 
-    (ts, properties)
+    (ts, properties.0, properties.1)
 }
