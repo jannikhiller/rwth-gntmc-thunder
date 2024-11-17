@@ -1,7 +1,7 @@
 use crate::common::sparse_matrix::*;
+use crate::parser::property::{Property, PropertyType};
 use bit_vec::BitVec;
 use std::collections::HashMap;
-use crate::parser::property::{Property, PropertyType};
 
 /// Represents a transition system with states, transitions, and labels.
 ///
