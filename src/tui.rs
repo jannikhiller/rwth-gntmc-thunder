@@ -63,6 +63,11 @@ pub fn run() {
         );
         total_model_checking_time += post_checking_time - pre_checking_time;
         print!("Result for property {i}: {:?}\n", result.is_ok());
+        if result.is_err() {
+            let (path, trace) = result.err().unwrap();
+            println!("\tFound following path as counterexample: {:?}", path);
+            println!("\tCorresponding trace: {:?}", trace);
+        }
     }
     info!(
         "Checked all properties. Total time {}s",
