@@ -203,6 +203,8 @@ impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
         let mut col_indexes = Vec::with_capacity(entries.len());
         let mut row_offsets = vec![0; num_rows + 1];
         let default_value = ValueType::default();
+        let mut prev_col = 0;
+        let mut is_new_row = true;
 
         for chunk in entries.chunk_by(|&(r0, _, _), &(r1, _, _)| r0 == r1) {
             for &(row_index, col_index, value) in chunk {
@@ -212,10 +214,8 @@ impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
                         (row_index, col_index)
                     );
                 }
-                if col_indexes.len() > row_offsets[row_index]
-                    && *col_indexes.last().unwrap() == col_index
-                {
-                    panic!("Found multiple elements with the same coordinates.");
+                if !is_new_row && prev_col == col_index {
+                    panic!("Found multiple elements with the same coordinates: ({row_index}, {col_index})");
                 }
                 if value == default_value {
                     continue;
@@ -223,7 +223,11 @@ impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
                 values.push(value);
                 col_indexes.push(col_index);
                 row_offsets[row_index + 1] += 1;
+
+                prev_col = col_index;
+                is_new_row = false;
             }
+            is_new_row = true;
         }
 
         // Now row_offsets only contains the length of each row. If we do a cumulative sum on it,
@@ -359,29 +363,29 @@ mod tests {
         assert!(matrix.get(0, 5).is_err()); // Column index 5 is out of bounds
     }
 
-    // #[test]
-    // fn test_sparse_matrix_from_2d_vec() {
-    //     let input_vec = vec![vec![0, 1, 3], vec![0, 0, 0], vec![-1, 100, 1]];
-    //     let m = SparseMatrix::from_2d_vec(&input_vec);
-    //     assert_eq!(m.values, vec![1, 3, -1, 100, 1]);
-    //     assert_eq!(m.col_indexes, vec![1, 2, 0, 1, 2]);
-    //     assert_eq!(m.row_offsets, vec![0, 2, 2, 5]);
-    //     assert_eq!(m.cols, 3);
-    //     assert_eq!(m.default_value, 0);
-    //     assert_eq!(m[(0, 0)], 0);
-    //     assert_eq!(m[(2, 1)], 100);
-    //     let result = std::panic::catch_unwind(|| {
-    //         SparseMatrix::from_2d_vec(&vec![vec![1, 2, 3], vec![1]]);
-    //     });
-    //     assert!(result.is_err());
-    // 
-    //     let input_vec: Vec<Vec<u32>> = vec![vec![], vec![]];
-    //     let m = SparseMatrix::from_2d_vec(&input_vec);
-    //     assert_eq!(m.values, vec![]);
-    //     assert_eq!(m.col_indexes, vec![]);
-    //     assert_eq!(m.row_offsets, vec![0, 0, 0]);
-    //     assert_eq!(m.cols, 0);
-    // }
+    #[test]
+    fn test_sparse_matrix_from_2d_vec() {
+        let input_vec = vec![vec![0, 1, 3], vec![0, 0, 0], vec![-1, 100, 1]];
+        let m = SparseMatrix::from_2d_vec(&input_vec);
+        assert_eq!(m.values, vec![1, 3, -1, 100, 1]);
+        assert_eq!(m.col_indexes, vec![1, 2, 0, 1, 2]);
+        assert_eq!(m.row_offsets, vec![0, 2, 2, 5]);
+        assert_eq!(m.cols, 3);
+        assert_eq!(m.default_value, 0);
+        assert_eq!(m[(0, 0)], 0);
+        assert_eq!(m[(2, 1)], 100);
+        let result = std::panic::catch_unwind(|| {
+            SparseMatrix::from_2d_vec(&vec![vec![1, 2, 3], vec![1]]);
+        });
+        assert!(result.is_err());
+
+        let input_vec: Vec<Vec<u32>> = vec![vec![], vec![]];
+        let m = SparseMatrix::from_2d_vec(&input_vec);
+        assert_eq!(m.values, Vec::<u32>::new());
+        assert_eq!(m.col_indexes, Vec::<usize>::new());
+        assert_eq!(m.row_offsets, vec![0, 0, 0]);
+        assert_eq!(m.cols, 0);
+    }
 
     #[test]
     fn test_from_list_of_entries() {
@@ -407,6 +411,37 @@ mod tests {
             SparseMatrix::from_list_of_entries(2, 2, &entries);
         });
         assert!(result.is_err());
+
+        let entries = vec![
+            (0, 6, true),
+            (0, 9, true),
+            (0, 10, true),
+            (1, 3, true),
+            (1, 4, true),
+            (1, 9, true),
+            (3, 5, true),
+            (3, 12, true),
+            (4, 2, true),
+            (4, 12, true),
+            (5, 0, true),
+            (5, 1, true),
+            (5, 13, true),
+            (6, 2, true),
+            (6, 11, true),
+            (7, 5, true),
+            (7, 11, true),
+            (8, 1, true),
+            (9, 2, true),
+            (9, 8, true),
+            (10, 5, true),
+            (10, 8, true),
+            (11, 0, true),
+            (12, 13, true),
+            (13, 4, true),
+            (13, 6, true),
+            (13, 7, true),
+        ];
+        SparseMatrix::from_list_of_entries(14, 14, &entries);
     }
 
     #[test]
