@@ -4,6 +4,8 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
+use log::*;
+
 use crate::common::sparse_matrix::SparseMatrix;
 use crate::common::transition_system::*;
 use crate::parser::property::*;
@@ -87,6 +89,7 @@ fn build_ts(input: InputTs) -> TransitionSystem {
 
     let last_state = input.states.len() - 1;
     let num_states = last_state + 1;
+
     let tmatrix = SparseMatrix::from_list_of_entries(
         num_states,
         num_states,
