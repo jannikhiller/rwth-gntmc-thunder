@@ -56,7 +56,7 @@ pub fn bfs_invariant_checking(transition_system: TransitionSystem, property: Pro
 ///
 /// # Returns
 /// A Vec<String> for the given AP-BitVec.
-pub(crate) fn bit_vec_to_ap_strings(transition_system: &TransitionSystem, label: &BitVec) -> Vec<String> {
+pub fn bit_vec_to_ap_strings(transition_system: &TransitionSystem, label: &BitVec) -> Vec<String> {
     // get all ap names
     let ap_names = transition_system.get_ap();
 
