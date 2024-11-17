@@ -47,8 +47,8 @@ pub fn run() {
         "Done. Model building took {}s",
         (post_parsing_time - pre_parsing_time).as_secs_f64()
     );
-    println!("Meta information of model:\n\tnumber of states: {:?}\n\tnumber of transitions: {:?}\n\tinitial states: {:?}\n\ttransitions: {:?}",
-        ts.get_num_states(), 0, ts.get_initial_states(), [(0, 0, 0)]
+    println!("Meta information of model:\n\tnumber of states: {:?}\n\tnumber of transitions: {:?}\n\tnumber of initial states: {:?}",
+        ts.get_num_states(), 0/*FIXME*/, ts.get_initial_states().len()
     );
     let mut total_model_checking_time = std::time::Duration::new(0, 0);
 
