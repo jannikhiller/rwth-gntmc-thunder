@@ -11,7 +11,7 @@ use crate::parser::property::Property;
 /// # Returns
 /// A boolean over the given Transition System and property.
 pub fn bfs_invariant_checking(transition_system: TransitionSystem, property: Property<String> )
-    -> Result<bool, Vec<Vec<String>>> {
+    -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
     let mut visited = HashSet::new();   // visited states
     let mut queue = VecDeque::new();  // states we are going to visit
     let mut visited_labels: HashSet<BitVec> = HashSet::new(); // only accepted labels
@@ -73,8 +73,9 @@ fn reconstruct_path(
     ts: &TransitionSystem,
     came_from: &HashMap<usize, usize>,
     end_state: usize
-) -> Vec<Vec<String>> {
+) -> (Vec<Vec<String>>, Vec<usize>) {
     let mut path = Vec::new();
+    let mut states = Vec::new();
     let mut current = end_state;
 
     // push label of last state
@@ -82,6 +83,7 @@ fn reconstruct_path(
         ts,
         ts.get_state_label(current)
     ));
+    states.push(current);
 
     // reconstruct path backwards
     while let Some(&prev) = came_from.get(&current) {
@@ -89,12 +91,15 @@ fn reconstruct_path(
             ts,
             ts.get_state_label(prev)
         ));
+        states.push(prev);
         current = prev;
     }
 
-    // reverse path, as we have build it up from behind
+    // reverse path, as we have built it up from behind
     path.reverse();
-    path
+    states.reverse();
+
+    (path, states)
 }
 
 #[cfg(test)]
