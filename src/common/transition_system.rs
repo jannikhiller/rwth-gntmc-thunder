@@ -91,6 +91,10 @@ impl TransitionSystem {
         &self.state_labels[state]
     }
 
+    pub fn get_num_transitions(&self) -> usize {
+        self.transition_matrix.get_num_values()
+    }
+
     /// Retrieves the list of states that have a given label.
     ///
     /// # Parameters
@@ -282,5 +286,10 @@ mod tests {
             ts.get_ap(),
             &vec!["a".to_string(), "b".to_string(), "c".to_string()]
         );
+    }
+    #[test]
+    fn test_get_num_transitions() {
+        let ts = create_test_transition_system();
+        assert_eq!(ts.get_num_transitions(), 3);
     }
 }
