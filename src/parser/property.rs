@@ -1,5 +1,3 @@
-use log::*;
-
 /// A tree structure representing a property with logical expressions.
 ///
 /// The `Property` contains a root node (`FormulaTreeNode`), a type of property
@@ -10,6 +8,7 @@ pub struct Property<ValueType> {
     /// The type of property represented by this tree.
     property_type: PropertyType,
     /// The name of the property.
+    #[allow(dead_code)]
     name: String,
 }
 

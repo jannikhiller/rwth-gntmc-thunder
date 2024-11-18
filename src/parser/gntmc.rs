@@ -1,10 +1,8 @@
 use bit_vec::BitVec;
 use serde::Deserialize;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-
-use log::*;
 
 use crate::common::sparse_matrix::SparseMatrix;
 use crate::common::transition_system::*;
@@ -42,11 +40,13 @@ struct InputProperties {
     #[serde(flatten)]
     kind: InputPropertyKind,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[allow(dead_code)]
     pub is_true: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
 struct InputJSON {
+    #[allow(dead_code)]
     name: String,
     lts: InputTs,
     properties: Vec<InputProperties>,
@@ -123,10 +123,9 @@ fn build_ts(input: InputTs) -> TransitionSystem {
         })
         .unwrap()
         .iter()
-        .collect::<HashSet<_>>()
-        .iter()
-        .map(|s| s.clone().clone())
+        .map(|s| s.clone())
         .collect::<Vec<_>>();
+
     let state_labels: Vec<BitVec> = (0..num_states)
         .map(|state| {
             let mut bv = BitVec::from_elem(atomic_props.len(), false);
@@ -138,7 +137,7 @@ fn build_ts(input: InputTs) -> TransitionSystem {
                 .map(|s| {
                     atomic_props
                         .iter()
-                        .position(|a| *a == *s)
+                        .position(|a| a == s)
                         .expect(&format!("State {:?} has no label", s))
                 })
                 .for_each(|i| bv.set(i, true));
@@ -233,9 +232,8 @@ fn build_formula(props: Vec<InputProperties>) -> Vec<Property<String>> {
             Property::new(
                 (*p).name.clone(),
                 // TODO currently we only support invariants; later this has to be extended
-                match p.kind {
+                match &p.kind {
                     InputPropertyKind::Invariant(_) => PropertyType::Invariant,
-                    _ => panic!("Unsupported property type: {:?}", p.kind),
                 },
                 match &p.kind {
                     InputPropertyKind::Invariant(form) => map_formula(form),
