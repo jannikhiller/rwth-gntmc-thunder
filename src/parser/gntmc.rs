@@ -68,7 +68,7 @@ fn parse_file(path: &str) -> InputJSON {
 
     trace!("Done.");
     trace!("Mapping...");
-    
+
     let input: InputJSON = serde_json::from_str(&*input_string).expect(&format!(
         "Could not parse file {}. Are you using the correct format?\n\t",
         path
@@ -241,16 +241,20 @@ fn build_formula(props: Vec<InputProperties>) -> (Vec<Property<String>>, Vec<Opt
         .iter()
         .map(|p| {
             trace!("Found property {:?} of kind {:?}.", p.name, p.kind);
-            return (Property::new(
-                (*p).name.clone(),
-                // TODO currently we only support invariants; later this has to be extended
-                match p.kind {
-                    InputPropertyKind::Invariant(_) => PropertyType::Invariant,
-                    _ => panic!("Unsupported property type: {:?}", p.kind)
-                },
-                match &p.kind {
-                    InputPropertyKind::Invariant(form) => map_formula(form)
-                }), p.is_true)
+            return (
+                Property::new(
+                    (*p).name.clone(),
+                    // TODO currently we only support invariants; later this has to be extended
+                    match p.kind {
+                        InputPropertyKind::Invariant(_) => PropertyType::Invariant,
+                        _ => panic!("Unsupported property type: {:?}", p.kind),
+                    },
+                    match &p.kind {
+                        InputPropertyKind::Invariant(form) => map_formula(form),
+                    },
+                ),
+                p.is_true,
+            );
         })
         .collect()
 }
@@ -266,7 +270,9 @@ fn build_formula(props: Vec<InputProperties>) -> (Vec<Property<String>>, Vec<Opt
 ///
 /// # Panics
 /// If an error during the parsing of the file or the mapping afterward occurs.
-pub fn parse_gntmc_file(path: &str) -> (TransitionSystem, Vec<Property<String>>, Vec<Option<bool>>) {
+pub fn parse_gntmc_file(
+    path: &str,
+) -> (TransitionSystem, Vec<Property<String>>, Vec<Option<bool>>) {
     if !path.ends_with(".gntmc") {
         panic!("Entered file path does not point to a gntmc file.");
     }

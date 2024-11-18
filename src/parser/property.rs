@@ -55,7 +55,11 @@ impl Property<String> {
     /// # Panics
     /// - If nodes required for the evaluation are missing in the tree.
     pub(crate) fn evaluate(&self, labels: &Vec<String>) -> bool {
-        trace!("Evaluating property {:?} of kind {:?}", self.name, self.property_type);
+        trace!(
+            "Evaluating property {:?} of kind {:?}",
+            self.name,
+            self.property_type
+        );
         match self.property_type {
             PropertyType::Invariant => self.root.evaluate(labels),
         }

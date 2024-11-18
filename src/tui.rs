@@ -62,7 +62,11 @@ pub fn run() {
             (pre_checking_time - post_checking_time).as_secs_f64()
         );
         total_model_checking_time += post_checking_time - pre_checking_time;
-        println!("Result for property {i}: {:?}: {:?}", prop.name, result.is_ok());
+        println!(
+            "Result for property {i}: {:?}: {:?}",
+            prop.name,
+            result.is_ok()
+        );
         if result.is_err() {
             let (path, trace) = result.err().unwrap();
             println!("\tFound following path as counterexample: {:?}", path);

@@ -1,8 +1,8 @@
-use std::collections::{HashSet, HashMap, VecDeque};
-use bit_vec::BitVec;
-use log::trace;
 use crate::common::transition_system::TransitionSystem;
 use crate::parser::property::Property;
+use bit_vec::BitVec;
+use log::trace;
+use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Returns a boolean over the given Transition System and property.
 ///
@@ -18,7 +18,7 @@ pub fn bfs_invariant_checking(
     let mut visited = HashSet::new(); // visited states
     let mut queue = VecDeque::new(); // states we are going to visit
     let mut visited_labels: HashSet<BitVec> = HashSet::new(); // only accepted labels
-    let mut came_from: HashMap<usize, usize> = HashMap::new();  // save predecessor
+    let mut came_from: HashMap<usize, usize> = HashMap::new(); // save predecessor
 
     // add all initial states
     for &initial_state in transition_system.get_initial_states() {
@@ -38,9 +38,13 @@ pub fn bfs_invariant_checking(
         trace!("Label has been visited: {:?}", labels_been_visited);
         // else check if the current label is correct
         if !labels_been_visited {
-            if !property.evaluate(&string_labels_of_current){
+            if !property.evaluate(&string_labels_of_current) {
                 trace!("Property is violated ... aborting.");
-                return Err(reconstruct_path(&transition_system, &came_from, current_state)); //if property doesn't hold, return the path
+                return Err(reconstruct_path(
+                    &transition_system,
+                    &came_from,
+                    current_state,
+                )); //if property doesn't hold, return the path
             }
             trace!("Property fulfilled ... continue.");
             visited_labels.insert(current_bit_label.clone());
@@ -52,7 +56,7 @@ pub fn bfs_invariant_checking(
             if !visited.contains(&next_state) {
                 visited.insert(next_state);
                 queue.push_back(next_state);
-                came_from.insert(next_state, current_state);  // save predecessor
+                came_from.insert(next_state, current_state); // save predecessor
             }
         }
     }
@@ -83,25 +87,19 @@ pub fn bit_vec_to_ap_strings(transition_system: &TransitionSystem, label: &BitVe
 fn reconstruct_path(
     ts: &TransitionSystem,
     came_from: &HashMap<usize, usize>,
-    end_state: usize
+    end_state: usize,
 ) -> (Vec<Vec<String>>, Vec<usize>) {
     let mut path = Vec::new();
     let mut states = Vec::new();
     let mut current = end_state;
 
     // push label of last state
-    path.push(bit_vec_to_ap_strings(
-        ts,
-        ts.get_state_label(current)
-    ));
+    path.push(bit_vec_to_ap_strings(ts, ts.get_state_label(current)));
     states.push(current);
 
     // reconstruct path backwards
     while let Some(&prev) = came_from.get(&current) {
-        path.push(bit_vec_to_ap_strings(
-            ts,
-            ts.get_state_label(prev)
-        ));
+        path.push(bit_vec_to_ap_strings(ts, ts.get_state_label(prev)));
         states.push(prev);
         current = prev;
     }
@@ -115,12 +113,12 @@ fn reconstruct_path(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-    use bit_vec::BitVec;
     use crate::checker::invariant::bfs_invariant_checking;
     use crate::common::sparse_matrix::SparseMatrix;
     use crate::common::transition_system::TransitionSystem;
     use crate::parser::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+    use bit_vec::BitVec;
+    use std::collections::HashMap;
 
     fn create_test_transition_system() -> TransitionSystem {
         let transitions = vec![
@@ -216,7 +214,10 @@ mod tests {
             FormulaTreeNodeType::ATOMIC,
         );
         let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant, root);
-        assert_eq!(bfs_invariant_checking(&ts, &property).err().is_none(), false);
+        assert_eq!(
+            bfs_invariant_checking(&ts, &property).err().is_none(),
+            false
+        );
 
         //for printing the counter example
         //println!("{:?}", bfs_invariant_checking(ts, property).err());
