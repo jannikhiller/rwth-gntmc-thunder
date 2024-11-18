@@ -33,7 +33,7 @@ mod tests {
     use thunder::checker::invariant::bfs_invariant_checking;
     use thunder::parser::gntmc;
 
-    generate_res_test!(test_inv_1, /*test_inv_2,*/ test_inv_3, test_inv_4);
+    generate_res_test!(test_inv_1, test_inv_2, test_inv_3, test_inv_4);
 
     #[test]
     fn test_inv_philosophers_broken() {
