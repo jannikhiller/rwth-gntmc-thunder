@@ -45,7 +45,6 @@ mod tests {
         }
     }
 
-    /* fails currently because of faulty test files
     #[test]
     fn test_inv_philosophers_fixed() {
         for i in 3..13 {
@@ -55,5 +54,4 @@ mod tests {
             );
         }
     }
-    */
 }
