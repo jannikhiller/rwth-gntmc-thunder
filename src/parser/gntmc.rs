@@ -71,12 +71,14 @@ fn parse_file(path: &str) -> InputJSON {
     trace!("Done.");
     trace!("Mapping...");
 
-    let input: InputJSON = serde_json::from_str(&*input_string).expect(&format!(
-        "Could not parse file {}. Are you using the correct format?\n\t",
-        path
-    ));
-
-    input
+    if let Ok(input) = serde_json::from_str(&*input_string) {
+        input
+    } else {
+        panic!(
+            "Could not parse file {}. Are you using the correct format?\n\t",
+            path
+        );
+    }
 }
 
 fn build_ts(input: InputTs) -> TransitionSystem {
