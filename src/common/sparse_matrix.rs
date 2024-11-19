@@ -116,6 +116,12 @@ impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
         }
     }
 
+    /// # Returns
+    /// The number of non-default values in the matrix.
+    pub fn get_num_values(&self) -> usize {
+        self.values.len()
+    }
+
     /// Constructs a sparse matrix from a 2D vector.
     ///
     /// # Parameters
