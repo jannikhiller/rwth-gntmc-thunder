@@ -41,7 +41,7 @@ struct InputProperties {
     name: String,
     #[serde(flatten)]
     kind: InputPropertyKind,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "is_none")]
     #[allow(dead_code)]
     pub is_true: Option<bool>,
 }
@@ -115,6 +115,7 @@ fn build_ts(input: InputTs) -> TransitionSystem {
             .map(|(s1, _ac, s2)| (*s2 as usize, *s1 as usize, true))
             .collect::<Vec<_>>(),
     );
+
     trace!("Built reverse transition matrix.");
     let initial_states = input
         .initial_states
@@ -122,40 +123,35 @@ fn build_ts(input: InputTs) -> TransitionSystem {
         .map(|&i| i as usize)
         .collect::<Vec<_>>();
     trace!("Built initial state info.");
-    let atomic_props = input
+
+    let atomic_props: Vec<_> = input
         .labelling
         .values()
-        .cloned()
-        .reduce(|mut acc, mut s| {
-            acc.append(&mut s);
-            acc
-        })
-        .unwrap()
-        .iter()
+        .flatten()
         .collect::<HashSet<_>>()
-        .iter()
-        .map(|s| s.clone().clone())
-        .collect::<Vec<_>>();
-    trace!("Built atomic propositions.");
-    let state_labels: Vec<BitVec> = (0..num_states)
-        .map(|state| {
-            let mut bv = BitVec::from_elem(atomic_props.len(), false);
-            let lifehack = Vec::new();
-            let labels = input.labelling.get(&(state as u64)).unwrap_or(&lifehack);
-
-            labels
-                .iter()
-                .map(|s| {
-                    atomic_props
-                        .iter()
-                        .position(|a| a == s)
-                        .expect(&format!("State {:?} has no label", s))
-                })
-                .for_each(|i| bv.set(i, true));
-
-            bv
-        })
+        .into_iter()
+        .cloned()
         .collect();
+
+    trace!("Built atomic propositions.");
+
+    let get_state_label = |state: usize| -> BitVec {
+        static EMPTY_VEC: Vec<String> = vec![];
+        let labels = input.labelling.get(&(state as u64)).unwrap_or(&EMPTY_VEC);
+
+        let mut bv = BitVec::from_elem(atomic_props.len(), false);
+        for label in labels {
+            let i = atomic_props
+                .iter()
+                .position(|a| a == label)
+                .expect(&format!("State {:?} has no label", state));
+            bv.set(i, true);
+        }
+        bv
+    };
+
+    let state_labels: Vec<BitVec> = (0..num_states).map(get_state_label).collect();
+
     trace!("Built state labels.");
     let label_states = HashMap::from_iter((0..atomic_props.len() + 1).map(|label_subset| {
         let label = BitVec::from_bytes(&label_subset.to_ne_bytes());
@@ -181,16 +177,13 @@ fn build_ts(input: InputTs) -> TransitionSystem {
 
 fn map_formula(form: &InputPropositionalFormula) -> FormulaTreeNode<String> {
     match form {
-        InputPropositionalFormula::Atom(ref f) => FormulaTreeNode::new(
-            Option::None,
-            Option::None,
-            Option::Some(f.to_string()),
-            FormulaTreeNodeType::ATOMIC,
-        ),
+        InputPropositionalFormula::Atom(ref f) => {
+            FormulaTreeNode::new(None, None, Some(f.to_string()), FormulaTreeNodeType::ATOMIC)
+        }
         InputPropositionalFormula::Not(ref f) => FormulaTreeNode::new(
-            Option::Some(Box::from(map_formula(f))),
-            Option::None,
-            Option::None,
+            Some(Box::from(map_formula(f))),
+            None,
+            None,
             FormulaTreeNodeType::NOT,
         ),
         InputPropositionalFormula::And(ref f) => {
@@ -198,18 +191,18 @@ fn map_formula(form: &InputPropositionalFormula) -> FormulaTreeNode<String> {
                 panic!("Not enough elements in formula")
             } else if f.len() == 2 {
                 FormulaTreeNode::new(
-                    Option::Some(Box::from(map_formula(f.first().unwrap()))),
-                    Option::Some(Box::from(map_formula(f.last().unwrap()))),
-                    Option::None,
+                    Some(Box::from(map_formula(f.first().unwrap()))),
+                    Some(Box::from(map_formula(f.last().unwrap()))),
+                    None,
                     FormulaTreeNodeType::AND,
                 )
             } else {
                 FormulaTreeNode::new(
-                    Option::Some(Box::from(map_formula(f.first().unwrap()))),
-                    Option::Some(Box::from(map_formula(&InputPropositionalFormula::And(
+                    Some(Box::from(map_formula(f.first().unwrap()))),
+                    Some(Box::from(map_formula(&InputPropositionalFormula::And(
                         f[1..].to_vec(),
                     )))),
-                    Option::None,
+                    None,
                     FormulaTreeNodeType::AND,
                 )
             }
@@ -219,18 +212,18 @@ fn map_formula(form: &InputPropositionalFormula) -> FormulaTreeNode<String> {
                 panic!("Not enough elements in formula")
             } else if f.len() == 2 {
                 FormulaTreeNode::new(
-                    Option::Some(Box::from(map_formula(f.first().unwrap()))),
-                    Option::Some(Box::from(map_formula(f.last().unwrap()))),
-                    Option::None,
+                    Some(Box::from(map_formula(f.first().unwrap()))),
+                    Some(Box::from(map_formula(f.last().unwrap()))),
+                    None,
                     FormulaTreeNodeType::OR,
                 )
             } else {
                 FormulaTreeNode::new(
-                    Option::Some(Box::from(map_formula(f.first().unwrap()))),
-                    Option::Some(Box::from(map_formula(&InputPropositionalFormula::Or(
+                    Some(Box::from(map_formula(f.first().unwrap()))),
+                    Some(Box::from(map_formula(&InputPropositionalFormula::Or(
                         f[1..].to_vec(),
                     )))),
-                    Option::None,
+                    None,
                     FormulaTreeNodeType::OR,
                 )
             }
@@ -243,20 +236,19 @@ fn build_formula(props: Vec<InputProperties>) -> (Vec<Property<String>>, Vec<Opt
         .iter()
         .map(|p| {
             trace!("Found property {:?} of kind {:?}.", p.name, p.kind);
-            return (
+            (
                 Property::new(
                     (*p).name.clone(),
                     // TODO currently we only support invariants; later this has to be extended
                     match p.kind {
                         InputPropertyKind::Invariant(_) => PropertyType::Invariant,
-                        _ => panic!("Unsupported property type: {:?}", p.kind),
                     },
                     match &p.kind {
                         InputPropertyKind::Invariant(form) => map_formula(form),
                     },
                 ),
                 p.is_true,
-            );
+            )
         })
         .collect()
 }
