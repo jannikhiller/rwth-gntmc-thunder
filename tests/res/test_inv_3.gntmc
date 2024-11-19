@@ -1,0 +1,117 @@
+{
+  "name": "kleines_TS",
+  "lts": {
+    "states": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "actions": [
+      0,
+      1
+    ],
+    "transitions": [
+      [
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        1,
+        3
+      ],
+      [
+        1,
+        1,
+        0
+      ],
+      [
+        2,
+        1,
+        3
+      ],
+      [
+        2,
+        0,
+        1
+      ],
+      [
+        3,
+        1,
+        1
+      ],
+      [
+        3,
+        0,
+        2
+      ]
+    ],
+    "initial_states": [
+      0
+    ],
+    "labelling": {
+      "0": [
+        "a",
+        "c"
+      ],
+      "1": [
+        "a",
+        "c"
+      ],
+      "2": [
+        "a",
+        "b"
+      ],
+      "3": [
+        "a",
+        "b"
+      ]
+    }
+  },
+  "properties": [
+    {
+      "name": "only a",
+      "is_true": true,
+      "invariant": {
+        "atom": "a"
+      }
+    },
+    {
+      "name": "a and b or a and c",
+      "is_true": true,
+      "invariant": {
+        "or": [
+          {
+            "and": [
+              {
+                "atom": "a"
+              },
+              {
+                "atom": "b"
+              }
+            ]
+          },
+          {
+            "and": [
+              {
+                "atom": "a"
+              },
+              {
+                "atom": "c"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "only c",
+      "is_true": false,
+      "invariant": {
+       "atom": "c"
+      }
+    }
+  ]
+}

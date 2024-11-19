@@ -1,5 +1,5 @@
 {
-  "name": "examples/dining-philosophers/philosophers-dl/philosophers-dl.3.jani",
+  "name": "examples/dining-philosophers/philosophers-dlfix/philosophers-dlfix.3.jani",
   "lts": {
     "states": [
       0,
@@ -13,238 +13,200 @@
       8,
       9,
       10,
-      11,
-      12,
-      13
+      11
     ],
     "actions": [
       0
     ],
     "transitions": [
       [
-        5,
-        0,
-        0
-      ],
-      [
-        5,
-        0,
-        13
-      ],
-      [
-        5,
-        0,
-        1
-      ],
-      [
-        13,
+        9,
         0,
         6
       ],
       [
-        13,
+        9,
+        0,
+        8
+      ],
+      [
+        9,
         0,
         7
       ],
       [
-        13,
+        7,
         0,
-        4
+        0
       ],
       [
         7,
-        0,
-        11
-      ],
-      [
-        7,
-        0,
-        5
-      ],
-      [
-        6,
-        0,
-        11
-      ],
-      [
-        6,
         0,
         2
       ],
       [
-        1,
-        0,
-        9
-      ],
-      [
-        1,
-        0,
-        4
-      ],
-      [
-        1,
-        0,
-        3
-      ],
-      [
-        0,
+        7,
         0,
         10
       ],
       [
         0,
         0,
-        6
+        3
       ],
       [
         0,
+        0,
+        1
+      ],
+      [
+        2,
+        0,
+        5
+      ],
+      [
+        3,
+        0,
+        7
+      ],
+      [
+        6,
+        0,
+        11
+      ],
+      [
+        6,
+        0,
+        0
+      ],
+      [
+        8,
+        0,
+        4
+      ],
+      [
+        8,
+        0,
+        2
+      ],
+      [
+        10,
+        0,
+        1
+      ],
+      [
+        10,
+        0,
+        5
+      ],
+      [
+        10,
+        0,
+        9
+      ],
+      [
+        4,
+        0,
+        9
+      ],
+      [
+        1,
+        0,
+        6
+      ],
+      [
+        5,
+        0,
+        8
+      ],
+      [
+        11,
         0,
         9
       ],
       [
         11,
         0,
-        0
-      ],
-      [
-        4,
-        0,
-        2
-      ],
-      [
-        4,
-        0,
-        12
-      ],
-      [
-        9,
-        0,
-        8
-      ],
-      [
-        9,
-        0,
-        2
-      ],
-      [
-        3,
-        0,
-        12
-      ],
-      [
-        3,
-        0,
-        5
-      ],
-      [
-        10,
-        0,
-        5
-      ],
-      [
-        10,
-        0,
-        8
-      ],
-      [
-        12,
-        0,
-        13
-      ],
-      [
-        8,
-        0,
-        1
+        3
       ]
     ],
     "initial_states": [
-      5
+      9
     ],
     "labelling": {
-      "5": [
+      "8": [
         "fork1",
         "think1",
-        "think2",
-        "think3",
-        "fork2",
-        "fork3"
-      ],
-      "12": [
-        "think1",
-        "wait2",
-        "eat3"
-      ],
-      "13": [
-        "fork1",
-        "think1",
-        "wait2",
-        "think3",
-        "fork3"
-      ],
-      "7": [
-        "fork1",
-        "think1",
-        "eat2",
-        "think3"
-      ],
-      "2": [
-        "wait1",
-        "wait2",
-        "wait3"
-      ],
-      "10": [
-        "eat1",
-        "think2",
-        "think3",
-        "fork3"
-      ],
-      "0": [
-        "wait1",
-        "think2",
-        "think3",
-        "fork2",
-        "fork3"
-      ],
-      "6": [
-        "wait1",
         "wait2",
         "think3",
         "fork3"
       ],
       "9": [
+        "fork1",
+        "think1",
+        "think2",
+        "think3",
+        "fork2",
+        "fork3"
+      ],
+      "0": [
+        "fork1",
         "wait1",
+        "think2",
+        "wait3"
+      ],
+      "7": [
+        "fork1",
+        "think1",
         "think2",
         "wait3",
         "fork2"
       ],
-      "3": [
+      "6": [
+        "fork1",
+        "wait1",
+        "think2",
+        "think3",
+        "fork3"
+      ],
+      "5": [
+        "think1",
+        "wait2",
+        "eat3"
+      ],
+      "1": [
+        "wait1",
+        "think2",
+        "eat3"
+      ],
+      "10": [
         "think1",
         "think2",
         "eat3",
         "fork2"
       ],
-      "4": [
+      "2": [
         "fork1",
         "think1",
         "wait2",
         "wait3"
       ],
-      "11": [
-        "wait1",
-        "eat2",
-        "think3"
-      ],
-      "1": [
-        "fork1",
-        "think1",
-        "think2",
-        "wait3",
-        "fork2"
-      ],
-      "8": [
+      "3": [
         "eat1",
         "think2",
         "wait3"
+      ],
+      "11": [
+        "eat1",
+        "think2",
+        "think3",
+        "fork3"
+      ],
+      "4": [
+        "fork1",
+        "think1",
+        "eat2",
+        "think3"
       ]
     }
   },
@@ -252,7 +214,7 @@
     {
       "name": "deadlock_free",
       "invariant": {
-        "and": [
+        "or": [
           {
             "not": {
               "atom": "wait1"

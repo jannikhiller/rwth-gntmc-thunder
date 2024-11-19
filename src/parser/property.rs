@@ -1,3 +1,5 @@
+use log::*;
+
 /// A tree structure representing a property with logical expressions.
 ///
 /// The `Property` contains a root node (`FormulaTreeNode`), a type of property
@@ -8,8 +10,7 @@ pub struct Property<ValueType> {
     /// The type of property represented by this tree.
     property_type: PropertyType,
     /// The name of the property.
-    #[allow(dead_code)]
-    name: String,
+    pub name: String,
 }
 
 /// Creates a new `Property` with a given name, property type, and root node.
@@ -54,6 +55,11 @@ impl Property<String> {
     /// # Panics
     /// - If nodes required for the evaluation are missing in the tree.
     pub(crate) fn evaluate(&self, labels: &Vec<String>) -> bool {
+        trace!(
+            "Evaluating property {:?} of kind {:?}",
+            self.name,
+            self.property_type
+        );
         match self.property_type {
             PropertyType::Invariant => self.root.evaluate(labels),
         }
@@ -103,6 +109,7 @@ impl FormulaTreeNode<String> {
     /// # Panics
     /// - If nodes required for the evaluation are missing in the tree.
     fn evaluate(&self, labels: &Vec<String>) -> bool {
+        trace!("Evaluating subformula of type {:?}", self.node_type);
         match self.node_type {
             FormulaTreeNodeType::AND => {
                 if self.left.as_ref().is_none() {
@@ -153,6 +160,7 @@ impl FormulaTreeNode<String> {
 /// Specifies the type of property.
 ///
 /// Currently only supports `Invariant` but can be extended to include other property types.
+#[derive(Debug)]
 pub enum PropertyType {
     Invariant,
 }
@@ -161,6 +169,7 @@ pub enum PropertyType {
 ///
 /// This enum defines the possible logical operations or atomic values that a node can represent,
 /// including `AND`, `OR`, `NOT`, and `ATOMIC`.
+#[derive(Debug)]
 pub enum FormulaTreeNodeType {
     AND,
     OR,

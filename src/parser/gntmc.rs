@@ -1,8 +1,10 @@
 use bit_vec::BitVec;
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+
+use log::*;
 
 use crate::common::sparse_matrix::SparseMatrix;
 use crate::common::transition_system::*;
@@ -57,6 +59,7 @@ fn parse_file(path: &str) -> InputJSON {
     let reader = BufReader::new(file);
     let mut input_string = "".to_string();
 
+    trace!("Reading lines of input file...");
     reader
         .lines()
         .map(|l| l.expect(&format!("Could not read from file {}.\n\t", path)))
@@ -64,6 +67,9 @@ fn parse_file(path: &str) -> InputJSON {
             input_string.push('\n');
             input_string.push_str(&s)
         });
+
+    trace!("Done.");
+    trace!("Mapping...");
 
     let input: InputJSON = serde_json::from_str(&*input_string).expect(&format!(
         "Could not parse file {}. Are you using the correct format?\n\t",
@@ -89,7 +95,7 @@ fn build_ts(input: InputTs) -> TransitionSystem {
 
     let last_state = input.states.len() - 1;
     let num_states = last_state + 1;
-
+    trace!("Built state info.");
     let tmatrix = SparseMatrix::from_list_of_entries(
         num_states,
         num_states,
@@ -99,6 +105,7 @@ fn build_ts(input: InputTs) -> TransitionSystem {
             .map(|(s1, _ac, s2)| (*s1 as usize, *s2 as usize, true))
             .collect::<Vec<_>>(),
     );
+    trace!("Built transition matrix.");
     let reverse_tmatrix = SparseMatrix::from_list_of_entries(
         num_states,
         num_states,
@@ -108,11 +115,13 @@ fn build_ts(input: InputTs) -> TransitionSystem {
             .map(|(s1, _ac, s2)| (*s2 as usize, *s1 as usize, true))
             .collect::<Vec<_>>(),
     );
+    trace!("Built reverse transition matrix.");
     let initial_states = input
         .initial_states
         .iter()
         .map(|&i| i as usize)
         .collect::<Vec<_>>();
+    trace!("Built initial state info.");
     let atomic_props = input
         .labelling
         .values()
@@ -123,9 +132,11 @@ fn build_ts(input: InputTs) -> TransitionSystem {
         })
         .unwrap()
         .iter()
-        .map(|s| s.clone())
+        .collect::<HashSet<_>>()
+        .iter()
+        .map(|s| s.clone().clone())
         .collect::<Vec<_>>();
-
+    trace!("Built atomic propositions.");
     let state_labels: Vec<BitVec> = (0..num_states)
         .map(|state| {
             let mut bv = BitVec::from_elem(atomic_props.len(), false);
@@ -145,6 +156,7 @@ fn build_ts(input: InputTs) -> TransitionSystem {
             bv
         })
         .collect();
+    trace!("Built state labels.");
     let label_states = HashMap::from_iter((0..atomic_props.len() + 1).map(|label_subset| {
         let label = BitVec::from_bytes(&label_subset.to_ne_bytes());
 
@@ -154,6 +166,7 @@ fn build_ts(input: InputTs) -> TransitionSystem {
 
         (label, states)
     }));
+    trace!("Built reverse state label info.");
 
     TransitionSystem::new(
         tmatrix,
@@ -225,20 +238,25 @@ fn map_formula(form: &InputPropositionalFormula) -> FormulaTreeNode<String> {
     }
 }
 
-fn build_formula(props: Vec<InputProperties>) -> Vec<Property<String>> {
+fn build_formula(props: Vec<InputProperties>) -> (Vec<Property<String>>, Vec<Option<bool>>) {
     props
         .iter()
         .map(|p| {
-            Property::new(
-                (*p).name.clone(),
-                // TODO currently we only support invariants; later this has to be extended
-                match &p.kind {
-                    InputPropertyKind::Invariant(_) => PropertyType::Invariant,
-                },
-                match &p.kind {
-                    InputPropertyKind::Invariant(form) => map_formula(form),
-                },
-            )
+            trace!("Found property {:?} of kind {:?}.", p.name, p.kind);
+            return (
+                Property::new(
+                    (*p).name.clone(),
+                    // TODO currently we only support invariants; later this has to be extended
+                    match p.kind {
+                        InputPropertyKind::Invariant(_) => PropertyType::Invariant,
+                        _ => panic!("Unsupported property type: {:?}", p.kind),
+                    },
+                    match &p.kind {
+                        InputPropertyKind::Invariant(form) => map_formula(form),
+                    },
+                ),
+                p.is_true,
+            );
         })
         .collect()
 }
@@ -254,14 +272,22 @@ fn build_formula(props: Vec<InputProperties>) -> Vec<Property<String>> {
 ///
 /// # Panics
 /// If an error during the parsing of the file or the mapping afterward occurs.
-pub fn parse_gntmc_file(path: &str) -> (TransitionSystem, Vec<Property<String>>) {
+pub fn parse_gntmc_file(
+    path: &str,
+) -> (TransitionSystem, Vec<Property<String>>, Vec<Option<bool>>) {
     if !path.ends_with(".gntmc") {
         panic!("Entered file path does not point to a gntmc file.");
     }
 
+    debug!("Parsing file: {:?}...", path);
     let input = parse_file(path);
+    debug!("Done.");
+    debug!("Building TS...");
     let ts = build_ts(input.lts);
+    debug!("Done.");
+    debug!("Parsing Properties...");
     let properties = build_formula(input.properties);
+    debug!("Done. Found {:?} properties in total.", properties.0.len());
 
-    (ts, properties)
+    (ts, properties.0, properties.1)
 }
