@@ -82,15 +82,6 @@ fn parse_file(path: &str) -> InputJSON {
 }
 
 fn build_ts(input: InputTs) -> TransitionSystem {
-    if input.states.len() > usize::MAX {
-        panic!(
-            "Could not build transition system as the number of states ({:?})\
-            exceeds the maximum possible number of states ({:?}).\nIf you are
-            using a 32bit system the limit can be raised by switching to a 64bit system.",
-            input.states.len(),
-            usize::MAX
-        );
-    }
     if input.actions.len() == 0 {
         panic!("Transition systems must have at least one state")
     }
