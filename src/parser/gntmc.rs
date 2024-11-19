@@ -132,7 +132,9 @@ fn build_ts(input: InputTs) -> TransitionSystem {
         })
         .unwrap()
         .iter()
-        .map(|s| s.clone())
+        .collect::<HashSet<_>>()
+        .iter()
+        .map(|s| s.clone().clone())
         .collect::<Vec<_>>();
     trace!("Built atomic propositions.");
     let state_labels: Vec<BitVec> = (0..num_states)
