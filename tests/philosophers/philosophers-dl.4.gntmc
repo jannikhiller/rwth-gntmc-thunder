@@ -744,7 +744,7 @@
     {
       "name": "deadlock_free",
       "invariant": {
-        "and": [
+        "or": [
           {
             "not": {
               "atom": "wait1"
