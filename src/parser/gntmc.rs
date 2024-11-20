@@ -55,14 +55,14 @@ struct InputJSON {
 }
 
 fn parse_file(path: &str) -> InputJSON {
-    let file = File::open(path).expect(&format!("Could not open file {}.\n\t", path));
+    let file = File::open(path).unwrap_or_else(|_| panic!("Could not open file {}.\n\t", path));
     let reader = BufReader::new(file);
     let mut input_string = "".to_string();
 
     trace!("Reading lines of input file...");
     reader
         .lines()
-        .map(|l| l.expect(&format!("Could not read from file {}.\n\t", path)))
+        .map(|l| l.unwrap_or_else(|_| panic!("Could not read from file {}.\n\t", path)))
         .for_each(|s| {
             input_string.push('\n');
             input_string.push_str(&s)
@@ -71,18 +71,16 @@ fn parse_file(path: &str) -> InputJSON {
     trace!("Done.");
     trace!("Mapping...");
 
-    if let Ok(input) = serde_json::from_str(&*input_string) {
-        input
-    } else {
+    serde_json::from_str(&input_string).unwrap_or_else(|_| {
         panic!(
             "Could not parse file {}. Are you using the correct format?\n\t",
             path
         );
-    }
+    })
 }
 
 fn build_ts(input: InputTs) -> TransitionSystem {
-    if input.actions.len() == 0 {
+    if input.actions.is_empty() {
         panic!("Transition systems must have at least one state")
     }
 
@@ -137,7 +135,7 @@ fn build_ts(input: InputTs) -> TransitionSystem {
             let i = atomic_props
                 .iter()
                 .position(|a| a == label)
-                .expect(&format!("State {:?} has no label", state));
+                .unwrap_or_else(|| panic!("State {:?} has no label", state));
             bv.set(i, true);
         }
         bv
@@ -171,56 +169,48 @@ fn build_ts(input: InputTs) -> TransitionSystem {
 fn map_formula(form: &InputPropositionalFormula) -> FormulaTreeNode<String> {
     match form {
         InputPropositionalFormula::Atom(ref f) => {
-            FormulaTreeNode::new(None, None, Some(f.to_string()), FormulaTreeNodeType::ATOMIC)
+            FormulaTreeNode::new(None, None, Some(f.to_string()), FormulaTreeNodeType::Atomic)
         }
         InputPropositionalFormula::Not(ref f) => FormulaTreeNode::new(
             Some(Box::from(map_formula(f))),
             None,
             None,
-            FormulaTreeNodeType::NOT,
+            FormulaTreeNodeType::Not,
         ),
-        InputPropositionalFormula::And(ref f) => {
-            if f.len() < 2 {
-                panic!("Not enough elements in formula")
-            } else if f.len() == 2 {
-                FormulaTreeNode::new(
-                    Some(Box::from(map_formula(f.first().unwrap()))),
-                    Some(Box::from(map_formula(f.last().unwrap()))),
-                    None,
-                    FormulaTreeNodeType::AND,
-                )
-            } else {
-                FormulaTreeNode::new(
-                    Some(Box::from(map_formula(f.first().unwrap()))),
-                    Some(Box::from(map_formula(&InputPropositionalFormula::And(
-                        f[1..].to_vec(),
-                    )))),
-                    None,
-                    FormulaTreeNodeType::AND,
-                )
-            }
-        }
-        InputPropositionalFormula::Or(ref f) => {
-            if f.len() < 2 {
-                panic!("Not enough elements in formula")
-            } else if f.len() == 2 {
-                FormulaTreeNode::new(
-                    Some(Box::from(map_formula(f.first().unwrap()))),
-                    Some(Box::from(map_formula(f.last().unwrap()))),
-                    None,
-                    FormulaTreeNodeType::OR,
-                )
-            } else {
-                FormulaTreeNode::new(
-                    Some(Box::from(map_formula(f.first().unwrap()))),
-                    Some(Box::from(map_formula(&InputPropositionalFormula::Or(
-                        f[1..].to_vec(),
-                    )))),
-                    None,
-                    FormulaTreeNodeType::OR,
-                )
-            }
-        }
+        InputPropositionalFormula::And(ref f) => match f.len() {
+            ..=1 => panic!("Not enough elements in formula"),
+            2 => FormulaTreeNode::new(
+                Some(Box::from(map_formula(f.first().unwrap()))),
+                Some(Box::from(map_formula(f.last().unwrap()))),
+                None,
+                FormulaTreeNodeType::And,
+            ),
+            3.. => FormulaTreeNode::new(
+                Some(Box::from(map_formula(f.first().unwrap()))),
+                Some(Box::from(map_formula(&InputPropositionalFormula::And(
+                    f[1..].to_vec(),
+                )))),
+                None,
+                FormulaTreeNodeType::And,
+            ),
+        },
+        InputPropositionalFormula::Or(ref f) => match f.len() {
+            ..=1 => panic!("Not enough elements in formula"),
+            2 => FormulaTreeNode::new(
+                Some(Box::from(map_formula(f.first().unwrap()))),
+                Some(Box::from(map_formula(f.last().unwrap()))),
+                None,
+                FormulaTreeNodeType::Or,
+            ),
+            3.. => FormulaTreeNode::new(
+                Some(Box::from(map_formula(f.first().unwrap()))),
+                Some(Box::from(map_formula(&InputPropositionalFormula::Or(
+                    f[1..].to_vec(),
+                )))),
+                None,
+                FormulaTreeNodeType::Or,
+            ),
+        },
     }
 }
 
@@ -231,7 +221,7 @@ fn build_formula(props: Vec<InputProperties>) -> (Vec<Property<String>>, Vec<Opt
             trace!("Found property {:?} of kind {:?}.", p.name, p.kind);
             (
                 Property::new(
-                    (*p).name.clone(),
+                    p.name.clone(),
                     // TODO currently we only support invariants; later this has to be extended
                     match p.kind {
                         InputPropertyKind::Invariant(_) => PropertyType::Invariant,

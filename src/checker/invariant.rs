@@ -30,7 +30,7 @@ pub fn bfs_invariant_checking(
     while let Some(current_state) = queue.pop_front() {
         trace!("Visiting state {:?}", current_state);
         let current_bit_label = transition_system.get_state_label(current_state);
-        let string_labels_of_current = bit_vec_to_ap_strings(&transition_system, current_bit_label);
+        let string_labels_of_current = bit_vec_to_ap_strings(transition_system, current_bit_label);
         trace!("Found labels {:?}", string_labels_of_current);
 
         // check if the current label has been already checked
@@ -41,7 +41,7 @@ pub fn bfs_invariant_checking(
             if !property.evaluate(&string_labels_of_current) {
                 trace!("Property is violated ... aborting.");
                 return Err(reconstruct_path(
-                    &transition_system,
+                    transition_system,
                     &came_from,
                     current_state,
                 )); //if property doesn't hold, return the path
@@ -171,31 +171,31 @@ mod tests {
             None,
             None,
             Some("a".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let atomic_b = FormulaTreeNode::new(
             None,
             None,
             Some("b".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let atomic_c = FormulaTreeNode::new(
             None,
             None,
             Some("c".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let or = FormulaTreeNode::new(
             Some(Box::new(atomic_b)),
             Some(Box::new(atomic_c)),
             None,
-            FormulaTreeNodeType::OR,
+            FormulaTreeNodeType::Or,
         );
         let root = FormulaTreeNode::new(
             Some(Box::new(atomic_a)),
             Some(Box::new(or)),
             None,
-            FormulaTreeNodeType::OR,
+            FormulaTreeNodeType::Or,
         );
         let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant, root);
         assert!(bfs_invariant_checking(&ts, &property).is_ok());
@@ -211,7 +211,7 @@ mod tests {
             None,
             None,
             Some("a".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant, root);
         assert_eq!(

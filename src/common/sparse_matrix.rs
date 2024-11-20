@@ -104,6 +104,12 @@ impl<'a, ValueType> Iterator for SparseMatrixRowIter<'a, ValueType> {
     }
 }
 
+impl<ValueType: Default + PartialEq + Copy> Default for SparseMatrix<ValueType> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
     /// Creates a new, empty sparse matrix.
     pub fn new() -> Self {
@@ -256,12 +262,12 @@ impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
 impl<ValueType> SparseMatrix<ValueType> {
     /// Returns the number of rows in the matrix.
     pub fn rows(&self) -> usize {
-        return self.row_offsets.len() - 1;
+        self.row_offsets.len() - 1
     }
 
     /// Returns the number of columns in the matrix.
     pub fn cols(&self) -> usize {
-        return self.cols;
+        self.cols
     }
 
     /// Retrieves a value from the sparse matrix.

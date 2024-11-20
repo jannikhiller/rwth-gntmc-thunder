@@ -111,7 +111,7 @@ impl FormulaTreeNode<String> {
     fn evaluate(&self, labels: &Vec<String>) -> bool {
         trace!("Evaluating subformula of type {:?}", self.node_type);
         match self.node_type {
-            FormulaTreeNodeType::AND => {
+            FormulaTreeNodeType::And => {
                 if self.left.as_ref().is_none() {
                     panic!(
                         "Missing left node when evaluating AND expression! \
@@ -124,10 +124,10 @@ impl FormulaTreeNode<String> {
                     );
                 }
 
-                self.left.as_ref().unwrap().evaluate(&labels)
-                    && self.right.as_ref().unwrap().evaluate(&labels)
+                self.left.as_ref().unwrap().evaluate(labels)
+                    && self.right.as_ref().unwrap().evaluate(labels)
             }
-            FormulaTreeNodeType::OR => {
+            FormulaTreeNodeType::Or => {
                 if self.left.as_ref().is_none() {
                     panic!(
                         "Missing left node when evaluating OR expression! \
@@ -140,10 +140,10 @@ impl FormulaTreeNode<String> {
                     );
                 }
 
-                self.left.as_ref().unwrap().evaluate(&labels)
-                    || self.right.as_ref().unwrap().evaluate(&labels)
+                self.left.as_ref().unwrap().evaluate(labels)
+                    || self.right.as_ref().unwrap().evaluate(labels)
             }
-            FormulaTreeNodeType::NOT => self.left.as_ref().map_or_else(
+            FormulaTreeNodeType::Not => self.left.as_ref().map_or_else(
                 || {
                     panic!(
                         "Missing left node when evaluating NOT expression! \
@@ -152,7 +152,7 @@ impl FormulaTreeNode<String> {
                 },
                 |l| !l.evaluate(labels),
             ),
-            FormulaTreeNodeType::ATOMIC => labels.contains(&self.label.as_ref().unwrap()),
+            FormulaTreeNodeType::Atomic => labels.contains(self.label.as_ref().unwrap()),
         }
     }
 }
@@ -171,10 +171,10 @@ pub enum PropertyType {
 /// including `AND`, `OR`, `NOT`, and `ATOMIC`.
 #[derive(Debug)]
 pub enum FormulaTreeNodeType {
-    AND,
-    OR,
-    NOT,
-    ATOMIC,
+    And,
+    Or,
+    Not,
+    Atomic,
 }
 
 #[cfg(test)]
@@ -187,7 +187,7 @@ mod tests {
             None,
             None,
             Some("A".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
 
         let labels = vec!["A".to_string()];
@@ -211,13 +211,13 @@ mod tests {
             None,
             None,
             Some("A".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let not_node = FormulaTreeNode::new(
             Some(Box::new(atomic_node)),
             None,
             None,
-            FormulaTreeNodeType::NOT,
+            FormulaTreeNodeType::Not,
         );
 
         let labels = vec!["A".to_string()];
@@ -241,20 +241,20 @@ mod tests {
             None,
             None,
             Some("A".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let atomic_b = FormulaTreeNode::new(
             None,
             None,
             Some("B".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
 
         let and_node = FormulaTreeNode::new(
             Some(Box::new(atomic_a)),
             Some(Box::new(atomic_b)),
             None,
-            FormulaTreeNodeType::AND,
+            FormulaTreeNodeType::And,
         );
 
         let labels = vec!["A".to_string(), "B".to_string()];
@@ -285,20 +285,20 @@ mod tests {
             None,
             None,
             Some("A".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let atomic_b = FormulaTreeNode::new(
             None,
             None,
             Some("B".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
 
         let or_node = FormulaTreeNode::new(
             Some(Box::new(atomic_a)),
             Some(Box::new(atomic_b)),
             None,
-            FormulaTreeNodeType::OR,
+            FormulaTreeNodeType::Or,
         );
 
         let labels = vec!["A".to_string(), "B".to_string()];
@@ -329,25 +329,25 @@ mod tests {
             None,
             None,
             Some("A".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let atomic_b = FormulaTreeNode::new(
             None,
             None,
             Some("B".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let not_b = FormulaTreeNode::new(
             Some(Box::new(atomic_b)),
             None,
             None,
-            FormulaTreeNodeType::NOT,
+            FormulaTreeNodeType::Not,
         );
         let root = FormulaTreeNode::new(
             Some(Box::new(atomic_a)),
             Some(Box::new(not_b)),
             None,
-            FormulaTreeNodeType::AND,
+            FormulaTreeNodeType::And,
         );
         let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant, root);
 
@@ -369,13 +369,13 @@ mod tests {
             None,
             None,
             Some("B".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let and_node = FormulaTreeNode::new(
             None,
             Some(Box::new(atomic_b)),
             None,
-            FormulaTreeNodeType::AND,
+            FormulaTreeNodeType::And,
         );
 
         let labels = vec!["B".to_string()];
@@ -389,13 +389,13 @@ mod tests {
             None,
             None,
             Some("A".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let and_node = FormulaTreeNode::new(
             Some(Box::new(atomic_a)),
             None,
             None,
-            FormulaTreeNodeType::AND,
+            FormulaTreeNodeType::And,
         );
 
         let labels = vec!["A".to_string()];
@@ -409,13 +409,13 @@ mod tests {
             None,
             None,
             Some("B".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let or_node = FormulaTreeNode::new(
             None,
             Some(Box::new(atomic_b)),
             None,
-            FormulaTreeNodeType::OR,
+            FormulaTreeNodeType::Or,
         );
 
         let labels = vec!["B".to_string()];
@@ -429,13 +429,13 @@ mod tests {
             None,
             None,
             Some("A".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let or_node = FormulaTreeNode::new(
             Some(Box::new(atomic_a)),
             None,
             None,
-            FormulaTreeNodeType::OR,
+            FormulaTreeNodeType::Or,
         );
 
         let labels = vec!["A".to_string()];
@@ -445,7 +445,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Missing left node when evaluating NOT expression!")]
     fn test_not_node_missing_child() {
-        let not_node = FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::NOT);
+        let not_node = FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::Not);
 
         let labels = vec!["A".to_string()];
         not_node.evaluate(&labels); // This should panic due to missing left child
