@@ -5,9 +5,7 @@ use crate::parser::property::Property;
 
 use clap::Parser;
 use env_logger::Builder;
-use log::*;
 use std::io::Write;
-use std::time::Duration;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -42,7 +40,6 @@ fn initialize_logger(verbosity: u8) {
         .init();
 }
 
-
 fn parse_model_and_properties(
     gntmc_file: &std::path::Path,
 ) -> (TransitionSystem, Vec<Property<String>>, f64) {
@@ -51,10 +48,7 @@ fn parse_model_and_properties(
     let (ts, props, _) = parse_gntmc_file(gntmc_file.to_str().unwrap());
     let post_parsing_time = std::time::Instant::now();
     let parsing_time = (post_parsing_time - pre_parsing_time).as_secs_f64();
-    println!(
-        "Done. Model building took {}s",
-        parsing_time
-    );
+    println!("Done. Model building took {}s", parsing_time);
     println!("Meta information of model:\n\tnumber of states: {:?}\n\tnumber of transitions: {:?}\n\tnumber of initial states: {:?}",
         ts.get_num_states(), ts.get_num_transitions(), ts.get_initial_states().len()
     );
@@ -88,7 +82,7 @@ fn check_properties(ts: &TransitionSystem, props: &Vec<Property<String>>) -> f64
         "Checked all properties. Total time for checking: {}s",
         total_model_checking_time.as_secs_f64()
     );
-    
+
     total_model_checking_time.as_secs_f64()
 }
 
@@ -97,6 +91,6 @@ pub fn run() {
     initialize_logger(args.verbose);
     let (ts, props, parsing_time) = parse_model_and_properties(&args.gntmc_file);
     let checking_time = check_properties(&ts, &props);
-    
+
     println!("Total runtime: {:?}", parsing_time + checking_time);
 }
