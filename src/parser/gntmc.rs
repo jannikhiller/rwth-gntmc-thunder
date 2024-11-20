@@ -2,7 +2,7 @@ use bit_vec::BitVec;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::BufReader;
 
 use log::*;
 
@@ -55,23 +55,10 @@ struct InputJSON {
 }
 
 fn parse_file(path: &str) -> InputJSON {
-    let file = File::open(path).unwrap_or_else(|_| panic!("Could not open file {}.\n\t", path));
-    let reader = BufReader::new(file);
-    let mut input_string = "".to_string();
-
-    trace!("Reading lines of input file...");
-    reader
-        .lines()
-        .map(|l| l.unwrap_or_else(|_| panic!("Could not read from file {}.\n\t", path)))
-        .for_each(|s| {
-            input_string.push('\n');
-            input_string.push_str(&s)
-        });
-
-    trace!("Done.");
-    trace!("Mapping...");
-
-    serde_json::from_str(&input_string).unwrap_or_else(|_| {
+    let reader = BufReader::new(
+        File::open(path).unwrap_or_else(|_| panic!("Could not read from file {}.\n\t", path)),
+    );
+    serde_json::from_reader(reader).unwrap_or_else(|_| {
         panic!(
             "Could not parse file {}. Are you using the correct format?\n\t",
             path
