@@ -37,6 +37,22 @@ You can get further information calling `thunder --help`
 cargo test
 ```
 
+### Profiling
+In this section we are using the `perf` tool, but you can use any other tool you like.
+1. Compile the project with the profile target:
+```bash
+cargo build --profile=profile
+```
+2. Run `thunder` with `perf` and a test file:
+```bash
+perf record -F99 --call-graph dwarf target/profile/thunder tests/res/test_inv_2.gntmc
+```
+3. Convert the `perf` output to a format that (https://profiler.firefox.com/) can read:
+```bash
+perf script -F +pid > test.perf
+```
+4. Open the file in (https://profiler.firefox.com/).
+
 ## Note
 The library is only intended to enable integration tests. Therefore, we do NOT guarantee a stable interface.
 
