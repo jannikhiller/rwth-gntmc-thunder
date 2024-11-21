@@ -52,7 +52,7 @@ pub fn bfs_invariant_checking(
 
         // get next states and add them to queue
         trace!("Adding successor states...");
-        for next_state in transition_system.get_successor_states(current_state) {
+        for &next_state in transition_system.get_successor_states(current_state) {
             if !visited.contains(&next_state) {
                 visited.insert(next_state);
                 queue.push_back(next_state);
