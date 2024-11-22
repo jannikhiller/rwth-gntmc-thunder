@@ -37,6 +37,11 @@ You can get further information calling `thunder --help`
 cargo test
 ```
 
+### Benchmarking
+```bash
+cargo bench
+```
+
 ### Profiling
 In this section we are using the `perf` tool, but you can use any other tool you like.
 1. Compile the project with the profile target:
