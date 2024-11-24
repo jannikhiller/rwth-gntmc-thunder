@@ -11,7 +11,7 @@ use crate::common::transition_system::*;
 use crate::parser::property::*;
 
 #[derive(Debug, Deserialize)]
-struct InputTs {
+struct GntmcTransitionSystem {
     states: Vec<u64>,
     actions: Vec<u64>,
     transitions: Vec<(u64, u64, u64)>,
@@ -21,40 +21,179 @@ struct InputTs {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
-enum InputPropositionalFormula {
+enum GntmcPropositionalFormula {
     Atom(String),
-    Not(Box<InputPropositionalFormula>),
-    And(Vec<InputPropositionalFormula>),
-    Or(Vec<InputPropositionalFormula>),
+    Not(Box<GntmcPropositionalFormula>),
+    And(Vec<GntmcPropositionalFormula>),
+    Or(Vec<GntmcPropositionalFormula>),
+}
+
+impl GntmcPropositionalFormula {
+    fn translate(&self) -> FormulaTreeNode<String> {
+        match self {
+            GntmcPropositionalFormula::Atom(ref f) => {
+                FormulaTreeNode::new(None, None, Some(f.to_string()), FormulaTreeNodeType::Atomic)
+            }
+            GntmcPropositionalFormula::Not(ref f) => FormulaTreeNode::new(
+                Some(Box::from(f.translate())),
+                None,
+                None,
+                FormulaTreeNodeType::Not,
+            ),
+            GntmcPropositionalFormula::And(ref f) => match f.len() {
+                ..=1 => panic!("Not enough elements in formula"),
+                2 => FormulaTreeNode::new(
+                    Some(Box::from(f.first().unwrap().translate())),
+                    Some(Box::from(f.last().unwrap().translate())),
+                    None,
+                    FormulaTreeNodeType::And,
+                ),
+                3.. => FormulaTreeNode::new(
+                    Some(Box::from(f.first().unwrap().translate())),
+                    Some(Box::from(
+                        GntmcPropositionalFormula::And(f[1..].to_vec()).translate(),
+                    )),
+                    None,
+                    FormulaTreeNodeType::And,
+                ),
+            },
+            GntmcPropositionalFormula::Or(ref f) => match f.len() {
+                ..=1 => panic!("Not enough elements in formula"),
+                2 => FormulaTreeNode::new(
+                    Some(Box::from(f.first().unwrap().translate())),
+                    Some(Box::from(f.last().unwrap().translate())),
+                    None,
+                    FormulaTreeNodeType::Or,
+                ),
+                3.. => FormulaTreeNode::new(
+                    Some(Box::from(f.first().unwrap().translate())),
+                    Some(Box::from(
+                        GntmcPropositionalFormula::Or(f[1..].to_vec()).translate(),
+                    )),
+                    None,
+                    FormulaTreeNodeType::Or,
+                ),
+            },
+        }
+    }
+}
+
+/// The acceptance condition may be either that of an NFA or a Buchi automaton.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum Acceptance {
+    /// An NFA accepts once it reaches a final state.
+    Nfa,
+    /// A Buchi automaton accepts if accepting states are reached infinitely
+    /// often.
+    Buchi,
+}
+
+/// An edge in a finite automaton represents a set of transitions.
+///
+/// This corresponds to an edge drawn in the graphical representation in the
+/// model checking lecture, e.g. on slide 27 of lecture 4, where each edge
+/// represents a set of transitions in the NFA.
+#[derive(Debug, Deserialize)]
+struct Edge {
+    start: usize,
+    /// We represent the set of transitions as a propositional formula. It
+    /// represents the sets of sets of atomic propositions: those sets of atomic
+    /// propositions which correspond to true assignments of the formula.
+    actions: GntmcPropositionalFormula,
+    destination: usize,
+}
+
+/// A struct to represent a finite automaton, which can either be an NFA or a
+/// Buchi automaton, for model checking labelled transition systems.
+#[derive(Debug, Deserialize)]
+struct GntmcFiniteAutomaton {
+    /// The type of the finite automaton (NFA or Buchi).
+    acceptance: Acceptance,
+    /// The states of the automaton.
+    states: Vec<usize>,
+    /// The alphabet of the automaton is given by the powerset of atomic propositions.
+    #[allow(dead_code)]
+    atomic_propositions: Vec<String>,
+    /// We store the transitions of finite automata as a list of "edges", which
+    /// represent a set of transitions each.
+    edges: Vec<Edge>,
+    /// The initial states of the automaton.
+    initial_states: Vec<usize>,
+    /// The accepting states of the automaton.
+    accepting_states: Vec<usize>,
+}
+/*
+pub struct FiniteAutomaton {
+    acceptance: AcceptanceType,
+    transition_matrix: SparseMatrix<FormulaTreeNode<String>>,
+    /// Highest state index in the automaton.
+    last_state: usize,
+    /// The state of the automaton represented as element of the powerset of indexes
+    current_state: BitVec,
+    accepting_states: BitVec,
+}
+*/
+
+impl GntmcFiniteAutomaton {
+    fn translate(&self) -> FiniteAutomaton<String> {
+        let acceptance = match self.acceptance {
+            Acceptance::Nfa => AcceptanceType::Nfa,
+            Acceptance::Buchi => AcceptanceType::Buchi,
+        };
+        let transitions = self
+            .edges
+            .iter()
+            .map(|e| (e.start, e.destination, e.actions.translate()))
+            .collect::<Vec<_>>();
+
+        let last_state = self.states.len() - 1;
+        let mut current_state = BitVec::from_elem(last_state + 1, false);
+        for &state in &self.initial_states {
+            current_state.set(state, true);
+        }
+        let mut accepting_states = BitVec::from_elem(last_state + 1, false);
+        for &state in &self.accepting_states {
+            accepting_states.set(state, true);
+        }
+        FiniteAutomaton::new(
+            acceptance,
+            SparseMatrix::from_list_of_entries(last_state + 1, last_state + 1, &transitions),
+            last_state,
+            current_state,
+            accepting_states,
+        )
+    }
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
-enum InputPropertyKind {
-    Invariant(InputPropositionalFormula),
-    // RegularSafety(FiniteAutomaton),
-    // OmegaRegular(FiniteAutomaton)
+enum GntmcPropertyKind {
+    Invariant(GntmcPropositionalFormula),
+    RegularSafety(GntmcFiniteAutomaton),
+    Persistence(GntmcPropositionalFormula),
+    OmegaRegular(GntmcFiniteAutomaton),
 }
 
 #[derive(Debug, Deserialize)]
-struct InputProperties {
+struct GntmcProperty {
     name: String,
     #[serde(flatten)]
-    kind: InputPropertyKind,
+    kind: GntmcPropertyKind,
     #[serde(skip_serializing_if = "is_none")]
     #[allow(dead_code)]
     pub is_true: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
-struct InputJSON {
+struct GntmcStruct {
     #[allow(dead_code)]
     name: String,
-    lts: InputTs,
-    properties: Vec<InputProperties>,
+    lts: GntmcTransitionSystem,
+    properties: Vec<GntmcProperty>,
 }
 
-fn parse_file(path: &str) -> InputJSON {
+fn parse_file(path: &str) -> GntmcStruct {
     let reader = BufReader::new(
         File::open(path).unwrap_or_else(|_| panic!("Could not read from file {}.\n\t", path)),
     );
@@ -66,7 +205,7 @@ fn parse_file(path: &str) -> InputJSON {
     })
 }
 
-fn build_ts(input: InputTs) -> TransitionSystem {
+fn build_ts(input: GntmcTransitionSystem) -> TransitionSystem {
     if input.actions.is_empty() {
         panic!("Transition systems must have at least one state")
     }
@@ -153,57 +292,9 @@ fn build_ts(input: InputTs) -> TransitionSystem {
     )
 }
 
-fn map_formula(form: &InputPropositionalFormula) -> FormulaTreeNode<String> {
-    match form {
-        InputPropositionalFormula::Atom(ref f) => {
-            FormulaTreeNode::new(None, None, Some(f.to_string()), FormulaTreeNodeType::Atomic)
-        }
-        InputPropositionalFormula::Not(ref f) => FormulaTreeNode::new(
-            Some(Box::from(map_formula(f))),
-            None,
-            None,
-            FormulaTreeNodeType::Not,
-        ),
-        InputPropositionalFormula::And(ref f) => match f.len() {
-            ..=1 => panic!("Not enough elements in formula"),
-            2 => FormulaTreeNode::new(
-                Some(Box::from(map_formula(f.first().unwrap()))),
-                Some(Box::from(map_formula(f.last().unwrap()))),
-                None,
-                FormulaTreeNodeType::And,
-            ),
-            3.. => FormulaTreeNode::new(
-                Some(Box::from(map_formula(f.first().unwrap()))),
-                Some(Box::from(map_formula(&InputPropositionalFormula::And(
-                    f[1..].to_vec(),
-                )))),
-                None,
-                FormulaTreeNodeType::And,
-            ),
-        },
-        InputPropositionalFormula::Or(ref f) => match f.len() {
-            ..=1 => panic!("Not enough elements in formula"),
-            2 => FormulaTreeNode::new(
-                Some(Box::from(map_formula(f.first().unwrap()))),
-                Some(Box::from(map_formula(f.last().unwrap()))),
-                None,
-                FormulaTreeNodeType::Or,
-            ),
-            3.. => FormulaTreeNode::new(
-                Some(Box::from(map_formula(f.first().unwrap()))),
-                Some(Box::from(map_formula(&InputPropositionalFormula::Or(
-                    f[1..].to_vec(),
-                )))),
-                None,
-                FormulaTreeNodeType::Or,
-            ),
-        },
-    }
-}
-
-fn build_formula(props: Vec<InputProperties>) -> (Vec<Property<String>>, Vec<Option<bool>>) {
+fn build_propeties(props: Vec<GntmcProperty>) -> (Vec<Property<String>>, Vec<Option<bool>>) {
     props
-        .iter()
+        .into_iter()
         .map(|p| {
             trace!("Found property {:?} of kind {:?}.", p.name, p.kind);
             (
@@ -211,10 +302,18 @@ fn build_formula(props: Vec<InputProperties>) -> (Vec<Property<String>>, Vec<Opt
                     p.name.clone(),
                     // TODO currently we only support invariants; later this has to be extended
                     match p.kind {
-                        InputPropertyKind::Invariant(_) => PropertyType::Invariant,
-                    },
-                    match &p.kind {
-                        InputPropertyKind::Invariant(form) => map_formula(form),
+                        GntmcPropertyKind::Invariant(formula) => {
+                            PropertyType::Invariant(formula.translate())
+                        }
+                        GntmcPropertyKind::RegularSafety(automaton) => {
+                            PropertyType::RegularSafety(automaton.translate())
+                        }
+                        GntmcPropertyKind::Persistence(formula) => {
+                            PropertyType::Persistence(formula.translate())
+                        }
+                        GntmcPropertyKind::OmegaRegular(automaton) => {
+                            PropertyType::OmegaRegular(automaton.translate())
+                        }
                     },
                 ),
                 p.is_true,
@@ -248,7 +347,7 @@ pub fn parse_gntmc_file(
     let ts = build_ts(input.lts);
     debug!("Done.");
     debug!("Parsing Properties...");
-    let properties = build_formula(input.properties);
+    let properties = build_propeties(input.properties);
     debug!("Done. Found {:?} properties in total.", properties.0.len());
 
     (ts, properties.0, properties.1)

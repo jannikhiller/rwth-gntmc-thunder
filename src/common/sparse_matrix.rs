@@ -110,7 +110,7 @@ impl<ValueType: Default + PartialEq + Copy> Default for SparseMatrix<ValueType> 
     }
 }
 
-impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
+impl<ValueType: Default + PartialEq + Clone> SparseMatrix<ValueType> {
     /// Creates a new, empty sparse matrix.
     pub fn new() -> Self {
         SparseMatrix {
@@ -158,7 +158,7 @@ impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
                 if *value == default_value {
                     continue;
                 }
-                values.push(*value);
+                values.push(value.clone());
                 col_indexes.push(col_index);
             }
             row_offsets.push(values.len());
@@ -219,24 +219,24 @@ impl<ValueType: Default + PartialEq + Copy> SparseMatrix<ValueType> {
         let mut is_new_row = true;
 
         for chunk in entries.chunk_by(|&(r0, _, _), &(r1, _, _)| r0 == r1) {
-            for &(row_index, col_index, value) in chunk {
-                if row_index >= num_rows || col_index >= num_cols {
+            for (row_index, col_index, value) in chunk {
+                if *row_index >= num_rows || *col_index >= num_cols {
                     panic!(
                         "Element at {:?} is outside the dimensions of the matrix.",
                         (row_index, col_index)
                     );
                 }
-                if !is_new_row && prev_col == col_index {
+                if !is_new_row && prev_col == *col_index {
                     panic!("Found multiple elements with the same coordinates: ({row_index}, {col_index})");
                 }
-                if value == default_value {
+                if *value == default_value {
                     continue;
                 }
-                values.push(value);
-                col_indexes.push(col_index);
+                values.push(value.clone());
+                col_indexes.push(*col_index);
                 row_offsets[row_index + 1] += 1;
 
-                prev_col = col_index;
+                prev_col = *col_index;
                 is_new_row = false;
             }
             is_new_row = true;

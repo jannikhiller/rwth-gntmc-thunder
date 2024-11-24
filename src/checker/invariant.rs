@@ -197,7 +197,7 @@ mod tests {
             None,
             FormulaTreeNodeType::Or,
         );
-        let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant, root);
+        let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant(root));
         assert!(bfs_invariant_checking(&ts, &property).is_ok());
     }
     #[test]
@@ -213,7 +213,7 @@ mod tests {
             Some("a".to_string()),
             FormulaTreeNodeType::Atomic,
         );
-        let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant, root);
+        let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant(root));
         assert_eq!(
             bfs_invariant_checking(&ts, &property).err().is_none(),
             false
