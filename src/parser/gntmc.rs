@@ -123,17 +123,6 @@ struct GntmcFiniteAutomaton {
     /// The accepting states of the automaton.
     accepting_states: Vec<usize>,
 }
-/*
-pub struct FiniteAutomaton {
-    acceptance: AcceptanceType,
-    transition_matrix: SparseMatrix<FormulaTreeNode<String>>,
-    /// Highest state index in the automaton.
-    last_state: usize,
-    /// The state of the automaton represented as element of the powerset of indexes
-    current_state: BitVec,
-    accepting_states: BitVec,
-}
-*/
 
 impl GntmcFiniteAutomaton {
     fn translate(&self) -> FiniteAutomaton<String> {
@@ -197,6 +186,7 @@ fn parse_file(path: &str) -> GntmcStruct {
     let reader = BufReader::new(
         File::open(path).unwrap_or_else(|_| panic!("Could not read from file {}.\n\t", path)),
     );
+    trace!("Reading...");
     serde_json::from_reader(reader).unwrap_or_else(|_| {
         panic!(
             "Could not parse file {}. Are you using the correct format?\n\t",
@@ -206,7 +196,7 @@ fn parse_file(path: &str) -> GntmcStruct {
 }
 
 fn build_ts(input: GntmcTransitionSystem) -> TransitionSystem {
-    if input.actions.is_empty() {
+    if input.states.is_empty() {
         panic!("Transition systems must have at least one state")
     }
 
@@ -292,7 +282,7 @@ fn build_ts(input: GntmcTransitionSystem) -> TransitionSystem {
     )
 }
 
-fn build_propeties(props: Vec<GntmcProperty>) -> (Vec<Property<String>>, Vec<Option<bool>>) {
+fn build_properties(props: Vec<GntmcProperty>) -> (Vec<Property<String>>, Vec<Option<bool>>) {
     props
         .into_iter()
         .map(|p| {
@@ -300,7 +290,6 @@ fn build_propeties(props: Vec<GntmcProperty>) -> (Vec<Property<String>>, Vec<Opt
             (
                 Property::new(
                     p.name.clone(),
-                    // TODO currently we only support invariants; later this has to be extended
                     match p.kind {
                         GntmcPropertyKind::Invariant(formula) => {
                             PropertyType::Invariant(formula.translate())
@@ -347,7 +336,7 @@ pub fn parse_gntmc_file(
     let ts = build_ts(input.lts);
     debug!("Done.");
     debug!("Parsing Properties...");
-    let properties = build_propeties(input.properties);
+    let properties = build_properties(input.properties);
     debug!("Done. Found {:?} properties in total.", properties.0.len());
 
     (ts, properties.0, properties.1)
