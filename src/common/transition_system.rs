@@ -1,6 +1,8 @@
 use crate::common::sparse_matrix::*;
 use bit_vec::BitVec;
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap, VecDeque};
+use crate::checker::invariant::bit_vec_to_ap_strings;
+use crate::parser::property::FiniteAutomaton;
 
 /// Represents a transition system with states, transitions, and labels.
 ///
@@ -33,8 +35,8 @@ impl TransitionSystem {
     /// # Parameters
     /// - `transition_matrix`: Sparse matrix representing transitions from states.
     /// - `reverse_transition_matrix`: Sparse matrix representing transitions to states.
-    /// - `num_states`: Total number of states.
-    /// - `inital_states`: Vector of indices representing initial states.
+    /// - `last_state`: Name of the last state. States are modelled as list from `0 .. last_state` (inclusively).
+    /// - `initial_states`: Vector of indices representing initial states.
     /// - `state_labels`: Vector of `BitVec` labels for each state.
     /// - `label_state_map`: HashMap mapping labels to the states that have them.
     /// - `ap`: Vector of atomic propositions.
@@ -156,6 +158,95 @@ impl TransitionSystem {
     #[allow(dead_code)]
     pub fn get_predeccessor_states(&self, state: usize) -> &[usize] {
         self.reverse_transition_matrix.get_col_indexes_in_row(state)
+    }
+
+    pub fn product_with(&self, mut auto: FiniteAutomaton<String>) -> TransitionSystem {
+        let orig_init_states = self.initial_states.clone();
+        let mut bitvecs_to_states: HashMap<BitVec, Vec<String>> = HashMap::new();
+        let mut new_states: HashSet<(usize, usize)> = HashSet::new();
+        let mut new_state_labels: HashMap<((usize, usize)), usize> = HashMap::new();
+        let mut new_trans: Vec<((usize, usize), (usize, usize))> = vec![];
+        let new_init_states: HashSet<(usize, usize)>;
+
+        for state in orig_init_states {
+            let bv_label = self.get_state_label(state);
+            let labels = bitvecs_to_states.get(bv_label)
+                .unwrap_or_else(|| &bit_vec_to_ap_strings(self, bv_label));
+
+            let auto_states = auto.step(auto.get_initial_state().clone(), labels);
+
+            for (i, s) in auto_states.iter().enumerate() {
+                if !s {continue}
+
+                new_states.insert((state, i));
+                new_state_labels.insert((state, i), i);
+            }
+        }
+
+        new_init_states = new_states.clone();
+
+        let mut deque = VecDeque::from_iter(new_init_states.into_iter());
+
+        while let Some((ts_state, auto_state)) = deque.pop_front() {
+            let ts_succs = self.get_successor_states(*ts_state);
+
+            for &ts_succ in ts_succs {
+                let ts_succ_label = self.get_state_label(ts_succ);
+                let labels = bitvecs_to_states.get(ts_succ_label)
+                    .unwrap_or_else(|| &bit_vec_to_ap_strings(self, ts_succ_label));
+                let mut current_auto_state = BitVec::from_elem(auto.get_last_state() + 1, false);
+                current_auto_state.set(*auto_state, true);
+                let auto_states = auto.step(current_auto_state, labels);
+
+                for (auto_succ, s) in auto_states.iter().enumerate() {
+                    if !s {continue}
+
+                    let not_been_seen = new_states.insert((ts_succ, auto_succ));
+                    new_state_labels.insert((ts_succ, auto_succ), auto_succ);
+                    new_trans.push(((ts_state, auto_state), (ts_succ, auto_succ)));
+
+                    if !not_been_seen {
+                        deque.push_back((ts_succ, auto_succ));
+                    }
+                }
+            }
+        }
+
+        let to_state_name_index = new_states.iter()
+            .enumerate()
+            .map(|(i, state)| (state, i))
+            .collect::<HashMap<_, _>>();
+        let num_of_new_states = to_state_name_index.len() - 1;
+
+        let tmatrix = SparseMatrix::from_list_of_entries(
+            num_of_new_states,
+            num_of_new_states,
+            &*new_trans
+                .iter()
+                .map(|(inp, out)| (to_state_name_index.get(inp).unwrap(), to_state_name_index.get(out).unwrap(), true))
+                .collect::<Vec<_>>(),
+        );
+        let reverse_tmatrix = SparseMatrix::from_list_of_entries(
+            num_of_new_states,
+            num_of_new_states,
+            &*new_trans
+                .iter()
+                .map(|(inp, out)| (to_state_name_index.get(out).unwrap(), to_state_name_index.get(inp).unwrap(), true))
+                .collect::<Vec<_>>(),
+        );
+        let mapped_new_init_states = new_init_states.iter().map(|s| to_state_name_index.get(s).unwrap()).collect();
+        let ap = 0 .. auto.get_last_state() + 1;
+        let mut mapped_new_state_labels = vec![BitVec::from_elem(ap.len(), false); num_of_new_states];
+        // iterate over mnsl
+        // set elems in bvs
+
+        TransitionSystem::new(
+            tmatrix,
+            reverse_tmatrix,
+            num_of_new_states,
+            mapped_new_init_states,
+
+        )
     }
 }
 
