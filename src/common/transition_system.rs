@@ -142,13 +142,8 @@ impl TransitionSystem {
     ///
     /// # Returns
     /// An iterator over state indices that are reachable from the given state.
-    pub fn get_successor_states(&self, state: usize) -> impl Iterator<Item = usize> + '_ {
-        self.transition_matrix.get_row(state).map(
-            |SparseMatrixElement {
-                 col_index,
-                 value: _,
-             }| col_index,
-        )
+    pub fn get_successor_states(&self, state: usize) -> &[usize] {
+        self.transition_matrix.get_col_indexes_in_row(state)
     }
 
     /// Returns an iterator over the predecessor states of a given state.
@@ -159,13 +154,8 @@ impl TransitionSystem {
     /// # Returns
     /// An iterator over state indices that can reach the given state.
     #[allow(dead_code)]
-    pub fn get_predeccessor_states(&self, state: usize) -> impl Iterator<Item = usize> + '_ {
-        self.reverse_transition_matrix.get_row(state).map(
-            |SparseMatrixElement {
-                 col_index,
-                 value: _,
-             }| col_index,
-        )
+    pub fn get_predeccessor_states(&self, state: usize) -> &[usize] {
+        self.reverse_transition_matrix.get_col_indexes_in_row(state)
     }
 }
 
@@ -262,21 +252,21 @@ mod tests {
     #[test]
     fn test_get_successor_states() {
         let ts = create_test_transition_system();
-        let successors0: Vec<_> = ts.get_successor_states(0).collect();
+        let successors0: Vec<_> = ts.get_successor_states(0).to_vec();
         assert_eq!(successors0, vec![1]);
-        let successors1: Vec<_> = ts.get_successor_states(1).collect();
+        let successors1: Vec<_> = ts.get_successor_states(1).to_vec();
         assert_eq!(successors1, vec![2]);
-        let successors2: Vec<_> = ts.get_successor_states(2).collect();
+        let successors2: Vec<_> = ts.get_successor_states(2).to_vec();
         assert_eq!(successors2, vec![0]);
     }
     #[test]
     fn test_get_predecessor_states() {
         let ts = create_test_transition_system();
-        let predecessors0: Vec<_> = ts.get_predeccessor_states(0).collect();
+        let predecessors0: Vec<_> = ts.get_predeccessor_states(0).to_vec();
         assert_eq!(predecessors0, vec![2]);
-        let predecessors1: Vec<_> = ts.get_predeccessor_states(1).collect();
+        let predecessors1: Vec<_> = ts.get_predeccessor_states(1).to_vec();
         assert_eq!(predecessors1, vec![0]);
-        let predecessors2: Vec<_> = ts.get_predeccessor_states(2).collect();
+        let predecessors2: Vec<_> = ts.get_predeccessor_states(2).to_vec();
         assert_eq!(predecessors2, vec![1]);
     }
     #[test]

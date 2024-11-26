@@ -55,12 +55,12 @@ fn parse_model_and_properties(
     (ts, props, parsing_time)
 }
 
-fn check_properties(ts: &TransitionSystem, props: &Vec<Property<String>>) -> f64 {
+fn check_properties(ts: &TransitionSystem, props: &[Property<String>]) -> f64 {
     let mut total_model_checking_time = std::time::Duration::new(0, 0);
     for (i, prop) in props.iter().enumerate() {
         println!("Checking property {i}: {:?}...", prop.name);
         let pre_checking_time = std::time::Instant::now();
-        let result = bfs_invariant_checking(&ts, prop);
+        let result = bfs_invariant_checking(ts, prop);
         let post_checking_time = std::time::Instant::now();
         println!(
             "Done. Checking took {}s",

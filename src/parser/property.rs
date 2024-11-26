@@ -1,14 +1,23 @@
+use bit_vec::BitVec;
 use log::*;
+
+use crate::common::sparse_matrix::{SparseMatrix, SparseMatrixElement};
+
+#[derive(Debug)]
+pub enum PropertyType<ValueType> {
+    Invariant(FormulaTreeNode<ValueType>),
+    Persistence(FormulaTreeNode<ValueType>),
+    RegularSafety(FiniteAutomaton<ValueType>),
+    OmegaRegular(FiniteAutomaton<ValueType>),
+}
 
 /// A tree structure representing a property with logical expressions.
 ///
 /// The `Property` contains a root node (`FormulaTreeNode`), a type of property
 /// (`PropertyType`), and a name to identify the property.
 pub struct Property<ValueType> {
-    /// The root node of the formula tree.
-    root: FormulaTreeNode<ValueType>,
     /// The type of property represented by this tree.
-    property_type: PropertyType,
+    property_type: PropertyType<ValueType>,
     /// The name of the property.
     pub name: String,
 }
@@ -33,11 +42,10 @@ impl Property<String> {
     ///
     /// # Returns
     /// - A new instance of `Property`.
-    pub fn new(name: String, property_type: PropertyType, root: FormulaTreeNode<String>) -> Self {
+    pub fn new(name: String, property_type: PropertyType<String>) -> Self {
         Property {
             name,
             property_type,
-            root,
         }
     }
 
@@ -54,14 +62,18 @@ impl Property<String> {
     ///
     /// # Panics
     /// - If nodes required for the evaluation are missing in the tree.
-    pub(crate) fn evaluate(&self, labels: &Vec<String>) -> bool {
+    pub fn evaluate(&self, labels: &Vec<String>) -> bool {
         trace!(
             "Evaluating property {:?} of kind {:?}",
             self.name,
             self.property_type
         );
-        match self.property_type {
-            PropertyType::Invariant => self.root.evaluate(labels),
+        match &self.property_type {
+            PropertyType::Invariant(formula) => formula.evaluate(labels),
+            PropertyType::Persistence(formula) => formula.evaluate(labels),
+            PropertyType::OmegaRegular(_) | PropertyType::RegularSafety(_) => panic!(
+                "This is an automaton property, use the automatons member functions instead."
+            ),
         }
     }
 }
@@ -71,6 +83,7 @@ impl Property<String> {
 /// Each node can represent different logical operations (e.g. `AND`, `OR`, `NOT`) or a single
 /// atomic label. Nodes can have left and right children to build expressions recursively.
 /// The given `ValueType` specifies the datatype of the label.
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct FormulaTreeNode<ValueType> {
     /// The left child of this node (if any).
     left: Option<Box<FormulaTreeNode<ValueType>>>,
@@ -111,7 +124,7 @@ impl FormulaTreeNode<String> {
     fn evaluate(&self, labels: &Vec<String>) -> bool {
         trace!("Evaluating subformula of type {:?}", self.node_type);
         match self.node_type {
-            FormulaTreeNodeType::AND => {
+            FormulaTreeNodeType::And => {
                 if self.left.as_ref().is_none() {
                     panic!(
                         "Missing left node when evaluating AND expression! \
@@ -124,10 +137,10 @@ impl FormulaTreeNode<String> {
                     );
                 }
 
-                self.left.as_ref().unwrap().evaluate(&labels)
-                    && self.right.as_ref().unwrap().evaluate(&labels)
+                self.left.as_ref().unwrap().evaluate(labels)
+                    && self.right.as_ref().unwrap().evaluate(labels)
             }
-            FormulaTreeNodeType::OR => {
+            FormulaTreeNodeType::Or => {
                 if self.left.as_ref().is_none() {
                     panic!(
                         "Missing left node when evaluating OR expression! \
@@ -140,10 +153,10 @@ impl FormulaTreeNode<String> {
                     );
                 }
 
-                self.left.as_ref().unwrap().evaluate(&labels)
-                    || self.right.as_ref().unwrap().evaluate(&labels)
+                self.left.as_ref().unwrap().evaluate(labels)
+                    || self.right.as_ref().unwrap().evaluate(labels)
             }
-            FormulaTreeNodeType::NOT => self.left.as_ref().map_or_else(
+            FormulaTreeNodeType::Not => self.left.as_ref().map_or_else(
                 || {
                     panic!(
                         "Missing left node when evaluating NOT expression! \
@@ -152,29 +165,112 @@ impl FormulaTreeNode<String> {
                 },
                 |l| !l.evaluate(labels),
             ),
-            FormulaTreeNodeType::ATOMIC => labels.contains(&self.label.as_ref().unwrap()),
+            FormulaTreeNodeType::Atomic => labels.contains(self.label.as_ref().unwrap()),
         }
     }
-}
-
-/// Specifies the type of property.
-///
-/// Currently only supports `Invariant` but can be extended to include other property types.
-#[derive(Debug)]
-pub enum PropertyType {
-    Invariant,
 }
 
 /// Represents the type of node within a `FormulaTreeNode`.
 ///
 /// This enum defines the possible logical operations or atomic values that a node can represent,
 /// including `AND`, `OR`, `NOT`, and `ATOMIC`.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, Default, PartialEq)]
 pub enum FormulaTreeNodeType {
-    AND,
-    OR,
-    NOT,
-    ATOMIC,
+    And,
+    Or,
+    Not,
+    #[default]
+    Atomic,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum AcceptanceType {
+    /// An NFA accepts once it reaches a final state.
+    Nfa,
+    /// A Buchi automaton accepts if accepting states are reached infinitely
+    /// often.
+    Buchi,
+}
+
+/// A finite automaton that can be used to represent regular safety or omega-regular properties.
+#[derive(Debug)]
+pub struct FiniteAutomaton<ValueType> {
+    /// The type of acceptance for this automaton.
+    acceptance: AcceptanceType,
+    /// The transition matrix of the automaton.
+    transition_matrix: SparseMatrix<FormulaTreeNode<ValueType>>,
+    /// Highest state index in the automaton.
+    last_state: usize,
+    /// The initial state of the automaton represented as element of the powerset of indexes
+    initial_state: BitVec,
+    /// The accepting states of the automaton.
+    accepting_states: BitVec,
+}
+
+impl FiniteAutomaton<String> {
+    pub fn new(
+        acceptance: AcceptanceType,
+        transition_matrix: SparseMatrix<FormulaTreeNode<String>>,
+        last_state: usize,
+        initial_state: BitVec,
+        accepting_states: BitVec,
+    ) -> Self {
+        FiniteAutomaton {
+            acceptance,
+            transition_matrix,
+            last_state,
+            initial_state,
+            accepting_states,
+        }
+    }
+    #[allow(dead_code)]
+    pub fn is_accepting(&self, state: BitVec) -> bool {
+        let mut res = state;
+        res.and(&self.accepting_states);
+        res.any()
+    }
+
+    #[allow(dead_code)]
+    pub fn step(&mut self, state: BitVec, label: &Vec<String>) -> BitVec {
+        let mut new_state = BitVec::from_elem(self.last_state + 1, false);
+        for (i, value) in state.iter().enumerate() {
+            if !value {
+                continue;
+            }
+            trace!("Determining successors of {:?}", i);
+            for SparseMatrixElement {
+                col_index,
+                value: formula,
+            } in self.transition_matrix.get_row(i as usize)
+            {
+                trace!(
+                    "   Evaluating formula {:?} for possible successor {:?}",
+                    formula,
+                    col_index
+                );
+                if formula.evaluate(label) {
+                    new_state.set(col_index, true);
+                }
+            }
+        }
+
+        new_state
+    }
+
+    #[allow(dead_code)]
+    pub fn get_initial_state(&self) -> &BitVec {
+        &self.initial_state
+    }
+
+    #[allow(dead_code)]
+    pub fn get_last_state(&self) -> usize {
+        self.last_state
+    }
+
+    #[allow(dead_code)]
+    pub fn get_acceptance_type(&self) -> AcceptanceType {
+        self.acceptance
+    }
 }
 
 #[cfg(test)]
@@ -187,20 +283,18 @@ mod tests {
             None,
             None,
             Some("A".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
 
         let labels = vec!["A".to_string()];
-        assert_eq!(
-            true,
+        assert!(
             atomic_node.evaluate(&labels),
             "Atomic node with label 'A' should evaluate to true."
         );
 
         let labels = vec!["B".to_string()];
-        assert_eq!(
-            false,
-            atomic_node.evaluate(&labels),
+        assert!(
+            !atomic_node.evaluate(&labels),
             "Atomic node with label 'A' should evaluate to false when 'A' is not in labels."
         );
     }
@@ -211,25 +305,23 @@ mod tests {
             None,
             None,
             Some("A".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let not_node = FormulaTreeNode::new(
             Some(Box::new(atomic_node)),
             None,
             None,
-            FormulaTreeNodeType::NOT,
+            FormulaTreeNodeType::Not,
         );
 
         let labels = vec!["A".to_string()];
-        assert_eq!(
-            false,
-            not_node.evaluate(&labels),
+        assert!(
+            !not_node.evaluate(&labels),
             "NOT node should invert the evaluation of the atomic node."
         );
 
         let labels = vec!["B".to_string()];
-        assert_eq!(
-            true,
+        assert!(
             not_node.evaluate(&labels),
             "NOT node should return true when the atomic node evaluates to false."
         );
@@ -241,40 +333,37 @@ mod tests {
             None,
             None,
             Some("A".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let atomic_b = FormulaTreeNode::new(
             None,
             None,
             Some("B".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
 
         let and_node = FormulaTreeNode::new(
             Some(Box::new(atomic_a)),
             Some(Box::new(atomic_b)),
             None,
-            FormulaTreeNodeType::AND,
+            FormulaTreeNodeType::And,
         );
 
         let labels = vec!["A".to_string(), "B".to_string()];
-        assert_eq!(
-            true,
+        assert!(
             and_node.evaluate(&labels),
             "AND node should evaluate to true when both children evaluate to true."
         );
 
         let labels = vec!["A".to_string()];
-        assert_eq!(
-            false,
-            and_node.evaluate(&labels),
+        assert!(
+            !and_node.evaluate(&labels),
             "AND node should evaluate to false when only one child evaluates to true."
         );
 
         let labels = vec!["C".to_string()];
-        assert_eq!(
-            false,
-            and_node.evaluate(&labels),
+        assert!(
+            !and_node.evaluate(&labels),
             "AND node should evaluate to false when neither child evaluates to true."
         );
     }
@@ -285,40 +374,37 @@ mod tests {
             None,
             None,
             Some("A".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let atomic_b = FormulaTreeNode::new(
             None,
             None,
             Some("B".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
 
         let or_node = FormulaTreeNode::new(
             Some(Box::new(atomic_a)),
             Some(Box::new(atomic_b)),
             None,
-            FormulaTreeNodeType::OR,
+            FormulaTreeNodeType::Or,
         );
 
         let labels = vec!["A".to_string(), "B".to_string()];
-        assert_eq!(
-            true,
+        assert!(
             or_node.evaluate(&labels),
             "OR node should evaluate to true when both children evaluate to true."
         );
 
         let labels = vec!["A".to_string()];
-        assert_eq!(
-            true,
+        assert!(
             or_node.evaluate(&labels),
             "OR node should evaluate to true when at least one child evaluates to true."
         );
 
         let labels = vec!["C".to_string()];
-        assert_eq!(
-            false,
-            or_node.evaluate(&labels),
+        assert!(
+            !or_node.evaluate(&labels),
             "OR node should evaluate to false when neither child evaluates to true."
         );
     }
@@ -329,31 +415,30 @@ mod tests {
             None,
             None,
             Some("A".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let atomic_b = FormulaTreeNode::new(
             None,
             None,
             Some("B".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let not_b = FormulaTreeNode::new(
             Some(Box::new(atomic_b)),
             None,
             None,
-            FormulaTreeNodeType::NOT,
+            FormulaTreeNodeType::Not,
         );
         let root = FormulaTreeNode::new(
             Some(Box::new(atomic_a)),
             Some(Box::new(not_b)),
             None,
-            FormulaTreeNodeType::AND,
+            FormulaTreeNodeType::And,
         );
-        let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant, root);
+        let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant(root));
 
         let labels = vec!["A".to_string()];
-        assert_eq!(
-            true,
+        assert!(
             property.evaluate(&labels),
             "Property should evaluate to true when labels satisfy the AND condition with NOT."
         );
@@ -369,13 +454,13 @@ mod tests {
             None,
             None,
             Some("B".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let and_node = FormulaTreeNode::new(
             None,
             Some(Box::new(atomic_b)),
             None,
-            FormulaTreeNodeType::AND,
+            FormulaTreeNodeType::And,
         );
 
         let labels = vec!["B".to_string()];
@@ -389,13 +474,13 @@ mod tests {
             None,
             None,
             Some("A".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let and_node = FormulaTreeNode::new(
             Some(Box::new(atomic_a)),
             None,
             None,
-            FormulaTreeNodeType::AND,
+            FormulaTreeNodeType::And,
         );
 
         let labels = vec!["A".to_string()];
@@ -409,13 +494,13 @@ mod tests {
             None,
             None,
             Some("B".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let or_node = FormulaTreeNode::new(
             None,
             Some(Box::new(atomic_b)),
             None,
-            FormulaTreeNodeType::OR,
+            FormulaTreeNodeType::Or,
         );
 
         let labels = vec!["B".to_string()];
@@ -429,13 +514,13 @@ mod tests {
             None,
             None,
             Some("A".to_string()),
-            FormulaTreeNodeType::ATOMIC,
+            FormulaTreeNodeType::Atomic,
         );
         let or_node = FormulaTreeNode::new(
             Some(Box::new(atomic_a)),
             None,
             None,
-            FormulaTreeNodeType::OR,
+            FormulaTreeNodeType::Or,
         );
 
         let labels = vec!["A".to_string()];
@@ -445,9 +530,98 @@ mod tests {
     #[test]
     #[should_panic(expected = "Missing left node when evaluating NOT expression!")]
     fn test_not_node_missing_child() {
-        let not_node = FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::NOT);
+        let not_node = FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::Not);
 
         let labels = vec!["A".to_string()];
         not_node.evaluate(&labels); // This should panic due to missing left child
+    }
+
+    #[test]
+    fn test_finite_automaton() {
+        let atomic_a = FormulaTreeNode::new(
+            None,
+            None,
+            Some("A".to_string()),
+            FormulaTreeNodeType::Atomic,
+        );
+        let atomic_b = FormulaTreeNode::new(
+            None,
+            None,
+            Some("B".to_string()),
+            FormulaTreeNodeType::Atomic,
+        );
+        let atomic_c = FormulaTreeNode::new(
+            None,
+            None,
+            Some("C".to_string()),
+            FormulaTreeNodeType::Atomic,
+        );
+        let atomic_d = FormulaTreeNode::new(
+            None,
+            None,
+            Some("D".to_string()),
+            FormulaTreeNodeType::Atomic,
+        );
+
+        let transition_matrix = SparseMatrix::from_list_of_entries(
+            4,
+            4,
+            &vec![
+                (0, 1, atomic_a),
+                (1, 2, atomic_b),
+                (2, 3, atomic_c),
+                (3, 0, atomic_d),
+            ],
+        );
+        println!("{:?}", transition_matrix);
+
+        let mut initial_state = BitVec::from_elem(4, false);
+        initial_state.set(0, true);
+
+        let mut accepting_states = BitVec::from_elem(4, false);
+        accepting_states.set(0, true);
+        accepting_states.set(3, true);
+
+        let mut automaton = FiniteAutomaton::new(
+            AcceptanceType::Buchi,
+            transition_matrix,
+            3,
+            initial_state,
+            accepting_states,
+        );
+
+        let labels = vec![
+            "A".to_string(),
+            "B".to_string(),
+            "C".to_string(),
+            "D".to_string(),
+        ];
+        assert!(
+            automaton.is_accepting(automaton.get_initial_state().clone()),
+            "Initial state should be accepting."
+        );
+
+        let automaton_state = automaton.get_initial_state();
+        println!("{:?}", automaton_state);
+        let automaton_state = automaton.step(automaton_state.clone(), &labels);
+        println!("{:?}", automaton_state);
+        assert!(
+            !automaton.is_accepting(automaton_state.clone()),
+            "State should not be accepting after one step."
+        );
+
+        let automaton_state = &automaton.step(automaton_state.clone(), &labels);
+        println!("{:?}", automaton_state);
+        assert!(
+            !automaton.is_accepting(automaton_state.clone()),
+            "State should not be accepting after two steps."
+        );
+
+        let automaton_state = automaton.step(automaton_state.clone(), &labels);
+        println!("{:?}", automaton_state);
+        assert!(
+            automaton.is_accepting(automaton_state),
+            "State should be accepting after three steps."
+        );
     }
 }

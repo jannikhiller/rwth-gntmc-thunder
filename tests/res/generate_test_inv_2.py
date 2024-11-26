@@ -48,6 +48,7 @@ def generate_binary_hypercube(n):
 
 
 if __name__ == "__main__":
-    model = generate_binary_hypercube(16)
+    N = 16 if len(sys.argv) < 2 else int(sys.argv[1])
+    model = generate_binary_hypercube(N)
     with open("./tests/res/test_inv_2.gntmc", 'w') as f:
         json.dump(model, f, indent=2)
