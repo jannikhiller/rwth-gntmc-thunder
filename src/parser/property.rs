@@ -15,9 +15,10 @@ pub enum PropertyType<ValueType> {
 ///
 /// The `Property` contains a root node (`FormulaTreeNode`), a type of property
 /// (`PropertyType`), and a name to identify the property.
+#[derive(Debug)]
 pub struct Property<ValueType> {
     /// The type of property represented by this tree.
-    property_type: PropertyType<ValueType>,
+    pub property_type: PropertyType<ValueType>,
     /// The name of the property.
     pub name: String,
 }
