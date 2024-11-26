@@ -201,8 +201,8 @@ pub struct FiniteAutomaton<ValueType> {
     transition_matrix: SparseMatrix<FormulaTreeNode<ValueType>>,
     /// Highest state index in the automaton.
     last_state: usize,
-    /// The state of the automaton represented as element of the powerset of indexes
-    current_state: BitVec,
+    /// The initial state of the automaton represented as element of the powerset of indexes
+    initial_state: BitVec,
     /// The accepting states of the automaton.
     accepting_states: BitVec,
 }
@@ -219,21 +219,21 @@ impl FiniteAutomaton<String> {
             acceptance,
             transition_matrix,
             last_state,
-            current_state: initial_state,
+            initial_state,
             accepting_states,
         }
     }
     #[allow(dead_code)]
-    pub fn is_accepting(&self) -> bool {
-        let mut res = self.current_state.clone();
+    pub fn is_accepting(&self, state: BitVec) -> bool {
+        let mut res = state;
         res.and(&self.accepting_states);
         res.any()
     }
 
     #[allow(dead_code)]
-    pub fn step(&mut self, label: &Vec<String>) {
+    pub fn step(&mut self, state: BitVec, label: &Vec<String>) -> BitVec {
         let mut new_state = BitVec::from_elem(self.last_state + 1, false);
-        for (i, value) in self.current_state.iter().enumerate() {
+        for (i, value) in state.iter().enumerate() {
             if !value {
                 continue;
             }
@@ -253,12 +253,13 @@ impl FiniteAutomaton<String> {
                 }
             }
         }
-        self.current_state = new_state;
+
+        new_state
     }
 
     #[allow(dead_code)]
-    pub fn get_current_state(&self) -> &BitVec {
-        &self.current_state
+    pub fn get_initial_state(&self) -> &BitVec {
+        &self.initial_state
     }
 
     #[allow(dead_code)]
@@ -596,29 +597,30 @@ mod tests {
             "D".to_string(),
         ];
         assert!(
-            automaton.is_accepting(),
+            automaton.is_accepting(automaton.get_initial_state().clone()),
             "Initial state should be accepting."
         );
 
-        println!("{:?}", automaton.get_current_state());
-        automaton.step(&labels);
-        println!("{:?}", automaton.get_current_state());
+        let automaton_state = automaton.get_initial_state();
+        println!("{:?}", automaton_state);
+        let automaton_state = automaton.step(automaton_state.clone(), &labels);
+        println!("{:?}", automaton_state);
         assert!(
-            !automaton.is_accepting(),
+            !automaton.is_accepting(automaton_state.clone()),
             "State should not be accepting after one step."
         );
 
-        automaton.step(&labels);
-        println!("{:?}", automaton.get_current_state());
+        let automaton_state = &automaton.step(automaton_state.clone(), &labels);
+        println!("{:?}", automaton_state);
         assert!(
-            !automaton.is_accepting(),
+            !automaton.is_accepting(automaton_state.clone()),
             "State should not be accepting after two steps."
         );
 
-        automaton.step(&labels);
-        println!("{:?}", automaton.get_current_state());
+        let automaton_state = automaton.step(automaton_state.clone(), &labels);
+        println!("{:?}", automaton_state);
         assert!(
-            automaton.is_accepting(),
+            automaton.is_accepting(automaton_state),
             "State should be accepting after three steps."
         );
     }
