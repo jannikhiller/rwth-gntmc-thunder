@@ -160,6 +160,20 @@ impl TransitionSystem {
         self.reverse_transition_matrix.get_col_indexes_in_row(state)
     }
 
+    /// Computes the product of the transition system with an automaton.
+    /// I.e. a new transition system that simulates the old one while simultaneously executing
+    /// the automaton. The new atomic propositions are the final/accepting states of the
+    /// automaton. Thus, if a state in the transition system shows bad behavior, it
+    /// is labeled with the corresponding state from the automaton. Otherwise, it is labeled
+    /// with the empty set, i.e., an empty `BitVec`.\
+    /// **Note**: You cannot transfer any information from the old transition system to the product.
+    /// That is neither initial states, state names nor number of states.
+    /// 
+    /// # Parameters
+    /// - `auto` The automaton. This can either be a finite automaton or a Büchi automaton
+    /// 
+    /// # Returns
+    /// A new transition system that is the product.
     pub fn product_with(&self, mut auto: FiniteAutomaton<String>) -> TransitionSystem {
         let orig_init_states = self.initial_states.clone();
         let bitvecs_to_states: HashMap<BitVec, Vec<String>> = HashMap::new();
@@ -222,6 +236,7 @@ impl TransitionSystem {
             }
         }
 
+        println!("Combining results into new transition system...");
         let to_state_name_index = new_states.iter()
             .enumerate()
             .map(|(i, state)| (state, i))
@@ -283,7 +298,7 @@ impl TransitionSystem {
 
             (label, states)
         }));
-
+        println!("Finished computation of product.");
 
         TransitionSystem::new(
             tmatrix,
