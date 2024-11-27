@@ -1,8 +1,59 @@
 use crate::common::transition_system::TransitionSystem;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use bit_vec::BitVec;
 use crate::common::sparse_matrix::SparseMatrix;
+use crate::parser::property::{Property};
+
+pub fn persistence_checking_scc(transition_system: &TransitionSystem, property: Property<String>)-> bool{
+    //toDo: build the product with property before finding scc
+    let mut scc = SCC::new();
+    scc.find_scc(transition_system);
+    scc.print_sccs();
+    for cluster in scc.sccs{
+        for state in cluster{
+            //if labels not empty, we have -f state
+            if !transition_system.get_state_label(state).none(){
+                //we have a state which hold -f in a cluster
+                //check if state is reachable from start
+                if is_reachable(transition_system, transition_system.get_initial_states(), state){
+                    //if its reachable, it isnt reachable
+                    return false;
+                }
+            }
+        }
+    }
+    true
+}
+pub fn is_reachable(transition_system: &TransitionSystem,
+                    starts: &Vec<usize>,
+                    target: usize
+) -> bool {
+    let mut visited = HashSet::new();
+    let mut queue = VecDeque::new();
+    for &start in starts
+    {
+        queue.push_back(start);
+        visited.insert(start);
+    }
+
+    while let Some(current) = queue.pop_front() {
+        if current == target {
+            return true;
+        }
+
+        if let neighbors = transition_system.get_successor_states(current).to_vec() {
+            for neighbor in neighbors {
+                if !visited.contains(&neighbor) {
+                    visited.insert(neighbor);
+                    queue.push_back(neighbor);
+                }
+            }
+        }
+    }
+
+    false
+}
 struct SCC {
 
     max_dfs: usize,
@@ -84,9 +135,7 @@ impl SCC {
 #[test]
 fn test_scc(){
     let ts = create_test_transition_system();
-    let mut scc = SCC::new();
-    scc.find_scc(&ts);
-    scc.print_sccs();
+    persistence_checking_scc(&ts,)
 
 }
 
