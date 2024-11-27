@@ -1,11 +1,12 @@
 use crate::common::transition_system::TransitionSystem;
-
+use crate::checker::helper::reconstruct_path;
 use std::collections::{HashMap, HashSet, VecDeque};
 use bit_vec::BitVec;
 use crate::common::sparse_matrix::SparseMatrix;
 use crate::parser::property::{Property};
 
-pub fn persistence_checking_scc(transition_system: &TransitionSystem, property: Property<String>)-> bool{
+pub fn persistence_checking_scc(transition_system: &TransitionSystem, property: Property<String>)
+    -> Result<bool, (Vec<Vec<String>>, Vec<usize>)>{
     //toDo: build the product with property before finding scc
     let mut scc = SCC::new();
     scc.find_scc(transition_system);
@@ -16,21 +17,26 @@ pub fn persistence_checking_scc(transition_system: &TransitionSystem, property: 
             if !transition_system.get_state_label(state).none(){
                 //we have a state which hold -f in a cluster
                 //check if state is reachable from start
-                if is_reachable(transition_system, transition_system.get_initial_states(), state){
+                if let Ok(came_from) = is_reachable(transition_system, transition_system.get_initial_states(), state){
                     //if its reachable, it isnt reachable
-                    return false;
+                    return Err(reconstruct_path(
+                        transition_system,
+                        &came_from,
+                        state
+                    ));
                 }
             }
         }
     }
-    true
+    Ok(true)
 }
 pub fn is_reachable(transition_system: &TransitionSystem,
                     starts: &Vec<usize>,
                     target: usize
-) -> bool {
+) -> Result<HashMap<usize, usize>, bool> {
     let mut visited = HashSet::new();
     let mut queue = VecDeque::new();
+    let mut came_from: HashMap<usize, usize> = HashMap::new(); // save predecessor
     for &start in starts
     {
         queue.push_back(start);
@@ -39,7 +45,7 @@ pub fn is_reachable(transition_system: &TransitionSystem,
 
     while let Some(current) = queue.pop_front() {
         if current == target {
-            return true;
+            return Ok(came_from);
         }
 
         if let neighbors = transition_system.get_successor_states(current).to_vec() {
@@ -47,12 +53,13 @@ pub fn is_reachable(transition_system: &TransitionSystem,
                 if !visited.contains(&neighbor) {
                     visited.insert(neighbor);
                     queue.push_back(neighbor);
+                    came_from.insert(neighbor, current); //save predecessor
                 }
             }
         }
     }
 
-    false
+    Err(false)
 }
 struct SCC {
 
@@ -135,7 +142,7 @@ impl SCC {
 #[test]
 fn test_scc(){
     let ts = create_test_transition_system();
-    persistence_checking_scc(&ts,)
+    persistence_checking_scc(&ts);
 
 }
 

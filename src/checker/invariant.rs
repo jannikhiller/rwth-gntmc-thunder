@@ -1,5 +1,6 @@
 use crate::common::transition_system::TransitionSystem;
 use crate::parser::property::Property;
+use crate::checker::helper::reconstruct_path;
 use bit_vec::BitVec;
 use log::trace;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -83,33 +84,6 @@ pub fn bit_vec_to_ap_strings(transition_system: &TransitionSystem, label: &BitVe
         .collect()
 }
 
-// helper function to reconstruct the path
-fn reconstruct_path(
-    ts: &TransitionSystem,
-    came_from: &HashMap<usize, usize>,
-    end_state: usize,
-) -> (Vec<Vec<String>>, Vec<usize>) {
-    let mut path = Vec::new();
-    let mut states = Vec::new();
-    let mut current = end_state;
-
-    // push label of last state
-    path.push(bit_vec_to_ap_strings(ts, ts.get_state_label(current)));
-    states.push(current);
-
-    // reconstruct path backwards
-    while let Some(&prev) = came_from.get(&current) {
-        path.push(bit_vec_to_ap_strings(ts, ts.get_state_label(prev)));
-        states.push(prev);
-        current = prev;
-    }
-
-    // reverse path, as we have built it up from behind
-    path.reverse();
-    states.reverse();
-
-    (path, states)
-}
 
 #[cfg(test)]
 mod tests {
