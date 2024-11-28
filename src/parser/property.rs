@@ -3,7 +3,7 @@ use log::*;
 
 use crate::common::sparse_matrix::{SparseMatrix, SparseMatrixElement};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PropertyType<ValueType> {
     Invariant(FormulaTreeNode<ValueType>),
     Persistence(FormulaTreeNode<ValueType>),
@@ -194,7 +194,7 @@ pub enum AcceptanceType {
 }
 
 /// A finite automaton that can be used to represent regular safety or omega-regular properties.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FiniteAutomaton<ValueType> {
     /// The type of acceptance for this automaton.
     acceptance: AcceptanceType,

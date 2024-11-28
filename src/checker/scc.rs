@@ -3,24 +3,33 @@ use crate::checker::helper::reconstruct_path;
 use std::collections::{HashMap, HashSet, VecDeque};
 use bit_vec::BitVec;
 use crate::common::sparse_matrix::SparseMatrix;
-use crate::parser::property::{Property};
+use crate::parser::property::{Property, PropertyType, FiniteAutomaton, FormulaTreeNode, FormulaTreeNodeType};
+use crate::parser::property::AcceptanceType::Nfa;
 
-pub fn persistence_checking_scc(transition_system: &TransitionSystem, property: Property<String>)
-    -> Result<bool, (Vec<Vec<String>>, Vec<usize>)>{
+pub fn persistence_checking_scc(transition_system: &TransitionSystem, property: &Property<String>)
+                                -> Result<bool, (Vec<Vec<String>>, Vec<usize>)>{
     //toDo: build the product with property before finding scc
+    let mut automaton;
+    match property.property_type.clone() {
+        PropertyType::Invariant(_) => {panic!("Wrong Datatype")}
+        PropertyType::Persistence(_) => {panic!("Wrong Datatype")}
+        PropertyType::RegularSafety(_) => {panic!("Wrong Datatype")}
+        PropertyType::OmegaRegular(finiteAutomata) => {automaton = finiteAutomata.clone()}
+    }
+    let mut product_ts = &transition_system.product_with(automaton);
     let mut scc = SCC::new();
-    scc.find_scc(transition_system);
+    scc.find_scc(product_ts);
     scc.print_sccs();
     for cluster in scc.sccs{
         for state in cluster{
             //if labels not empty, we have -f state
-            if !transition_system.get_state_label(state).none(){
+            if !product_ts.get_state_label(state).none(){
                 //we have a state which hold -f in a cluster
                 //check if state is reachable from start
-                if let Ok(came_from) = is_reachable(transition_system, transition_system.get_initial_states(), state){
+                if let Ok(came_from) = is_reachable(product_ts, product_ts.get_initial_states(), state){
                     //if its reachable, it isnt reachable
                     return Err(reconstruct_path(
-                        transition_system,
+                        product_ts,
                         &came_from,
                         state
                     ));
@@ -139,49 +148,118 @@ impl SCC {
     }
 }
 
-#[test]
-fn test_scc(){
-    let ts = create_test_transition_system();
-    persistence_checking_scc(&ts);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::common::sparse_matrix::SparseMatrix;
+    #[test]
+    fn test_scc(){
+        let ts = create_test_transition_system_for_product();
+        let automaton = create_test_automaton_for_product();
+        let omega_prop = Property::new("Test".to_string(), PropertyType::OmegaRegular(automaton));
+        match persistence_checking_scc(&ts, &omega_prop) {
+            Ok(result) => println!("Die Invariantenprüfung war erfolgreich: {}", result),
+            Err((error_details, indices)) => {
+                println!("Hält nicht");
+                println!("Details zum Fehler: {:?}", error_details);
+                println!("Indizes der Probleme: {:?}", indices);
+            }}
+        assert!(true);
+    }
 
+    fn create_test_transition_system_for_product() -> TransitionSystem {
+        let transitions = vec![
+            (0, 1, true),
+            (0, 2, true),
+            (2, 1, true),
+            (1, 3, true),
+            (3, 2, true),
+            (3, 3, true),
+        ];
+        let transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
+        let reverse_transitions = vec![
+            (1, 0, true),
+            (2, 0, true),
+            (1, 2, true),
+            (3, 1, true),
+            (2, 3, true),
+            (3, 3, true),
+        ];
+        let reverse_transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
+        let mut state_labels = Vec::new();
+        let ap = vec!["a".to_string(), "b".to_string()];
+        let mut label0 = BitVec::from_elem(2, false);
+        label0.set(0, true);
+        label0.set(1, true);
+        state_labels.push(label0.clone());
+        let label1 = BitVec::from_elem(2, false);
+        state_labels.push(label1.clone());
+        let mut label2 = BitVec::from_elem(2, false);
+        label2.set(0, true);
+        state_labels.push(label2.clone());
+        let mut label3 = BitVec::from_elem(2, false);
+        label3.set(1, true);
+        state_labels.push(label3.clone());
+        let mut label_state_map = HashMap::new();
+        label_state_map.insert(label0, vec![0]);
+        label_state_map.insert(label1, vec![1]);
+        label_state_map.insert(label2, vec![2]);
+        label_state_map.insert(label3, vec![3]);
+        TransitionSystem::new(
+            transition_matrix,
+            reverse_transition_matrix,
+            3,       // last_state
+            vec![0], // initial_states
+            state_labels,
+            label_state_map,
+            ap,
+        )
+    }
 }
-
-fn create_test_transition_system() -> TransitionSystem {
+fn create_test_automaton_for_product() -> FiniteAutomaton<String> {
+    let a_node = FormulaTreeNode::new(
+        None,
+        None,
+        Some("a".to_string()),
+        FormulaTreeNodeType::Atomic
+    );
+    let not_a_node = FormulaTreeNode::new(
+        Some(Box::new(a_node.clone())),
+        None,
+        None,
+        FormulaTreeNodeType::Not
+    );
+    let b_node = FormulaTreeNode::new(
+        None,
+        None,
+        Some("b".to_string()),
+        FormulaTreeNodeType::Atomic
+    );
+    let not_b_node = FormulaTreeNode::new(
+        Some(Box::new(b_node.clone())),
+        None,
+        None,
+        FormulaTreeNodeType::Not
+    );
     let transitions = vec![
-        vec![false, true, false], // State 0 -> State 1
-        vec![false, false, true], // State 1 -> State 2
-        vec![true, false, false], // State 2 -> State 0
+        (0, 0, not_a_node.clone()),
+        (0, 1, a_node.clone()),
+        (1, 1, not_b_node.clone()),
+        (1, 2, b_node.clone()),
+        (2, 0, not_a_node.clone()),
+        (2, 1, a_node.clone()),
     ];
-    let transition_matrix = SparseMatrix::from_2d_vec(&transitions);
-    let reverse_transitions = vec![
-        vec![false, false, true], // State 0 <- State 2
-        vec![true, false, false], // State 1 <- State 0
-        vec![false, true, false], // State 2 <- State 1
-    ];
-    let reverse_transition_matrix = SparseMatrix::from_2d_vec(&reverse_transitions);
-    let mut state_labels = Vec::new();
-    let ap = vec!["a".to_string(), "b".to_string(), "c".to_string()];
-    let mut label0 = BitVec::from_elem(3, false);
-    label0.set(0, true);
-    state_labels.push(label0.clone());
-    let mut label1 = BitVec::from_elem(3, false);
-    label1.set(1, true);
-    state_labels.push(label1.clone());
-    let mut label2 = BitVec::from_elem(3, false);
-    label2.set(0, true);
-    label2.set(2, true);
-    state_labels.push(label2.clone());
-    let mut label_state_map = HashMap::new();
-    label_state_map.insert(label0, vec![0]);
-    label_state_map.insert(label1, vec![1]);
-    label_state_map.insert(label2, vec![2]);
-    TransitionSystem::new(
+    let transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
+    let mut init_states = BitVec::from_elem(3, false);
+    init_states.set(0, true);
+    let mut accepting_states = BitVec::from_elem(3, false);
+    accepting_states.set(2, true);
+
+    FiniteAutomaton::new(
+        Nfa,
         transition_matrix,
-        reverse_transition_matrix,
-        2,       // last_state
-        vec![0], // initial_states
-        state_labels,
-        label_state_map,
-        ap,
+        2,
+        init_states,
+        accepting_states,
     )
 }
