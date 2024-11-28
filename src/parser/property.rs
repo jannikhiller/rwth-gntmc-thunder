@@ -272,6 +272,10 @@ impl FiniteAutomaton<String> {
     pub fn get_acceptance_type(&self) -> AcceptanceType {
         self.acceptance
     }
+    
+    pub fn get_accepting_states(&self) -> &BitVec {
+        &self.accepting_states
+    }
 }
 
 #[cfg(test)]
