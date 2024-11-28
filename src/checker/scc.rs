@@ -19,7 +19,7 @@ pub fn persistence_checking_scc(transition_system: &TransitionSystem, property: 
     let mut product_ts = &transition_system.product_with(automaton);
     let mut scc = SCC::new();
     scc.find_scc(product_ts);
-    scc.print_sccs();
+    //scc.print_sccs();
     for cluster in scc.sccs{
         for state in cluster{
             //if labels not empty, we have -f state
@@ -128,7 +128,10 @@ impl SCC {
                     break;
                 }
             }
-            self.sccs.push(scc);
+            //check if scc is a trivial cluster (no self transition and size 1)
+            if scc.len() == 1 && transition_system.get_successor_states(scc[0]).contains(&scc[0]) || scc.len() > 1 {
+                self.sccs.push(scc);
+            }
         }
     }
 
