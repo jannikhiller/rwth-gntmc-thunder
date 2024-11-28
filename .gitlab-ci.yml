@@ -11,6 +11,9 @@ stages:
     - release
     - docs
 
+variables:
+    PACKAGE_REGISTRY_URL: "${CI_API_V4_URL}/packages/generic"
+
 
 # The following is currently deactivated as it takes a lot of time
 # (because the cargo commands must be installed)
@@ -60,6 +63,8 @@ test:
 # build release binary
 release-windows:
     stage: build
+    before_script:
+        - rustup target add x86_64-pc-windows-gnu
     script:
         - cargo build --target x86_64-pc-windows-gnu --release
         - |
@@ -70,6 +75,8 @@ release-windows:
 
 release-linux:
     stage: build
+    before_script:
+        - rustup target add x86_64-unknown-linux-gnu
     script:
         - cargo build --target x86_64-unknown-linux-gnu --release
         - |
@@ -80,6 +87,8 @@ release-linux:
 
 release-mac:
     stage: build
+    before_script:
+        - rustup target add aarch64-apple-darwin
     script:
         - cargo build --target aarch64-apple-darwin --release
         - |
