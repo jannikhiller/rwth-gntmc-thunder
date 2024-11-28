@@ -166,18 +166,22 @@ impl TransitionSystem {
     /// automaton. Thus, if a state in the transition system shows bad behavior, it
     /// is labeled with the corresponding state from the automaton. Otherwise, it is labeled
     /// with the empty set, i.e., an empty `BitVec`.\
+    /// The procedure uses breadth first search and only computes the reachable fragment. \
     /// **Note**: You cannot transfer any information from the old transition system to the product.
-    /// That is neither initial states, state names nor number of states.
+    /// That is neither initial states, state names nor number of states, etc.
     /// 
     /// # Parameters
     /// - `auto` The automaton. This can either be a finite automaton or a Büchi automaton
     /// 
     /// # Returns
-    /// A new transition system that is the product.
+    /// The reachable fragment of the product transition system
     pub fn product_with(&self, mut auto: FiniteAutomaton<String>) -> TransitionSystem {
         let orig_init_states = self.initial_states.clone();
+        // Maps from the labels given as a BitVec to the corresponding String Vec.
+        // Used as a buffer to improve performance
         let bitvecs_to_states: HashMap<BitVec, Vec<String>> = HashMap::new();
         let mut new_states: HashSet<(usize, usize)> = HashSet::new();
+        // new state |-> new label, i.e., the state of the automaton
         let mut new_state_labels: HashMap<(usize, usize), usize> = HashMap::new();
         let mut new_trans: Vec<((usize, usize), (usize, usize))> = vec![];
         let new_init_states: HashSet<(usize, usize)>;
@@ -190,12 +194,12 @@ impl TransitionSystem {
 
             let auto_states = auto.step(auto.get_initial_state().clone(), &labels);
 
-            for (i, s) in auto_states.iter().enumerate() {
-                if !s {continue}
+            for (auto_state, is_set) in auto_states.iter().enumerate() {
+                if !is_set {continue}
 
-                println!("original state {} corresponds to automaton state {} resulting in new state {:?}", state, i, (state, i));
-                new_states.insert((state, i));
-                new_state_labels.insert((state, i), i);
+                println!("original state {} corresponds to automaton state {} resulting in new state {:?}", state, auto_state, (state, auto_state));
+                new_states.insert((state, auto_state));
+                new_state_labels.insert((state, auto_state), auto_state);
             }
         }
 
@@ -208,7 +212,7 @@ impl TransitionSystem {
         while let Some((ts_state, auto_state)) = deque.pop_front() {
             let ts_succs = self.get_successor_states(ts_state);
             
-            println!("Considering state {:?} with successor states {:?} original transition system", (ts_state, auto_state), ts_succs);
+            println!("Considering state {:?} with successor states {:?} in original transition system", (ts_state, auto_state), ts_succs);
 
             for ts_succ in ts_succs {
                 println!("\tConsidering successor {}", ts_succ);
@@ -237,10 +241,12 @@ impl TransitionSystem {
         }
 
         println!("Combining results into new transition system...");
+        // maps a new state given as a pair to a single integer which is used as state in the new TS
         let to_state_name_index = new_states.iter()
             .enumerate()
             .map(|(i, state)| (state, i))
             .collect::<HashMap<_, _>>();
+        // total number of states in the new TS. => The last state is num_of_new_states-1
         let num_of_new_states = to_state_name_index.len();
 
         let tmatrix = SparseMatrix::from_list_of_entries(
@@ -260,7 +266,10 @@ impl TransitionSystem {
                 .collect::<Vec<_>>(),
         );
         let mapped_new_init_states = new_init_states.iter().map(|s| *to_state_name_index.get(s).unwrap()).collect();
+        // maps a (final) state in the automaton to its index in the new Vec of APs
         let mut auto_state_to_bv_index = HashMap::new();
+        // the APs are the accepting states of the automaton
+        // we use this computation to simultaneously store the indices of each AP.
         let ap = auto.get_accepting_states()
             .iter()
             .enumerate()
@@ -286,7 +295,12 @@ impl TransitionSystem {
             let is_accepting_auto_state = auto.is_accepting(bv_auto_state);
 
             if is_accepting_auto_state {
-                new_state_labels[mapped_state.clone()].set(auto_state_to_bv_index.get(auto_state).map(|x| x.clone()).unwrap(), true);
+                // set the bit in the BitVec label of the state
+                new_state_labels[mapped_state.clone()]
+                    .set(auto_state_to_bv_index.get(auto_state)
+                             .map(|x| x.clone())
+                             .unwrap(),
+                         true);
             }
         }
         let new_label_state_map = HashMap::from_iter((0 .. ap.len() + 1).map(|label_subset| {
@@ -312,7 +326,7 @@ impl TransitionSystem {
     }
 }
 
-// tests written by claude
+
 #[cfg(test)]
 mod tests {
     use super::*;
