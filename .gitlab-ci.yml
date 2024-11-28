@@ -5,25 +5,35 @@ cache:
         - target/
 
 stages:
-    - sec_check
+#    - sec_check
     - test
     - build
     - release
     - docs
 
 
-# check dependencies
-check-dependencies:
-    stage: sec_check
-    script:
-        - cargo outdated
-    when: always
+# The following is currently deactivated as it takes a lot of time
+# (because the cargo commands must be installed)
+# and is not really necessary for the scope of this project
+# When reactivating one might consider to only execute them on events
+# of a merge request (and maybe before a release)
 
-audit-code:
-    stage: sec_check
-    script:
-        - cargo audit
-    when: always
+# check dependencies
+# check-dependencies:
+#    stage: sec_check
+#    before_script:
+#        - cargo install --locked cargo-outdated
+#    script:
+#        - cargo outdated
+#    when: always
+
+# audit-code:
+#    stage: sec_check
+#    before_script:
+#        - cargo install --locked cargo-audit
+#    script:
+#        - cargo audit
+#    when: always
 
 
 # Use cargo to test the project
