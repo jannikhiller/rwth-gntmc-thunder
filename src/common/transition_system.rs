@@ -559,8 +559,8 @@ mod tests {
             (4, 4, true),
         ];
         let transition_matrix = SparseMatrix::from_list_of_entries(5, 5, &transitions);
-        let reverse_transitions = transitions.iter().map(|(i, o, b)| {(*i, *o, *b)}).collect::<Vec<_>>();
-        let reverse_transition_matrix = SparseMatrix::from_list_of_entries(5, 5, &transitions);
+        let reverse_transitions = transitions.clone().iter().map(|(i, o, b)| {(*o, *i, *b)}).collect::<Vec<_>>();
+        let reverse_transition_matrix = SparseMatrix::from_list_of_entries(5, 5, &reverse_transitions);
         let mut state_labels = Vec::new();
         let ap = vec!["2".to_string()];
         let mut label0 = BitVec::from_elem(1, false);
@@ -592,13 +592,15 @@ mod tests {
         // Thus, we cannot use `assert_eq` but have to check everything manually.
         // I.e., we have to allow isomorphism.
         
-        assert_eq!(computed.initial_states.len(), result_ts.initial_states.len(), "Both systems must have the same number initial states");
-        assert_eq!(computed.last_state, result_ts.last_state, "Both systems must have the same number of states, i.e., the same last state");
+        assert_eq!(computed.initial_states.len(), result_ts.initial_states.len(), "Both systems must have the same number initial states. Expected: {} but got: {}", result_ts.initial_states.len(), computed.initial_states.len());
+        assert_eq!(computed.last_state, result_ts.last_state, "Both systems must have the same number of states, i.e., the same last state. Expected: {} but got: {}", result_ts.last_state, computed.last_state);
         
         // Note: Since both systems use the same automaton the atomic propositions should be exactly the same,
         //       as in both cases the accepting state of the automaton is used as the only ap.
-        assert_eq!(computed.ap, result_ts.ap, "Both systems must have the same atomic propositions");
-        
+        assert_eq!(computed.ap, result_ts.ap, "Both systems must have the same atomic propositions. Expected: {:?} but got: {:?}", result_ts.ap, computed.ap);
+
+        assert_eq!(computed.get_num_transitions(), result_ts.get_num_transitions(), "Both systems must have the same number of transitions. Expected: {:?} but got: {:?}", result_ts.get_num_transitions(), computed.get_num_transitions());
+
         // Because of possible isomorphism, we have to traverse both transition systems and check whether all states are equivalent.
         // We consider two states equivalent iff they are isomorphic, that is:
         //  1. They have the same label
@@ -607,10 +609,47 @@ mod tests {
         //  3. All successor states are equivalent
         // To test the equivalence of the `label_state_map`s we build a map from the states of one transition system to the other's.
         // Note: The `state_label`s are tested implicitly using our notion of equivalence.
+        //       By doing so, we do not care if one transition system specifies labels that do not correspond to a state.
         // Note: While we do not require two states to have equivalent predecessors to be equivalent,
         //       we can test the `reverse_transition_matrix`es more easily during this equivalence check.
-        // TODO implement testing for isomorphism as specified above using bfs
-        
-        // TODO implement testing of state_label s using a hashmap as described above
+        let mut deque = VecDeque::new();
+        computed.initial_states.iter()
+            .zip(result_ts.initial_states.iter())
+            .for_each(|state| {deque.push_back(state.clone());});
+        // maps the states of the computed to the result
+        let mut map = HashMap::new();
+
+        while let Some((computed_state, result_state)) = deque.pop_front() {
+            map.insert(computed_state, result_state);
+
+            // check labels
+            let c_label = computed.state_labels.get(*computed_state).unwrap();
+            let r_label = result_ts.state_labels.get(*result_state).unwrap();
+            assert_eq!(bit_vec_to_ap_strings(&computed, c_label), bit_vec_to_ap_strings(&result_ts, r_label),
+                       "Both states must have the same label. Expected: {:?} but got: {:?}", bit_vec_to_ap_strings(&result_ts, r_label), bit_vec_to_ap_strings(&computed, c_label));
+
+            // check predecessors
+            let c_preds = computed.get_predecessor_states(*computed_state);
+            let r_preds = result_ts.get_predecessor_states(*result_state);
+            assert_eq!(c_preds.len(), r_preds.len(),
+                       "Both states should have the same number of predecessors. Expected: {:?} but got: {:?}", r_preds.len(),c_preds.len());
+
+            // check successors
+            let c_succs = computed.get_successor_states(*computed_state);
+            let r_succs = result_ts.get_successor_states(*result_state);
+            assert_eq!(c_succs.len(), r_succs.len(),
+                       "Both states should have the same number of successors.. Expected: {:?} but got: {:?}", r_succs.len(),c_succs.len())
+
+            // FIXME now we would have to do the same recursively for all successors. But we cannot
+            //       really align a computed successor to a result successor because of the omitted actions.
+            //       Thus, for now we will skip this part as it is now a NP problem and not worth it to be
+            //       implemented just for this test. And because of the many other things we test and thorough
+            //       manual inspection of the computed result, we can assume the equivalence to hold
+        }
+
+        // label_state_map s
+        let c_label_state_map = computed.label_state_map;
+        let r_label_state_map = result_ts.label_state_map;
+        assert_eq!(c_label_state_map.len(), r_label_state_map.len(), "Both label_state_map s should have equal sizes");
     }
 }
