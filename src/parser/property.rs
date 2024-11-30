@@ -6,7 +6,7 @@ use crate::common::sparse_matrix::{SparseMatrix, SparseMatrixElement};
 #[derive(Debug, Clone)]
 pub enum PropertyType<ValueType> {
     Invariant(FormulaTreeNode<ValueType>),
-    Persistence(FormulaTreeNode<ValueType>),
+    Persistence(FiniteAutomaton<ValueType>),
     RegularSafety(FiniteAutomaton<ValueType>),
     OmegaRegular(FiniteAutomaton<ValueType>),
 }

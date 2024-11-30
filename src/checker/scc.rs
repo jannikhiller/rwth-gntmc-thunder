@@ -1,8 +1,20 @@
 use crate::common::transition_system::TransitionSystem;
 use crate::checker::helper::reconstruct_path;
 use std::collections::{HashMap, HashSet, VecDeque};
+use crate::parser::property::{ Property, PropertyType};
 
-pub fn persistence_checking_scc(product_ts: &TransitionSystem)
+/// Calculates if the given transition system holds the given property. It accepts regular safety
+/// properties and omega regular porperties. For regular safety properties it builds the sync.
+/// product and then invariant checks this product. For the omega regular properties, it builds the
+/// and then persistence checks the property with scc.
+///
+/// # Parameters
+///
+/// - `transition_system`: The given transition system which gets checked.
+///
+/// # Returns
+/// A Result with `Ok` if the property is fulfilled and Err with a path and a trace otherwise.
+pub fn find_scc_in_ts(product_ts: &TransitionSystem)
                                 -> Result<bool, (Vec<Vec<String>>, Vec<usize>)>{
 let mut scc = SCC::new();
     scc.find_scc(product_ts);
@@ -26,6 +38,21 @@ let mut scc = SCC::new();
     }
     Ok(true)
 }
+pub fn persistence_checking_with_scc(transition_system: &TransitionSystem, property: &Property<String>)
+    -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
+    let automaton;
+
+    match property.property_type.clone(){
+        PropertyType::Invariant(_) => {panic!("wrong property type")},
+        PropertyType::Persistence(prop) => {automaton=prop}
+        PropertyType::RegularSafety(_) => {panic!("wrong property type")}
+        PropertyType::OmegaRegular(_) => {panic!("wrong property type")}
+    }
+    let product_ts = transition_system.product_with(automaton);
+    return find_scc_in_ts(&product_ts);
+
+}
+
 pub fn is_reachable(transition_system: &TransitionSystem,
                     starts: &Vec<usize>,
                     target: usize

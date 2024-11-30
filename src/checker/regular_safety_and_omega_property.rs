@@ -3,16 +3,20 @@ use crate::parser::property::{FiniteAutomaton, FormulaTreeNodeType, Property};
 use bit_vec::BitVec;
 use std::collections::{HashMap};
 use crate::checker::invariant::bfs_invariant_checking;
-use crate::checker::scc::persistence_checking_scc;
+use crate::checker::scc::{find_scc_in_ts};
 use crate::common::sparse_matrix::SparseMatrix;
 use crate::parser::property::AcceptanceType::Nfa;
 use crate::parser::property::PropertyType;
 use crate::parser::property::FormulaTreeNode;
 
-/// Returns a boolean over the given Transition System and property.
+/// Calculates if the given transition system holds the given property. It accepts regular safety
+/// properties and omega regular porperties. For regular safety properties it builds the sync.
+/// product and then invariant checks this product. For the omega regular properties, it builds the
+/// and then persistence checks the property with scc.
 ///
 /// # Parameters
-/// - `property`: The Invariant which gets checked.
+/// - `property`: The omega or regular safety property which gets checked,
+/// - `transition_system`: The given transition system which gets checked.
 ///
 /// # Returns
 /// A Result with `Ok` if the property is fulfilled and Err with a path and a trace otherwise.
@@ -26,14 +30,16 @@ pub fn regular_safety_and_omega_checking(
         PropertyType::Invariant(_) => {panic!("Wrong Datatype")}
         PropertyType::Persistence(_) => {panic!("Wrong Datatype")}
         PropertyType::RegularSafety(finiteAutomata) => {
-            automaton = finiteAutomata.clone();
+            //if cloned would be needed here the compile would not be satisfied, and we dont need
+            //copy anyways after
+            automaton = finiteAutomata;
             is_omega = false;}
         PropertyType::OmegaRegular(finiteAutomata) => {
-            automaton = finiteAutomata.clone();
+            automaton = finiteAutomata;
             is_omega = true;
              }
     }
-    let mut product_ts = &transition_system.product_with(automaton);
+    let product_ts = &transition_system.product_with(automaton);
 
     let node = FormulaTreeNode::new(
         None,
@@ -43,11 +49,11 @@ pub fn regular_safety_and_omega_checking(
     );
 
     if is_omega{
-        return persistence_checking_scc(product_ts);
+        return find_scc_in_ts(product_ts);
     }
     else {
         let empty_property = Property::new("emptyProperty".to_string(), PropertyType::Invariant(node));
-        return bfs_invariant_checking(product_ts, &empty_property);
+         return bfs_invariant_checking(product_ts, &empty_property);
     }
 
 }
