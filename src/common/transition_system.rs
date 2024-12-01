@@ -295,6 +295,7 @@ impl TransitionSystem {
             let is_accepting_auto_state = auto.is_accepting(bv_auto_state);
 
             if is_accepting_auto_state {
+                println!("Found accepting state: {}", auto_state);
                 // set the bit in the BitVec label of the state
                 new_state_labels[mapped_state.clone()]
                     .set(auto_state_to_bv_index.get(auto_state)
