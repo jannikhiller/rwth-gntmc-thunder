@@ -1,7 +1,7 @@
 use crate::common::sparse_matrix::*;
 use bit_vec::BitVec;
 use std::collections::{HashSet, HashMap, VecDeque};
-use crate::checker::invariant::bit_vec_to_ap_strings;
+use crate::checker::helper::bit_vec_to_ap_strings;
 use crate::parser::property::FiniteAutomaton;
 
 /// Represents a transition system with states, transitions, and labels.

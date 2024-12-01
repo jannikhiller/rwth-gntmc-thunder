@@ -160,7 +160,7 @@ impl GntmcFiniteAutomaton {
 enum GntmcPropertyKind {
     Invariant(GntmcPropositionalFormula),
     RegularSafety(GntmcFiniteAutomaton),
-    Persistence(GntmcPropositionalFormula),
+    Persistence(GntmcFiniteAutomaton),
     OmegaRegular(GntmcFiniteAutomaton),
 }
 
@@ -297,8 +297,8 @@ fn build_properties(props: Vec<GntmcProperty>) -> (Vec<Property<String>>, Vec<Op
                         GntmcPropertyKind::RegularSafety(automaton) => {
                             PropertyType::RegularSafety(automaton.translate())
                         }
-                        GntmcPropertyKind::Persistence(formula) => {
-                            PropertyType::Persistence(formula.translate())
+                        GntmcPropertyKind::Persistence(automaton) => {
+                            PropertyType::Persistence(automaton.translate())
                         }
                         GntmcPropertyKind::OmegaRegular(automaton) => {
                             PropertyType::OmegaRegular(automaton.translate())

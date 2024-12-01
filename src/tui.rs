@@ -4,7 +4,7 @@ use crate::parser::property::Property;
 use clap::Parser;
 use env_logger::Builder;
 use std::io::Write;
-use crate::checker::invariant::bfs_invariant_checking;
+use crate::checker::checker::check;
 //use crate::checker::checker::check;
 
 #[derive(Parser, Debug)]
@@ -61,7 +61,7 @@ fn check_properties(ts: &TransitionSystem, props: &[Property<String>]) -> f64 {
         println!("Checking property {i}: {:?}...", prop.name);
         let pre_checking_time = std::time::Instant::now();
         //toDo: add new function here
-        let result = bfs_invariant_checking(ts, prop);
+        let result = check(ts, prop);
         let post_checking_time = std::time::Instant::now();
         println!(
             "Done. Checking took {}s",

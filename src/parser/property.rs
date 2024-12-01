@@ -71,8 +71,10 @@ impl Property<String> {
         );
         match &self.property_type {
             PropertyType::Invariant(formula) => formula.evaluate(labels),
-            PropertyType::Persistence(formula) => formula.evaluate(labels),
-            PropertyType::OmegaRegular(_) | PropertyType::RegularSafety(_) => panic!(
+            PropertyType::Persistence(_) | PropertyType::RegularSafety(_) => panic!(
+                "This is an automaton property, use the automatons member functions instead."
+            ),
+            PropertyType::OmegaRegular(_)  => panic!(
                 "This is an automaton property, use the automatons member functions instead."
             ),
         }
