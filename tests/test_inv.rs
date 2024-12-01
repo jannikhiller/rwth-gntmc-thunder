@@ -2,7 +2,7 @@ macro_rules! check_file {
     ($file:expr $(, $is_true:expr)?) => {
         let (ts, props, is_trues) = gntmc::parse_gntmc_file($file);
         for (prop, is_true) in props.iter().zip(is_trues.iter()) {
-            let prop_fulfilled = bfs_invariant_checking(&ts, prop);
+            let prop_fulfilled = check(&ts, prop);
             let mut fail_message = format!("Failed at file {}.", $file);
 
             if let Err((path, trace)) = &prop_fulfilled {
@@ -30,10 +30,10 @@ macro_rules! generate_res_test {
 
 #[cfg(test)]
 mod tests {
-    use thunder::checker::invariant::bfs_invariant_checking;
     use thunder::parser::gntmc;
-
+    use thunder::checker::checker::check;
     generate_res_test!(test_inv_1, test_inv_2, test_inv_3, test_inv_4);
+
 
     #[test]
     fn test_inv_philosophers_broken() {
@@ -54,4 +54,5 @@ mod tests {
             );
         }
     }
+
 }
