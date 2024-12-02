@@ -5,6 +5,9 @@ This is a university project implementing different model checking algorithms in
 
 Currently the following algorithms are implemented:
 - Invariant checking using breadth first search
+- Persistence checking
+- Checking of regular properties (given as NFA)
+- Checking of omega-regular properties (given as NBA)
 
 Requirements
 ------------
@@ -26,7 +29,7 @@ cargo run "filepath"
 ```
 OR (after build/install)
 ```bash
-thunder "filepath
+thunder "filepath"
 ```
 where `"filepath"` is a path to the `gntmc`-file containing the specification of the model and properties.
 
@@ -60,6 +63,11 @@ perf script -F +pid > test.perf
 
 ## Note
 The library is only intended to enable integration tests. Therefore, we do NOT guarantee a stable interface.
+
+## Custom Tests
+`.gntmc`-files with/for custom tests can be found at `tests/res/`. \
+The included python code generates a `.gntmc`-file for a transition system of given size.
+A generated example is already included within the other `.gntmc`-files.
 
 Contributers
 ------------
