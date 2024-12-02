@@ -38,7 +38,7 @@
   "properties": [
     {
       "name": "eventually always not b",
-      "invariant": {
+      "persistence": {
         "not": {
           "atom": "b"
         }
@@ -47,14 +47,14 @@
     },
     {
       "name": "eventually always a",
-      "invariant": {
+      "persistence": {
         "atom": "a"
       },
       "is_true": false
     },
     {
       "name": "eventually always b",
-      "invariant": {
+      "persistence": {
         "atom": "b"
       },
       "is_true": true
