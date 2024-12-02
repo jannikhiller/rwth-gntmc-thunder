@@ -9,53 +9,58 @@ use crate::parser::property::AcceptanceType::Nfa;
 use crate::parser::property::PropertyType;
 use crate::parser::property::FormulaTreeNode;
 
-/// Calculates if the given transition system holds the given property. It accepts regular safety
-/// properties and omega regular porperties. For regular safety properties it builds the sync.
-/// product and then invariant checks this product. For the omega regular properties, it builds the
-/// and then persistence checks the property with scc.
+/// Checks if the given transition system satisfies the given property. It accepts regular safety
+/// properties and omega regular properties. For regular safety properties it builds the sync.
+/// product and then runs an invariant check on this product. For omega regular properties, it
+/// builds a product as well and runs a persistence afterwards.
 ///
 /// # Parameters
-/// - `property`: The omega or regular safety property which gets checked,
+///
 /// - `transition_system`: The given transition system which gets checked.
+/// - `property`: The property to be checked on the given transition system.
 ///
 /// # Returns
 /// A Result with `Ok` if the property is fulfilled and Err with a path and a trace otherwise.
 pub fn regular_safety_and_omega_checking(
     transition_system: &TransitionSystem,
-    property: &Property<String>,
-) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
-    let mut automaton:FiniteAutomaton<String>;
+    property: &Property<String>) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
+    let mut automaton: FiniteAutomaton<String>;
     let is_omega: bool;
     match property.property_type.clone() {
-        PropertyType::Invariant(_) => {panic!("Wrong Datatype")}
-        PropertyType::Persistence(_) => {panic!("Wrong Datatype")}
+        PropertyType::Invariant(_) => { panic!("Wrong Datatype") }
+        PropertyType::Persistence(_) => { panic!("Wrong Datatype") }
         PropertyType::RegularSafety(finiteAutomata) => {
-            //if cloned would be needed here the compile would not be satisfied, and we dont need
-            //copy anyways after
+            // if cloned would be needed here, the compiler would not be satisfied, and we don't need
+            // a copy anyways
             automaton = finiteAutomata;
-            is_omega = false;}
+            is_omega = false;
+        }
         PropertyType::OmegaRegular(finiteAutomata) => {
             automaton = finiteAutomata;
             is_omega = true;
-             }
+        }
     }
+
     let product_ts = &transition_system.product_with(automaton);
 
-    let node = FormulaTreeNode::new(
-        None,
-        None,
-        Some("".to_string()),
-        FormulaTreeNodeType::Atomic,
-    );
+    if is_omega {
+        find_scc_in_ts(product_ts)
+    } else {
+        // here we construct a property to check if every state in the reachable part of
+        // the transitions system does not have a label
+        // if one does, then we know that a bad state is reachable
+        let node = FormulaTreeNode::new(
+            None,
+            None,
+            Some("".to_string()),
+            FormulaTreeNodeType::Atomic,
+        );
 
-    if is_omega{
-        return find_scc_in_ts(product_ts);
-    }
-    else {
-        let empty_property = Property::new("emptyProperty".to_string(), PropertyType::Invariant(node));
-         return bfs_invariant_checking(product_ts, &empty_property);
-    }
+        let empty_property = Property::new("emptyProperty".to_string(),
+                                           PropertyType::Invariant(node));
 
+        bfs_invariant_checking(product_ts, &empty_property)
+    }
 }
 
 #[cfg(test)]
@@ -64,21 +69,22 @@ mod tests {
     use crate::common::sparse_matrix::SparseMatrix;
 
     #[test]
-    fn test_regular_safety_check(){
+    fn test_regular_safety_check() {
         let ts = create_test_transition_system_for_regular_expression();
         let automaton: FiniteAutomaton<String> = create_test_automaton_for_regular_expression();
-        let reg_prop = Property::new("Test".to_string(),PropertyType::RegularSafety(automaton));
+        let reg_prop = Property::new("Test".to_string(), PropertyType::RegularSafety(automaton));
         match regular_safety_and_omega_checking(&ts, &reg_prop) {
             Ok(result) => println!("Die Invariantenprüfung war erfolgreich: {}", result),
             Err((error_details, indices)) => {
                 println!("Hält nicht");
                 println!("Details zum Fehler: {:?}", error_details);
                 println!("Indizes der Probleme: {:?}", indices);
-            }}
+            }
+        }
         assert!(true);
     }
     #[test]
-    fn test_scc(){
+    fn test_scc() {
         let ts = create_test_transition_system_for_product();
         let automaton = create_test_automaton_for_product();
         let omega_prop = Property::new("Test".to_string(), PropertyType::OmegaRegular(automaton));
@@ -88,7 +94,8 @@ mod tests {
                 println!("Hält nicht");
                 println!("Details zum Fehler: {:?}", error_details);
                 println!("Indizes der Probleme: {:?}", indices);
-            }}
+            }
+        }
         assert!(true);
     }
 
@@ -146,25 +153,25 @@ fn create_test_automaton_for_product() -> FiniteAutomaton<String> {
         None,
         None,
         Some("a".to_string()),
-        FormulaTreeNodeType::Atomic
+        FormulaTreeNodeType::Atomic,
     );
     let not_a_node = FormulaTreeNode::new(
         Some(Box::new(a_node.clone())),
         None,
         None,
-        FormulaTreeNodeType::Not
+        FormulaTreeNodeType::Not,
     );
     let b_node = FormulaTreeNode::new(
         None,
         None,
         Some("b".to_string()),
-        FormulaTreeNodeType::Atomic
+        FormulaTreeNodeType::Atomic,
     );
     let not_b_node = FormulaTreeNode::new(
         Some(Box::new(b_node.clone())),
         None,
         None,
-        FormulaTreeNodeType::Not
+        FormulaTreeNodeType::Not,
     );
     let transitions = vec![
         (0, 0, not_a_node.clone()),
@@ -262,13 +269,13 @@ fn create_test_automaton_for_regular_expression() -> FiniteAutomaton<String> {
         None,
         None,
         Some("a".to_string()),
-        FormulaTreeNodeType::Atomic
+        FormulaTreeNodeType::Atomic,
     );
     let not_a_node = FormulaTreeNode::new(
         Some(Box::new(a_node.clone())),
         None,
         None,
-        FormulaTreeNodeType::Not
+        FormulaTreeNodeType::Not,
     );
     //we check on always a so I build automata for alawys not a
     let transitions = vec![

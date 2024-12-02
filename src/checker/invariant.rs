@@ -1,6 +1,6 @@
 use crate::common::transition_system::TransitionSystem;
 use crate::parser::property::Property;
-use crate::checker::helper::{reconstruct_path,bit_vec_to_ap_strings};
+use crate::checker::helper::{bit_vec_to_ap_strings};
 use bit_vec::BitVec;
 use log::trace;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -45,7 +45,7 @@ pub fn bfs_invariant_checking(
                     transition_system,
                     &came_from,
                     current_state,
-                )); //if property doesn't hold, return the path
+                )); // if property doesn't hold, return the path
             }
             trace!("Property fulfilled ... continue.");
             visited_labels.insert(current_bit_label.clone());
@@ -63,6 +63,42 @@ pub fn bfs_invariant_checking(
     }
 
     Ok(true)
+}
+
+/// Construct a counterexample in the case that the property was violated by the given transition
+/// system.
+///
+/// # Parameters
+/// - `transition_system`: The transition system that violated the property.
+/// - `came_from`: A HashMap used to follow the path that caused the violation.
+/// - `end_state`: Last state of the counterexample, which finally violates the property.
+///
+/// # Returns
+/// A pair consisting of the path and the trace of the counterexample.
+fn reconstruct_path(
+    ts: &TransitionSystem,
+    came_from: &HashMap<usize, usize>,
+    end_state: usize) -> (Vec<Vec<String>>, Vec<usize>) {
+    let mut path = Vec::new();
+    let mut states = Vec::new();
+    let mut current = end_state;
+
+    // push label of last state
+    path.push(bit_vec_to_ap_strings(ts, ts.get_state_label(current)));
+    states.push(current);
+
+    // reconstruct path backwards
+    while let Some(&prev) = came_from.get(&current) {
+        path.push(bit_vec_to_ap_strings(ts, ts.get_state_label(prev)));
+        states.push(prev);
+        current = prev;
+    }
+
+    // reverse path, as we have built it up from behind
+    path.reverse();
+    states.reverse();
+
+    (path, states)
 }
 
 #[cfg(test)]
