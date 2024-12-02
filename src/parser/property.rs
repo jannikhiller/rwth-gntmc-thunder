@@ -6,7 +6,7 @@ use crate::common::sparse_matrix::{SparseMatrix, SparseMatrixElement};
 #[derive(Debug, Clone)]
 pub enum PropertyType<ValueType> {
     Invariant(FormulaTreeNode<ValueType>),
-    Persistence(FiniteAutomaton<ValueType>),
+    Persistence(FormulaTreeNode<ValueType>),
     RegularSafety(FiniteAutomaton<ValueType>),
     OmegaRegular(FiniteAutomaton<ValueType>),
 }
@@ -70,11 +70,10 @@ impl Property<String> {
             self.property_type
         );
         match &self.property_type {
-            PropertyType::Invariant(formula) => formula.evaluate(labels),
-            PropertyType::Persistence(_) | PropertyType::RegularSafety(_) => panic!(
-                "This is an automaton property, use the automatons member functions instead."
-            ),
-            PropertyType::OmegaRegular(_)  => panic!(
+            PropertyType::Invariant(formula)
+            | PropertyType::Persistence(formula) => formula.evaluate(labels),
+            PropertyType::OmegaRegular(_)
+            | PropertyType::RegularSafety(_) => panic!(
                 "This is an automaton property, use the automatons member functions instead."
             ),
         }

@@ -4,8 +4,7 @@ use crate::parser::property::Property;
 use clap::Parser;
 use env_logger::Builder;
 use std::io::Write;
-use crate::checker::checker::check;
-//use crate::checker::checker::check;
+use crate::checker::checker::{check, PersistenceCheckingAlgorithm, Options};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -55,13 +54,13 @@ fn parse_model_and_properties(
     (ts, props, parsing_time)
 }
 
-fn check_properties(ts: &TransitionSystem, props: &[Property<String>]) -> f64 {
+fn check_properties(ts: &TransitionSystem, props: &[Property<String>], options: &Options) -> f64 {
     let mut total_model_checking_time = std::time::Duration::new(0, 0);
     for (i, prop) in props.iter().enumerate() {
         println!("Checking property {i}: {:?}...", prop.name);
         let pre_checking_time = std::time::Instant::now();
         //toDo: add new function here
-        let result = check(ts, prop);
+        let result = check(ts, prop, options);
         let post_checking_time = std::time::Instant::now();
         println!(
             "Done. Checking took {}s",
@@ -91,7 +90,13 @@ pub fn run() {
     let args = Cli::parse();
     initialize_logger(args.verbose);
     let (ts, props, parsing_time) = parse_model_and_properties(&args.gntmc_file);
-    let checking_time = check_properties(&ts, &props);
+
+    // TODO-Jannik: we need to insert the chosen persistence algorithm into the `Options` struct
+    // please extend our CLI accordingly, thanks!
+    let persistence_algorithm = PersistenceCheckingAlgorithm::NestedDfs;
+    let mut options = Options::new();
+    options.set_persistence_algorithm(persistence_algorithm);
+    let checking_time = check_properties(&ts, &props, &options);
 
     println!("Total runtime: {:?}", parsing_time + checking_time);
 }

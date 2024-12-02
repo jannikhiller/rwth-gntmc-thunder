@@ -2,7 +2,9 @@ macro_rules! check_file {
     ($file:expr $(, $is_true:expr)?) => {
         let (ts, props, is_trues) = gntmc::parse_gntmc_file($file);
         for (prop, is_true) in props.iter().zip(is_trues.iter()) {
-            let prop_fulfilled = check(&ts, prop);
+            let mut options = thunder::checker::checker::Options::new();
+            options.set_persistence_algorithm(thunder::checker::checker::PersistenceCheckingAlgorithm::Scc);
+            let prop_fulfilled = check(&ts, prop, &options);
             let mut fail_message = format!("Failed at file {}.", $file);
 
             if let Err((path, trace)) = &prop_fulfilled {

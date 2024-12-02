@@ -1,6 +1,7 @@
 use crate::common::sparse_matrix::*;
 use bit_vec::BitVec;
 use std::collections::{HashSet, HashMap, VecDeque};
+use log::trace;
 use crate::checker::helper::bit_vec_to_ap_strings;
 use crate::parser::property::FiniteAutomaton;
 
@@ -186,7 +187,7 @@ impl TransitionSystem {
         let mut new_trans: Vec<((usize, usize), (usize, usize))> = vec![];
         let new_init_states: HashSet<(usize, usize)>;
 
-        println!("Computing init states...");
+        trace!("Computing init states...");
         for state in orig_init_states {
             let bv_label = self.get_state_label(state);
             let labels = bitvecs_to_states.get(bv_label)
@@ -197,7 +198,7 @@ impl TransitionSystem {
             for (auto_state, is_set) in auto_states.iter().enumerate() {
                 if !is_set {continue}
 
-                println!("original state {} corresponds to automaton state {} resulting in new state {:?}", state, auto_state, (state, auto_state));
+                trace!("original state {} corresponds to automaton state {} resulting in new state {:?}", state, auto_state, (state, auto_state));
                 new_states.insert((state, auto_state));
                 new_state_labels.insert((state, auto_state), auto_state);
             }
@@ -208,14 +209,14 @@ impl TransitionSystem {
         let mut deque: VecDeque<(usize, usize)> = VecDeque::new();
         new_init_states.iter().for_each(|x| deque.push_back(*x));
 
-        println!("Computing reachable fragment...\nStarting with Queue: {:?}", deque);
+        trace!("Computing reachable fragment...\nStarting with Queue: {:?}", deque);
         while let Some((ts_state, auto_state)) = deque.pop_front() {
             let ts_succs = self.get_successor_states(ts_state);
-            
-            println!("Considering state {:?} with successor states {:?} in original transition system", (ts_state, auto_state), ts_succs);
+
+            trace!("Considering state {:?} with successor states {:?} in original transition system", (ts_state, auto_state), ts_succs);
 
             for ts_succ in ts_succs {
-                println!("\tConsidering successor {}", ts_succ);
+                trace!("\tConsidering successor {}", ts_succ);
                 let ts_succ_label = self.get_state_label(*ts_succ);
                 let labels = bitvecs_to_states.get(ts_succ_label)
                     .map(|x| x.clone()).unwrap_or_else(|| bit_vec_to_ap_strings(self, ts_succ_label));
@@ -225,8 +226,8 @@ impl TransitionSystem {
 
                 for (auto_succ, s) in auto_states.iter().enumerate() {
                     if !s {continue}
-                    
-                    println!("\tCorresponds to automaton state {}\n\t\t=> new state: {:?}; with transition {:?} -> {:?}", auto_succ, (*ts_succ, auto_succ), (ts_state, auto_state), (*ts_succ, auto_succ));
+
+                    trace!("\tCorresponds to automaton state {}\n\t\t=> new state: {:?}; with transition {:?} -> {:?}", auto_succ, (*ts_succ, auto_succ), (ts_state, auto_state), (*ts_succ, auto_succ));
 
                     let not_been_seen = new_states.insert((*ts_succ, auto_succ));
                     new_state_labels.insert((*ts_succ, auto_succ), auto_succ);
@@ -234,13 +235,13 @@ impl TransitionSystem {
 
                     if not_been_seen {
                         deque.push_back((*ts_succ, auto_succ));
-                        println!("\t\tNew state has not been seen yet. Adding to Queue...\n\t\tQueue updated to: {:?}", deque);
+                        trace!("\t\tNew state has not been seen yet. Adding to Queue...\n\t\tQueue updated to: {:?}", deque);
                     }
                 }
             }
         }
 
-        println!("Combining results into new transition system...");
+        trace!("Combining results into new transition system...");
         // maps a new state given as a pair to a single integer which is used as state in the new TS
         let to_state_name_index = new_states.iter()
             .enumerate()
@@ -295,6 +296,7 @@ impl TransitionSystem {
             let is_accepting_auto_state = auto.is_accepting(bv_auto_state);
 
             if is_accepting_auto_state {
+                trace!("Found accepting state: {}", auto_state);
                 // set the bit in the BitVec label of the state
                 new_state_labels[mapped_state.clone()]
                     .set(auto_state_to_bv_index.get(auto_state)
@@ -312,7 +314,7 @@ impl TransitionSystem {
 
             (label, states)
         }));
-        println!("Finished computation of product.");
+        trace!("Finished computation of product.");
 
         TransitionSystem::new(
             tmatrix,
