@@ -15,6 +15,9 @@ struct Cli {
     /// Verbosity level, increase by repeating (-v -vv ...)
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+    
+    #[arg(short, long, default_value_t, value_enum)]
+    persistence: PersistenceCheckingAlgorithm
 }
 
 fn initialize_logger(verbosity: u8) {
@@ -59,7 +62,6 @@ fn check_properties(ts: &TransitionSystem, props: &[Property<String>], options: 
     for (i, prop) in props.iter().enumerate() {
         println!("Checking property {i}: {:?}...", prop.name);
         let pre_checking_time = std::time::Instant::now();
-        //toDo: add new function here
         let result = check(ts, prop, options);
         let post_checking_time = std::time::Instant::now();
         println!(
@@ -91,9 +93,7 @@ pub fn run() {
     initialize_logger(args.verbose);
     let (ts, props, parsing_time) = parse_model_and_properties(&args.gntmc_file);
 
-    // TODO-Jannik: we need to insert the chosen persistence algorithm into the `Options` struct
-    // please extend our CLI accordingly, thanks!
-    let persistence_algorithm = PersistenceCheckingAlgorithm::NestedDfs;
+    let persistence_algorithm = args.persistence;
     let mut options = Options::new();
     options.set_persistence_algorithm(persistence_algorithm);
     let checking_time = check_properties(&ts, &props, &options);
