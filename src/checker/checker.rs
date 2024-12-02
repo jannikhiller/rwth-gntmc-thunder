@@ -44,7 +44,7 @@ pub struct Options {
 impl Options {
     pub fn new() -> Self {
         // default algorithm is set here
-        Options { persistence_algorithm: PersistenceCheckingAlgorithm::Scc }
+        Options { persistence_algorithm: PersistenceCheckingAlgorithm::NestedDfs }
     }
 
     pub fn set_persistence_algorithm(&mut self, persistence_algorithm: PersistenceCheckingAlgorithm) {
