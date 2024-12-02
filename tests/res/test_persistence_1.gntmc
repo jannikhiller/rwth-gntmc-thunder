@@ -50,7 +50,7 @@
       "persistence": {
         "atom": "a"
       },
-      "is_true": true
+      "is_true": false
     },
     {
       "name": "eventually always b",

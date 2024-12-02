@@ -18,7 +18,6 @@ pub fn find_scc_in_ts(transition_system: &TransitionSystem, property: &Property<
     // wrapper struct used to find and store SCCs in the given transition system
     let mut scc = SCC::new();
     scc.find_sccs(transition_system);
-    scc.print_sccs();
 
     for cluster in scc.sccs {
         for state in cluster {

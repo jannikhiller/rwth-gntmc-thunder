@@ -77,8 +77,6 @@ fn check_property_on_state(state: usize, transition_system: &TransitionSystem, p
     let bit_label = transition_system.get_state_label(state);
     let string_labels_of_current = bit_vec_to_ap_strings(transition_system, bit_label);
 
-    println!("{:?}", string_labels_of_current);
-
     property.evaluate(&string_labels_of_current)
 }
 
