@@ -1,4 +1,5 @@
 use crate::checker::invariant::bfs_invariant_checking;
+use crate::checker::nested_dfs::persistence_checking_with_nested_dfs;
 use crate::common::transition_system::TransitionSystem;
 use crate::parser::property::{Property, PropertyType};
 use crate::checker::regular_safety_and_omega_property::regular_safety_and_omega_checking;
@@ -15,14 +16,43 @@ use crate::checker::scc::{persistence_checking_with_scc};
 /// # Returns
 /// A Result with `Ok` if the property is fulfilled and Err with a path and a trace otherwise.
 pub fn check(transition_system: &TransitionSystem,
-             property: &Property<String>,
-            ) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)>{
+             property: &Property<String>, options: &Options
+) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
     match property.property_type {
-        PropertyType::Invariant(_) => {bfs_invariant_checking(transition_system,property)}
-        // TODO: we should add a flag to the CLI such that we can choose which algorithm to use
-        // to check a persistence property
-        PropertyType::Persistence(_) => {persistence_checking_with_scc(transition_system, property)}
-        PropertyType::RegularSafety(_) => {regular_safety_and_omega_checking(transition_system,property)}
-        PropertyType::OmegaRegular(_) => {regular_safety_and_omega_checking(transition_system,property)}
+        PropertyType::Invariant(_) => { bfs_invariant_checking(transition_system, property) }
+        PropertyType::Persistence(_) => {
+            // differentiate according to the persistence algorithm set in the options
+            match options.persistence_algorithm {
+                PersistenceCheckingAlgorithm::Scc => {
+                    persistence_checking_with_scc(transition_system, property)
+                }
+                PersistenceCheckingAlgorithm::NestedDfs => {
+                    persistence_checking_with_nested_dfs(transition_system, property)
+                }
+            }
+        }
+        PropertyType::RegularSafety(_) | PropertyType::OmegaRegular(_) => {
+            regular_safety_and_omega_checking(transition_system, property, options)
+        }
     }
+}
+
+pub struct Options {
+    pub persistence_algorithm: PersistenceCheckingAlgorithm
+}
+
+impl Options {
+    pub fn new() -> Self {
+        // default algorithm is set here
+        Options { persistence_algorithm: PersistenceCheckingAlgorithm::Scc }
+    }
+
+    pub fn set_persistence_algorithm(&mut self, persistence_algorithm: PersistenceCheckingAlgorithm) {
+        self.persistence_algorithm = persistence_algorithm
+    }
+}
+
+pub enum PersistenceCheckingAlgorithm {
+    Scc,
+    NestedDfs
 }

@@ -1,14 +1,12 @@
 use crate::common::transition_system::TransitionSystem;
-use crate::parser::property::{Property, PropertyType};
+use crate::parser::property::{Property};
 
 use std::collections::{HashSet, VecDeque};
 use log::{debug, trace};
 use crate::checker::helper::bit_vec_to_ap_strings;
 
 /// Checks if the given transition system satisfies the given persistence property by applying the
-/// nested DFS algorithm presented in the lecture. Hence, it takes a transition system and an NBA,
-/// constructs the product of both and checks whether there is a loop, containing an accepting state
-/// of the NBA, reachable within this product.
+/// nested DFS algorithm presented in the lecture.
 ///
 /// # Parameters
 ///
@@ -20,17 +18,10 @@ use crate::checker::helper::bit_vec_to_ap_strings;
 pub fn persistence_checking_with_nested_dfs(
     transition_system: &TransitionSystem,
     property: &Property<String>) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
-    match property.property_type.clone() {
-        PropertyType::Persistence(automaton) => {
-            let product_of_ts_and_nba = transition_system.product_with(automaton.clone());
-            outer_dfs(&product_of_ts_and_nba)
-        }
-        | PropertyType::RegularSafety(_) | PropertyType::OmegaRegular(_) | PropertyType::Invariant(_) =>
-            panic!("Wrong model checking algorithm chosen for the given property.")
-    }
+    outer_dfs(transition_system, property)
 }
 
-fn outer_dfs(transition_system: &TransitionSystem) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
+fn outer_dfs(transition_system: &TransitionSystem, property: &Property<String>) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
     let mut set_u = HashSet::new(); // set U
     let mut pi = VecDeque::new(); // stack pi
     let mut set_v = HashSet::new(); // set V
@@ -41,7 +32,7 @@ fn outer_dfs(transition_system: &TransitionSystem) -> Result<bool, (Vec<Vec<Stri
              transition_system.get_successor_states(*transition_system.get_initial_states().first().unwrap()));
 
     let initial_states_set = transition_system.get_initial_states()
-        .into_iter()
+        .iter()
         .cloned()
         .collect::<HashSet<usize>>();
 
@@ -55,7 +46,7 @@ fn outer_dfs(transition_system: &TransitionSystem) -> Result<bool, (Vec<Vec<Stri
             let s = pi.back().cloned().unwrap();
 
             let successor_states = transition_system.get_successor_states(s)
-                .into_iter()
+                .iter()
                 .cloned()
                 .collect::<HashSet<_>>();
             if !successor_states.is_subset(&set_u) {
@@ -69,9 +60,7 @@ fn outer_dfs(transition_system: &TransitionSystem) -> Result<bool, (Vec<Vec<Stri
             } else {
                 pi.pop_back();
 
-                if !transition_system.get_state_label(s).none()
-                    // here we check if the state has any label
-                    // this is only the case if it is an accepting state.
+                if !check_property_on_state(s, transition_system, property)
                     && cycle_check(s, &mut set_v, &mut xi, transition_system) {
                     trace!("{:?}", transition_system.get_state_label(s));
                     debug!("Found violation of persistence property.");
@@ -84,26 +73,37 @@ fn outer_dfs(transition_system: &TransitionSystem) -> Result<bool, (Vec<Vec<Stri
     Ok(true)
 }
 
-fn cycle_check(state: usize, visited: &mut HashSet<usize>,
-               queue: &mut VecDeque<usize>,
+fn check_property_on_state(state: usize, transition_system: &TransitionSystem, property: &Property<String>) -> bool {
+    let bit_label = transition_system.get_state_label(state);
+    let string_labels_of_current = bit_vec_to_ap_strings(transition_system, bit_label);
+
+    println!("{:?}", string_labels_of_current);
+
+    property.evaluate(&string_labels_of_current)
+}
+
+fn cycle_check(state: usize, set_v: &mut HashSet<usize>,
+               xi: &mut VecDeque<usize>,
                transition_system: &TransitionSystem) -> bool {
-    queue.push_back(state);
-    while !queue.is_empty() {
-        let current_state = *queue.back().unwrap();
+    xi.push_back(state);
+    while !xi.is_empty() {
+        let current_state = *xi.back().unwrap();
 
         let successor_states_of_current_state = transition_system.get_successor_states(current_state)
-            .into_iter()
+            .iter()
             .cloned()
             .collect::<HashSet<usize>>();
         if successor_states_of_current_state.contains(&state) {
-            queue.push_back(state);
+            xi.push_back(state);
             return true;
-        } else if !successor_states_of_current_state.is_subset(&visited) {
+        } else if !successor_states_of_current_state.is_subset(&set_v) {
             let &s_pprime =
                 successor_states_of_current_state.iter().next().unwrap();
             trace!("Chose {} for s''", s_pprime);
-            visited.insert(s_pprime);
-            queue.push_back(s_pprime);
+            set_v.insert(s_pprime);
+            xi.push_back(s_pprime);
+        } else {
+            xi.pop_back();
         }
     }
 
@@ -141,130 +141,128 @@ fn reconstruct_path(pi: &mut VecDeque<usize>, xi: &mut VecDeque<usize>,
 mod tests {
     use crate::common::sparse_matrix::SparseMatrix;
     use crate::common::transition_system::TransitionSystem;
-    use crate::parser::property::{FiniteAutomaton, FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+    use crate::parser::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
     use bit_vec::BitVec;
     use std::collections::HashMap;
-    use log::info;
     use crate::checker::nested_dfs::persistence_checking_with_nested_dfs;
-    use crate::parser::property::AcceptanceType::Nfa;
 
-    fn create_test_transition_system_for_product(is_true: bool) -> TransitionSystem {
-        let transitions = vec![
-            (0, 1, true),
-            (0, 2, true),
-            (2, 1, true),
-            (1, 3, true),
-            (3, 2, true),
-            (3, 3, true),
-        ];
-        let transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
-        let reverse_transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
-        let mut state_labels = Vec::new();
-        let ap = vec!["a".to_string(), "b".to_string()];
-        let mut label0 = BitVec::from_elem(2, false);
-        if !is_true { // the "a" labels violate the property
-            label0.set(0, true);
-        }
-        label0.set(1, true);
-        state_labels.push(label0.clone());
-        let label1 = BitVec::from_elem(2, false);
-        state_labels.push(label1.clone());
-        let mut label2 = BitVec::from_elem(2, false);
-        if !is_true {  // the "a" labels violate the property
-            label2.set(0, true);
-        }
-        state_labels.push(label2.clone());
-        let mut label3 = BitVec::from_elem(2, false);
-        label3.set(1, true);
-        state_labels.push(label3.clone());
-        let mut label_state_map = HashMap::new();
-        label_state_map.insert(label0, vec![0]);
-        label_state_map.insert(label1, vec![1]);
-        label_state_map.insert(label2, vec![2]);
-        label_state_map.insert(label3, vec![3]);
-        TransitionSystem::new(
-            transition_matrix,
-            reverse_transition_matrix,
-            3,       // last_state
-            vec![0], // initial_states
-            state_labels,
-            label_state_map,
-            ap,
-        )
-    }
-    fn create_test_automaton_for_product() -> FiniteAutomaton<String> {
-        let a_node = FormulaTreeNode::new(
+    #[test]
+    fn test_nested_dfs_true() {
+        let transition_system = create_test_transition_system_1();
+
+        // create formula with only "a"
+        let root = FormulaTreeNode::new(
             None,
             None,
             Some("a".to_string()),
             FormulaTreeNodeType::Atomic,
         );
-        let not_a_node = FormulaTreeNode::new(
-            Some(Box::new(a_node.clone())),
+
+        let property = Property::new("PersistenceProperty".to_string(), PropertyType::Persistence(root));
+
+        assert!(persistence_checking_with_nested_dfs(&transition_system, &property).is_ok());
+    }
+
+    #[test]
+    fn test_nested_dfs_false() {
+        let transition_system = create_test_transition_system_2();
+
+        // create formula with only "a"
+        let root = FormulaTreeNode::new(
             None,
             None,
-            FormulaTreeNodeType::Not,
-        );
-        let b_node = FormulaTreeNode::new(
-            None,
-            None,
-            Some("b".to_string()),
+            Some("a".to_string()),
             FormulaTreeNodeType::Atomic,
         );
-        let not_b_node = FormulaTreeNode::new(
-            Some(Box::new(b_node.clone())),
-            None,
-            None,
-            FormulaTreeNodeType::Not,
-        );
-        let transitions = vec![
-            (0, 0, not_a_node.clone()),
-            (0, 1, a_node.clone()),
-            (1, 1, not_b_node.clone()),
-            (1, 2, b_node.clone()),
-            (2, 0, not_a_node.clone()),
-            (2, 1, a_node.clone()),
-        ];
-        let transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
-        let mut init_states = BitVec::from_elem(3, false);
-        init_states.set(0, true);
-        let mut accepting_states = BitVec::from_elem(3, false);
-        accepting_states.set(2, true);
 
-        FiniteAutomaton::new(
-            Nfa,
+        let property = Property::new("PersistenceProperty".to_string(), PropertyType::Persistence(root));
+
+        let result = persistence_checking_with_nested_dfs(&transition_system, &property);
+
+        match &result {
+            Ok(success) => {
+                panic!("Property should fail!")
+            }
+            Err((counterexample, trace_indexes)) => {
+                println!("The property does not hold.");
+                println!("Counterexample: {:?}", counterexample);
+                println!("Trace indexes: {:?}", trace_indexes);
+
+                // Optionally include assertions to validate the counterexample.
+                assert!(!counterexample.is_empty(), "Expected non-empty counterexample.");
+            }
+        }
+
+        assert!(result.is_err());
+    }
+
+    fn create_test_transition_system_1() -> TransitionSystem {
+        let transitions = vec![
+            vec![false, true], // State 0 -> State 1
+            vec![false, true], // State 1 -> State 1
+        ];
+        let transition_matrix = SparseMatrix::from_2d_vec(&transitions);
+        let reverse_transitions = vec![
+            vec![false, false],
+            vec![true, true], // State 1 <- State 0, State 1 <- State 1
+        ];
+        let reverse_transition_matrix = SparseMatrix::from_2d_vec(&reverse_transitions);
+        let mut state_labels = Vec::new();
+        let ap = vec!["a".to_string()];
+        let label0 = BitVec::from_elem(1, false);
+        state_labels.push(label0.clone());
+        let mut label1 = BitVec::from_elem(1, false);
+        label1.set(0, true);
+        state_labels.push(label1.clone());
+        let mut label_state_map = HashMap::new();
+        label_state_map.insert(label0, vec![0]);
+        label_state_map.insert(label1, vec![1]);
+        TransitionSystem::new(
             transition_matrix,
-            2,
-            init_states,
-            accepting_states,
+            reverse_transition_matrix,
+            1,       // last_state
+            vec![0], // initial_states
+            state_labels,
+            label_state_map,
+            ap
         )
     }
 
-    #[test]
-    fn check_persistence_not_satisfied() {
-        let transition_system: TransitionSystem = create_test_transition_system_for_product(false);
-        let finite_automaton: FiniteAutomaton<String> = create_test_automaton_for_product();
-
-        let property: Property<String> = Property::new("Persistence property".to_string(),
-                                                       PropertyType::Persistence(finite_automaton));
-
-        match persistence_checking_with_nested_dfs(&transition_system, &property) {
-            Ok(_) => panic!("Expected persistence checking to return an error."),
-            Err(_) => println!("Persistence checking failed with an error, as expected.")
-        }
-    }
-
-    #[test]
-    fn check_persistence_satisfied() {
-        let transition_system: TransitionSystem = create_test_transition_system_for_product(true);
-        let finite_automaton: FiniteAutomaton<String> = create_test_automaton_for_product();
-
-        let property: Property<String> = Property::new("Persistence property".to_string(),
-                                                       PropertyType::Persistence(finite_automaton));
-
-        match persistence_checking_with_nested_dfs(&transition_system, &property) {
-            Ok(_) => println!("Persistence checking was successful, as label a never occurs and hence the implication is true."),
-            Err(_) => panic!("Persistence checking failed with an error.s")
-        }
+    fn create_test_transition_system_2() -> TransitionSystem {
+        let transitions = vec![
+            vec![false, true, true], // State 0 -> State 1, State 0 -> State 2
+            vec![false, true, false], // State 1 -> State 1
+            vec![false, false, true], // State 2 -> State 2
+        ];
+        let transition_matrix = SparseMatrix::from_2d_vec(&transitions);
+        let reverse_transitions = vec![
+            vec![false, false, false],
+            vec![true, true, false], // State 1 <- State 0, State 1 <- State 1
+            vec![true, false, true], // State 2 <- State 0, State 2 <- State 2
+        ];
+        let reverse_transition_matrix = SparseMatrix::from_2d_vec(&reverse_transitions);
+        let mut state_labels = Vec::new();
+        let ap = vec!["a".to_string(), "b".to_string()];
+        let label0 = BitVec::from_elem(2, false);
+        state_labels.push(label0.clone());
+        let mut label1 = BitVec::from_elem(2, false);
+        label1.set(0, true);
+        state_labels.push(label1.clone());
+        let mut label2 = BitVec::from_elem(2, false);
+        label2.set(1, true);
+        state_labels.push(label2.clone());
+        let mut label_state_map = HashMap::new();
+        label_state_map.insert(label0, vec![0]);
+        label_state_map.insert(label1, vec![1]);
+        label_state_map.insert(label2, vec![2]);
+        TransitionSystem::new(
+            transition_matrix,
+            reverse_transition_matrix,
+            2,       // last_state
+            vec![0], // initial_states
+            state_labels,
+            label_state_map,
+            ap
+        )
     }
 }

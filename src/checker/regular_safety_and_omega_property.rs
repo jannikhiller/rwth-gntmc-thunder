@@ -2,8 +2,10 @@ use crate::common::transition_system::TransitionSystem;
 use crate::parser::property::{FiniteAutomaton, FormulaTreeNodeType, Property};
 use bit_vec::BitVec;
 use std::collections::{HashMap};
+use crate::checker::checker::{Options, PersistenceCheckingAlgorithm};
 use crate::checker::invariant::bfs_invariant_checking;
-use crate::checker::scc::{find_scc_in_ts};
+use crate::checker::nested_dfs::persistence_checking_with_nested_dfs;
+use crate::checker::scc::{persistence_checking_with_scc};
 use crate::common::sparse_matrix::SparseMatrix;
 use crate::parser::property::AcceptanceType::Nfa;
 use crate::parser::property::PropertyType;
@@ -23,12 +25,13 @@ use crate::parser::property::FormulaTreeNode;
 /// A Result with `Ok` if the property is fulfilled and Err with a path and a trace otherwise.
 pub fn regular_safety_and_omega_checking(
     transition_system: &TransitionSystem,
-    property: &Property<String>) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
+    property: &Property<String>, options: &Options) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
     let automaton: FiniteAutomaton<String>;
     let is_omega: bool;
     match property.property_type.clone() {
-        PropertyType::Invariant(_) => { panic!("Wrong Datatype") }
-        PropertyType::Persistence(_) => { panic!("Wrong Datatype") }
+        PropertyType::Invariant(_) | PropertyType::Persistence(_) => { panic!("Wrong Datatype") }
+        // TODO: here we can also differentiate by the acceptance criteria and hence do not need
+        // two separate match cases
         PropertyType::RegularSafety(finite_automata) => {
             // if cloned would be needed here, the compiler would not be satisfied, and we don't need
             // a copy anyways
@@ -43,24 +46,30 @@ pub fn regular_safety_and_omega_checking(
 
     let product_ts = &transition_system.product_with(automaton);
 
+    // here we construct a property to check if every state in the reachable part of
+    // the transitions system does not have a label
+    // if one does, then we know that a bad state is reachable
+    let node = FormulaTreeNode::new(
+        None,
+        None,
+        Some("".to_string()),
+        FormulaTreeNodeType::Atomic,
+    );
+
+    let empty_property = Property::new("emptyProperty".to_string(),
+                                       PropertyType::Invariant(node));
+
     if is_omega {
-        // TODO: we should add a flag to the CLI such that we can choose which algorithm to use
-        // to check a persistence property
-        find_scc_in_ts(product_ts)
+        // distinguish according to the persistence algorithm set in the options
+        match options.persistence_algorithm {
+            PersistenceCheckingAlgorithm::Scc => {
+                persistence_checking_with_scc(product_ts, &empty_property)
+            }
+            PersistenceCheckingAlgorithm::NestedDfs => {
+                persistence_checking_with_nested_dfs(product_ts, &empty_property)
+            }
+        }
     } else {
-        // here we construct a property to check if every state in the reachable part of
-        // the transitions system does not have a label
-        // if one does, then we know that a bad state is reachable
-        let node = FormulaTreeNode::new(
-            None,
-            None,
-            Some("".to_string()),
-            FormulaTreeNodeType::Atomic,
-        );
-
-        let empty_property = Property::new("emptyProperty".to_string(),
-                                           PropertyType::Invariant(node));
-
         bfs_invariant_checking(product_ts, &empty_property)
     }
 }
@@ -75,12 +84,14 @@ mod tests {
         let ts = create_test_transition_system_for_regular_expression();
         let automaton: FiniteAutomaton<String> = create_test_automaton_for_regular_expression();
         let reg_prop = Property::new("Test".to_string(), PropertyType::RegularSafety(automaton));
-        match regular_safety_and_omega_checking(&ts, &reg_prop) {
-            Ok(result) => println!("Die Invariantenprüfung war erfolgreich: {}", result),
+        let mut options = Options::new();
+        options.set_persistence_algorithm(PersistenceCheckingAlgorithm::Scc);
+        match regular_safety_and_omega_checking(&ts, &reg_prop, &options) {
+            Ok(result) => println!("The invariant checking was successful: {}", result),
             Err((error_details, indices)) => {
-                println!("Hält nicht");
-                println!("Details zum Fehler: {:?}", error_details);
-                println!("Indizes der Probleme: {:?}", indices);
+                println!("Property does not hold");
+                println!("Further information: {:?}", error_details);
+                println!("Indices of the violation: {:?}", indices);
             }
         }
         assert!(true);
@@ -90,12 +101,14 @@ mod tests {
         let ts = create_test_transition_system_for_product();
         let automaton = create_test_automaton_for_product();
         let omega_prop = Property::new("Test".to_string(), PropertyType::OmegaRegular(automaton));
-        match regular_safety_and_omega_checking(&ts, &omega_prop) {
-            Ok(result) => println!("Die Invariantenprüfung war erfolgreich: {}", result),
+        let mut options = Options::new();
+        options.set_persistence_algorithm(PersistenceCheckingAlgorithm::Scc);
+        match regular_safety_and_omega_checking(&ts, &omega_prop, &options) {
+            Ok(result) => println!("The invariant checking was successful: {}", result),
             Err((error_details, indices)) => {
-                println!("Hält nicht");
-                println!("Details zum Fehler: {:?}", error_details);
-                println!("Indizes der Probleme: {:?}", indices);
+                println!("Property does not hold");
+                println!("Further information: {:?}", error_details);
+                println!("Indices of the violation: {:?}", indices);
             }
         }
         assert!(true);

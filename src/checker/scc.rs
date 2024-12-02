@@ -1,7 +1,7 @@
 use crate::common::transition_system::TransitionSystem;
 use std::collections::{HashMap, HashSet, VecDeque};
 use crate::checker::helper::bit_vec_to_ap_strings;
-use crate::parser::property::{Property, PropertyType};
+use crate::parser::property::{Property};
 
 /// Searches for SCCs in the given transition system and checks whether it contains an SCC which
 /// contains an accepting state. Once such an SCC is found, and it is reachable within the product
@@ -13,24 +13,24 @@ use crate::parser::property::{Property, PropertyType};
 ///
 /// # Returns
 /// A Result with `Ok` if the property is fulfilled and Err with a path and a trace otherwise.
-pub fn find_scc_in_ts(product_ts: &TransitionSystem)
-                                -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
+pub fn find_scc_in_ts(transition_system: &TransitionSystem, property: &Property<String>)
+                      -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
     // wrapper struct used to find and store SCCs in the given transition system
     let mut scc = SCC::new();
-    scc.find_sccs(product_ts);
+    scc.find_sccs(transition_system);
     scc.print_sccs();
 
     for cluster in scc.sccs {
         for state in cluster {
             // if label is not empty, we encountered a -f state
-            if !product_ts.get_state_label(state).none() {
+            if !check_property_on_state(state, transition_system, property) {
                 // we have a state which satisfies -f in a cluster
                 // check if state is reachable from start
-                if let Ok(came_from) = is_reachable(product_ts, product_ts.get_initial_states(), state) {
+                if let Ok(came_from) = is_reachable(transition_system, transition_system.get_initial_states(), state) {
                     // if its reachable, we found an SCC containing a bad state
                     // => give counterexample
                     return Err(reconstruct_path(
-                        product_ts,
+                        transition_system,
                         &came_from,
                         state
                     ));
@@ -41,19 +41,16 @@ pub fn find_scc_in_ts(product_ts: &TransitionSystem)
     Ok(true)
 }
 
+fn check_property_on_state(state: usize, transition_system: &TransitionSystem, property: &Property<String>) -> bool {
+    let bit_label = transition_system.get_state_label(state);
+    let string_labels_of_current = bit_vec_to_ap_strings(transition_system, bit_label);
+
+    property.evaluate(&string_labels_of_current)
+}
+
 pub fn persistence_checking_with_scc(transition_system: &TransitionSystem, property: &Property<String>)
     -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
-    let automaton;
-
-    match property.property_type.clone(){
-        PropertyType::Invariant(_) => {panic!("wrong property type")},
-        PropertyType::Persistence(prop) => {automaton = prop}
-        PropertyType::RegularSafety(_) => {panic!("wrong property type")}
-        PropertyType::OmegaRegular(_) => {panic!("wrong property type")}
-    }
-    let product_ts = transition_system.product_with(automaton);
-
-    find_scc_in_ts(&product_ts)
+    find_scc_in_ts(transition_system, property)
 }
 
 fn is_reachable(transition_system: &TransitionSystem,
@@ -199,4 +196,134 @@ fn reconstruct_path(
     states.reverse();
 
     (path, states)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::common::sparse_matrix::SparseMatrix;
+    use crate::common::transition_system::TransitionSystem;
+    use crate::parser::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+    use bit_vec::BitVec;
+    use std::collections::HashMap;
+    use crate::checker::scc::persistence_checking_with_scc;
+
+    #[test]
+    fn test_scc_true() {
+        let transition_system = create_test_transition_system_1();
+
+        // create formula with only "a"
+        let root = FormulaTreeNode::new(
+            None,
+            None,
+            Some("a".to_string()),
+            FormulaTreeNodeType::Atomic,
+        );
+
+        let property = Property::new("PersistenceProperty".to_string(), PropertyType::Persistence(root));
+
+        assert!(persistence_checking_with_scc(&transition_system, &property).is_ok());
+    }
+
+    #[test]
+    fn test_nested_dfs_false() {
+        let transition_system = create_test_transition_system_2();
+
+        // create formula with only "a"
+        let root = FormulaTreeNode::new(
+            None,
+            None,
+            Some("a".to_string()),
+            FormulaTreeNodeType::Atomic,
+        );
+
+        let property = Property::new("PersistenceProperty".to_string(), PropertyType::Persistence(root));
+
+        let result = persistence_checking_with_scc(&transition_system, &property);
+
+        match &result {
+            Ok(success) => {
+                panic!("Property should fail!")
+            }
+            Err((counterexample, trace_indexes)) => {
+                println!("The property does not hold.");
+                println!("Counterexample: {:?}", counterexample);
+                println!("Trace indexes: {:?}", trace_indexes);
+
+                // Optionally include assertions to validate the counterexample.
+                assert!(!counterexample.is_empty(), "Expected non-empty counterexample.");
+            }
+        }
+
+        assert!(result.is_err());
+    }
+
+    fn create_test_transition_system_1() -> TransitionSystem {
+        let transitions = vec![
+            vec![false, true], // State 0 -> State 1
+            vec![false, true], // State 1 -> State 1
+        ];
+        let transition_matrix = SparseMatrix::from_2d_vec(&transitions);
+        let reverse_transitions = vec![
+            vec![false, false],
+            vec![true, true], // State 1 <- State 0, State 1 <- State 1
+        ];
+        let reverse_transition_matrix = SparseMatrix::from_2d_vec(&reverse_transitions);
+        let mut state_labels = Vec::new();
+        let ap = vec!["a".to_string()];
+        let label0 = BitVec::from_elem(1, false);
+        state_labels.push(label0.clone());
+        let mut label1 = BitVec::from_elem(1, false);
+        label1.set(0, true);
+        state_labels.push(label1.clone());
+        let mut label_state_map = HashMap::new();
+        label_state_map.insert(label0, vec![0]);
+        label_state_map.insert(label1, vec![1]);
+        TransitionSystem::new(
+            transition_matrix,
+            reverse_transition_matrix,
+            1,       // last_state
+            vec![0], // initial_states
+            state_labels,
+            label_state_map,
+            ap
+        )
+    }
+
+    fn create_test_transition_system_2() -> TransitionSystem {
+        let transitions = vec![
+            vec![false, true, true], // State 0 -> State 1, State 0 -> State 2
+            vec![false, true, false], // State 1 -> State 1
+            vec![false, false, true], // State 2 -> State 2
+        ];
+        let transition_matrix = SparseMatrix::from_2d_vec(&transitions);
+        let reverse_transitions = vec![
+            vec![false, false, false],
+            vec![true, true, false], // State 1 <- State 0, State 1 <- State 1
+            vec![true, false, true], // State 2 <- State 0, State 2 <- State 2
+        ];
+        let reverse_transition_matrix = SparseMatrix::from_2d_vec(&reverse_transitions);
+        let mut state_labels = Vec::new();
+        let ap = vec!["a".to_string(), "b".to_string()];
+        let label0 = BitVec::from_elem(2, false);
+        state_labels.push(label0.clone());
+        let mut label1 = BitVec::from_elem(2, false);
+        label1.set(0, true);
+        state_labels.push(label1.clone());
+        let mut label2 = BitVec::from_elem(2, false);
+        label2.set(1, true);
+        state_labels.push(label2.clone());
+        let mut label_state_map = HashMap::new();
+        label_state_map.insert(label0, vec![0]);
+        label_state_map.insert(label1, vec![1]);
+        label_state_map.insert(label2, vec![2]);
+        TransitionSystem::new(
+            transition_matrix,
+            reverse_transition_matrix,
+            2,       // last_state
+            vec![0], // initial_states
+            state_labels,
+            label_state_map,
+            ap
+        )
+    }
 }
