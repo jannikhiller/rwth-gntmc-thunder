@@ -1,5 +1,6 @@
 use crate::common::transition_system::TransitionSystem;
 use crate::parser::property::Property;
+use crate::checker::helper::{bit_vec_to_ap_strings};
 use bit_vec::BitVec;
 use log::trace;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -44,7 +45,7 @@ pub fn bfs_invariant_checking(
                     transition_system,
                     &came_from,
                     current_state,
-                )); //if property doesn't hold, return the path
+                )); // if property doesn't hold, return the path
             }
             trace!("Property fulfilled ... continue.");
             visited_labels.insert(current_bit_label.clone());
@@ -64,31 +65,20 @@ pub fn bfs_invariant_checking(
     Ok(true)
 }
 
-/// Returns a string vec for the given bit vec.
+/// Construct a counterexample in the case that the property was violated by the given transition
+/// system.
 ///
 /// # Parameters
-/// - `label`: The BitVec which gets translated into string vec.
+/// - `transition_system`: The transition system that violated the property.
+/// - `came_from`: A HashMap used to follow the path that caused the violation.
+/// - `end_state`: Last state of the counterexample, which finally violates the property.
 ///
 /// # Returns
-/// A Vec<String> for the given AP-BitVec.
-pub fn bit_vec_to_ap_strings(transition_system: &TransitionSystem, label: &BitVec) -> Vec<String> {
-    // get all ap names
-    let ap_names = transition_system.get_ap();
-
-    label
-        .iter()
-        .enumerate() // add index to bit
-        .filter(|(_, bit)| *bit) // only true bits
-        .map(|(index, _)| ap_names[index].clone()) // get according AP-String
-        .collect()
-}
-
-// helper function to reconstruct the path
+/// A pair consisting of the path and the trace of the counterexample.
 fn reconstruct_path(
     ts: &TransitionSystem,
     came_from: &HashMap<usize, usize>,
-    end_state: usize,
-) -> (Vec<Vec<String>>, Vec<usize>) {
+    end_state: usize) -> (Vec<Vec<String>>, Vec<usize>) {
     let mut path = Vec::new();
     let mut states = Vec::new();
     let mut current = end_state;

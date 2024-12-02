@@ -3,10 +3,10 @@ use log::*;
 
 use crate::common::sparse_matrix::{SparseMatrix, SparseMatrixElement};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PropertyType<ValueType> {
     Invariant(FormulaTreeNode<ValueType>),
-    Persistence(FormulaTreeNode<ValueType>),
+    Persistence(FiniteAutomaton<ValueType>),
     RegularSafety(FiniteAutomaton<ValueType>),
     OmegaRegular(FiniteAutomaton<ValueType>),
 }
@@ -15,9 +15,10 @@ pub enum PropertyType<ValueType> {
 ///
 /// The `Property` contains a root node (`FormulaTreeNode`), a type of property
 /// (`PropertyType`), and a name to identify the property.
+#[derive(Debug)]
 pub struct Property<ValueType> {
     /// The type of property represented by this tree.
-    property_type: PropertyType<ValueType>,
+    pub property_type: PropertyType<ValueType>,
     /// The name of the property.
     pub name: String,
 }
@@ -70,8 +71,10 @@ impl Property<String> {
         );
         match &self.property_type {
             PropertyType::Invariant(formula) => formula.evaluate(labels),
-            PropertyType::Persistence(formula) => formula.evaluate(labels),
-            PropertyType::OmegaRegular(_) | PropertyType::RegularSafety(_) => panic!(
+            PropertyType::Persistence(_) | PropertyType::RegularSafety(_) => panic!(
+                "This is an automaton property, use the automatons member functions instead."
+            ),
+            PropertyType::OmegaRegular(_)  => panic!(
                 "This is an automaton property, use the automatons member functions instead."
             ),
         }
@@ -193,7 +196,7 @@ pub enum AcceptanceType {
 }
 
 /// A finite automaton that can be used to represent regular safety or omega-regular properties.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FiniteAutomaton<ValueType> {
     /// The type of acceptance for this automaton.
     acceptance: AcceptanceType,

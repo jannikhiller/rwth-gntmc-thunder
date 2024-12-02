@@ -4,7 +4,7 @@ use std::ops::Index;
 ///
 /// # Type Parameters
 /// * `ValueType` - The type of the values stored in the matrix.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct SparseMatrix<ValueType> {
     /// Non-default values in the matrix.
     values: Vec<ValueType>,
