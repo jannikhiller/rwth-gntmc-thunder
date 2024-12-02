@@ -12,7 +12,7 @@ use crate::parser::property::FormulaTreeNode;
 /// Checks if the given transition system satisfies the given property. It accepts regular safety
 /// properties and omega regular properties. For regular safety properties it builds the sync.
 /// product and then runs an invariant check on this product. For omega regular properties, it
-/// builds a product as well and runs a persistence afterwards.
+/// builds a product as well and runs a persistence check afterwards.
 ///
 /// # Parameters
 ///
@@ -24,19 +24,19 @@ use crate::parser::property::FormulaTreeNode;
 pub fn regular_safety_and_omega_checking(
     transition_system: &TransitionSystem,
     property: &Property<String>) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
-    let mut automaton: FiniteAutomaton<String>;
+    let automaton: FiniteAutomaton<String>;
     let is_omega: bool;
     match property.property_type.clone() {
         PropertyType::Invariant(_) => { panic!("Wrong Datatype") }
         PropertyType::Persistence(_) => { panic!("Wrong Datatype") }
-        PropertyType::RegularSafety(finiteAutomata) => {
+        PropertyType::RegularSafety(finite_automata) => {
             // if cloned would be needed here, the compiler would not be satisfied, and we don't need
             // a copy anyways
-            automaton = finiteAutomata;
+            automaton = finite_automata;
             is_omega = false;
         }
-        PropertyType::OmegaRegular(finiteAutomata) => {
-            automaton = finiteAutomata;
+        PropertyType::OmegaRegular(finite_automata) => {
+            automaton = finite_automata;
             is_omega = true;
         }
     }
@@ -44,6 +44,8 @@ pub fn regular_safety_and_omega_checking(
     let product_ts = &transition_system.product_with(automaton);
 
     if is_omega {
+        // TODO: we should add a flag to the CLI such that we can choose which algorithm to use
+        // to check a persistence property
         find_scc_in_ts(product_ts)
     } else {
         // here we construct a property to check if every state in the reachable part of

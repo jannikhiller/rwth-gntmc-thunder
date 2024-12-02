@@ -74,13 +74,12 @@ fn is_reachable(transition_system: &TransitionSystem,
             return Ok(came_from);
         }
 
-        if let neighbors = transition_system.get_successor_states(current).to_vec() {
-            for neighbor in neighbors {
-                if !visited.contains(&neighbor) {
-                    visited.insert(neighbor);
-                    queue.push_back(neighbor);
-                    came_from.insert(neighbor, current); // save predecessor
-                }
+        let neighbors = transition_system.get_successor_states(current).to_vec();
+        for neighbor in neighbors {
+            if !visited.contains(&neighbor) {
+                visited.insert(neighbor);
+                queue.push_back(neighbor);
+                came_from.insert(neighbor, current); // save predecessor
             }
         }
     }

@@ -19,6 +19,8 @@ pub fn check(transition_system: &TransitionSystem,
             ) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)>{
     match property.property_type {
         PropertyType::Invariant(_) => {bfs_invariant_checking(transition_system,property)}
+        // TODO: we should add a flag to the CLI such that we can choose which algorithm to use
+        // to check a persistence property
         PropertyType::Persistence(_) => {persistence_checking_with_scc(transition_system, property)}
         PropertyType::RegularSafety(_) => {regular_safety_and_omega_checking(transition_system,property)}
         PropertyType::OmegaRegular(_) => {regular_safety_and_omega_checking(transition_system,property)}

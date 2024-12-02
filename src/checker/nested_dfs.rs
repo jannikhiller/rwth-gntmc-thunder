@@ -2,31 +2,42 @@ use crate::common::transition_system::TransitionSystem;
 use crate::parser::property::{Property, PropertyType};
 
 use std::collections::{HashSet, VecDeque};
-use log::{trace};
-use crate::checker::invariant::bit_vec_to_ap_strings;
+use log::{debug, trace};
+use crate::checker::helper::bit_vec_to_ap_strings;
 
-pub fn persistence_checking(
+/// Checks if the given transition system satisfies the given persistence property by applying the
+/// nested DFS algorithm presented in the lecture. Hence, it takes a transition system and an NBA,
+/// constructs the product of both and checks whether there is a loop, containing an accepting state
+/// of the NBA, reachable within this product.
+///
+/// # Parameters
+///
+/// - `transition_system`: The given transition system which gets checked.
+/// - `property`: The property to be checked on the given transition system.
+///
+/// # Returns
+/// A Result with `Ok` if the property is fulfilled and Err with a path and a trace otherwise.
+pub fn persistence_checking_with_nested_dfs(
     transition_system: &TransitionSystem,
-    property: &Property<String>,
-) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
+    property: &Property<String>) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
     match property.property_type.clone() {
         PropertyType::Persistence(automaton) => {
             let product_of_ts_and_nba = transition_system.product_with(automaton.clone());
             outer_dfs(&product_of_ts_and_nba)
         }
         | PropertyType::RegularSafety(_) | PropertyType::OmegaRegular(_) | PropertyType::Invariant(_) =>
-            panic!("Wrong model checking algorithm chosen for the given property!")
+            panic!("Wrong model checking algorithm chosen for the given property.")
     }
 }
 
 fn outer_dfs(transition_system: &TransitionSystem) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
     let mut set_u = HashSet::new(); // set U
-    let mut pi = VecDeque::new(); // stack pigitl
+    let mut pi = VecDeque::new(); // stack pi
     let mut set_v = HashSet::new(); // set V
     let mut xi = VecDeque::new(); // stack xi
 
-    println!("Found initial states: {:?}", transition_system.get_initial_states());
-    println!("Successor states of initial state: {:?}",
+    trace!("Found initial states: {:?}", transition_system.get_initial_states());
+    trace!("Successor states of initial state: {:?}",
              transition_system.get_successor_states(*transition_system.get_initial_states().first().unwrap()));
 
     let initial_states_set = transition_system.get_initial_states()
@@ -52,7 +63,7 @@ fn outer_dfs(transition_system: &TransitionSystem) -> Result<bool, (Vec<Vec<Stri
                     .cloned()
                     .next()
                     .unwrap(); // choose s' \in Post(s) \setminus U
-                println!("Chose {} for s'", s_prime);
+                trace!("Chose {} for s'", s_prime);
                 set_u.insert(s_prime);
                 pi.push_back(s_prime);
             } else {
@@ -62,8 +73,8 @@ fn outer_dfs(transition_system: &TransitionSystem) -> Result<bool, (Vec<Vec<Stri
                     // here we check if the state has any label
                     // this is only the case if it is an accepting state.
                     && cycle_check(s, &mut set_v, &mut xi, transition_system) {
-                    println!("{:?}", transition_system.get_state_label(s));
-                    println!("Found violation of persistence property.");
+                    trace!("{:?}", transition_system.get_state_label(s));
+                    debug!("Found violation of persistence property.");
                     return Err(reconstruct_path(&mut pi, &mut xi, transition_system));
                 }
             }
@@ -90,7 +101,7 @@ fn cycle_check(state: usize, visited: &mut HashSet<usize>,
         } else if !successor_states_of_current_state.is_subset(&visited) {
             let &s_pprime =
                 successor_states_of_current_state.iter().next().unwrap();
-            println!("Chose {} for s''", s_pprime);
+            trace!("Chose {} for s''", s_pprime);
             visited.insert(s_pprime);
             queue.push_back(s_pprime);
         }
@@ -110,18 +121,17 @@ fn reconstruct_path(pi: &mut VecDeque<usize>, xi: &mut VecDeque<usize>,
         path.push(pi.pop_front().unwrap());
     }
 
-    println!("Looping part of counterexample:");
+    debug!("Looping part of counterexample:");
     while !xi.is_empty() {
         let state = xi.pop_front().unwrap();
-        print!("{}, ", state);
+        debug!("{}, ", state);
         path.push(state);
     }
-    println!();
 
-    println!("Length of counterexample: {:?}", path.len());
+    debug!("Length of counterexample: {:?}", path.len());
     for state in &path {
         trace.push(bit_vec_to_ap_strings(transition_system, transition_system.get_state_label(*state)));
-        print!("{:?}, ", state);
+        debug!("{:?}, ", state);
     }
 
     (trace, path)
@@ -135,7 +145,7 @@ mod tests {
     use bit_vec::BitVec;
     use std::collections::HashMap;
     use log::info;
-    use crate::checker::persistence::persistence_checking;
+    use crate::checker::nested_dfs::persistence_checking_with_nested_dfs;
     use crate::parser::property::AcceptanceType::Nfa;
 
     fn create_test_transition_system_for_product(is_true: bool) -> TransitionSystem {
@@ -238,9 +248,9 @@ mod tests {
         let property: Property<String> = Property::new("Persistence property".to_string(),
                                                        PropertyType::Persistence(finite_automaton));
 
-        match persistence_checking(&transition_system, &property) {
+        match persistence_checking_with_nested_dfs(&transition_system, &property) {
             Ok(_) => panic!("Expected persistence checking to return an error."),
-            Err(_) => info!("Persistence checking failed with an error, as expected.")
+            Err(_) => println!("Persistence checking failed with an error, as expected.")
         }
     }
 
@@ -252,8 +262,8 @@ mod tests {
         let property: Property<String> = Property::new("Persistence property".to_string(),
                                                        PropertyType::Persistence(finite_automaton));
 
-        match persistence_checking(&transition_system, &property) {
-            Ok(_) => info!("Persistence checking was successful, as label a never occurs and hence the implication is true."),
+        match persistence_checking_with_nested_dfs(&transition_system, &property) {
+            Ok(_) => println!("Persistence checking was successful, as label a never occurs and hence the implication is true."),
             Err(_) => panic!("Persistence checking failed with an error.s")
         }
     }
