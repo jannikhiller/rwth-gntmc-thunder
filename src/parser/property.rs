@@ -167,11 +167,13 @@ impl FormulaTreeNode<String> {
                 },
                 |l| !l.evaluate(labels),
             ),
-            FormulaTreeNodeType::Atomic => if self.label.as_ref().is_none() {
+            FormulaTreeNodeType::Atomic => {
+                if self.label.as_ref().is_none() {
                     labels.is_empty()
                 } else {
                     labels.contains(self.label.as_ref().unwrap())
                 }
+            }
             FormulaTreeNodeType::True => true,
         }
     }

@@ -192,7 +192,8 @@ impl TransitionSystem {
         for state in orig_init_states {
             let bv_label = self.get_state_label(state);
             let labels = bitvecs_to_states
-                .get(bv_label).cloned()
+                .get(bv_label)
+                .cloned()
                 .unwrap_or_else(|| bit_vec_to_ap_strings(self, bv_label));
 
             let auto_states = auto.step(auto.get_initial_state().clone(), &labels);
@@ -230,7 +231,8 @@ impl TransitionSystem {
                 trace!("\tConsidering successor {}", ts_succ);
                 let ts_succ_label = self.get_state_label(*ts_succ);
                 let labels = bitvecs_to_states
-                    .get(ts_succ_label).cloned()
+                    .get(ts_succ_label)
+                    .cloned()
                     .unwrap_or_else(|| bit_vec_to_ap_strings(self, ts_succ_label));
                 let mut current_auto_state = BitVec::from_elem(auto.get_last_state() + 1, false);
                 current_auto_state.set(auto_state, true);

@@ -53,16 +53,11 @@ pub fn regular_safety_and_omega_checking(
     // here we construct a property to check if every state in the reachable part of
     // the transitions system does not have a label
     // if one does, then we know that a bad state is reachable
-    let node = FormulaTreeNode::new(
-        None,
-        None,
-        None,
-        FormulaTreeNodeType::Atomic,
-    );
-
+    let node = FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::Atomic);
 
     if is_omega {
-        let empty_property = Property::new("emptyProperty".to_string(), PropertyType::Persistence(node));
+        let empty_property =
+            Property::new("emptyProperty".to_string(), PropertyType::Persistence(node));
         // distinguish according to the persistence algorithm set in the options
         match options.persistence_algorithm {
             PersistenceCheckingAlgorithm::Scc => {
@@ -73,7 +68,8 @@ pub fn regular_safety_and_omega_checking(
             }
         }
     } else {
-        let empty_property = Property::new("emptyProperty".to_string(), PropertyType::Invariant(node));
+        let empty_property =
+            Property::new("emptyProperty".to_string(), PropertyType::Invariant(node));
         bfs_invariant_checking(product_ts, &empty_property)
     }
 }

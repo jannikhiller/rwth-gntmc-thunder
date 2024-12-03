@@ -46,8 +46,8 @@ macro_rules! generate_res_test {
 
 #[cfg(test)]
 mod test {
-    use thunder::parser::gntmc;
     use thunder::checker::checker::check;
+    use thunder::parser::gntmc;
     //the first test, is Exc 2 from sheet 3
-    generate_res_test!(test_omega_reg_1,test_omega_reg_2);
+    generate_res_test!(test_omega_reg_1, test_omega_reg_2);
 }
