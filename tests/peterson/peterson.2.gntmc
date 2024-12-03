@@ -616,7 +616,7 @@
           {
             "start": 1,
             "actions": "true",
-            "destination": 3
+            "destination": 1
           },
           {
             "start": 1,
@@ -634,7 +634,7 @@
                 }
               ]
             },
-            "destination": 3
+            "destination": 2
           },
           {
             "start": 2,
