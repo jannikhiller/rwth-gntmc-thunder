@@ -1,0 +1,94 @@
+{
+  "name": "Test omega regular properties",
+  "lts": {
+    "states": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "actions": [
+      0
+    ],
+    "transitions": [
+      [0, 0, 1],
+      [0, 0, 2],
+      [1, 0, 3],
+      [2, 0, 4],
+      [4, 0, 1],
+      [3, 0, 2]
+    ],
+    "initial_states": [
+      0
+    ],
+    "labelling": {
+      "0": [],
+      "1": ["a"],
+      "2": ["a"],
+      "3": [],
+      "4": []
+    }
+  },
+  "properties":
+  [
+    {
+      "name": "infinitely_often_a_and_infinitely_often_b",
+      "is_true": true,
+      "omegaregular": {
+        "acceptance": "buchi",
+        "states": [
+          0,
+          1,
+          2
+        ],
+        "atomic_propositions": [
+          "a"
+        ],
+        "edges": [
+          {
+            "start": 0,
+            "actions": {
+              "not":{
+                "atom":"a"
+              }
+            },
+            "destination": 0
+          },
+          {
+            "start": 0,
+            "actions": {"atom":"a"},
+            "destination": 1
+          },
+          {
+            "start": 1,
+            "actions": {
+              "not": {
+                "atom": "a"
+              }
+            },
+            "destination": 0
+          },
+          {
+            "start": 1,
+            "actions": {
+              "atom":"a"
+            },
+            "destination": 2
+          },
+          {
+            "start": 2,
+            "actions": "true",
+            "destination": 2
+          }
+        ],
+        "initial_states": [
+          0
+        ],
+        "accepting_states": [
+          2
+        ]
+      }
+    }
+  ]
+}

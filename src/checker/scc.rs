@@ -1,7 +1,7 @@
-use crate::common::transition_system::TransitionSystem;
-use std::collections::{HashMap, HashSet, VecDeque};
 use crate::checker::helper::bit_vec_to_ap_strings;
-use crate::parser::property::{Property};
+use crate::common::transition_system::TransitionSystem;
+use crate::parser::property::Property;
+use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Searches for SCCs in the given transition system and checks whether it contains an SCC which
 /// contains an accepting state. Once such an SCC is found, and it is reachable within the product
@@ -13,12 +13,13 @@ use crate::parser::property::{Property};
 ///
 /// # Returns
 /// A Result with `Ok` if the property is fulfilled and Err with a path and a trace otherwise.
-pub fn find_scc_in_ts(transition_system: &TransitionSystem, property: &Property<String>)
-                      -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
+pub fn find_scc_in_ts(
+    transition_system: &TransitionSystem,
+    property: &Property<String>,
+) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
     // wrapper struct used to find and store SCCs in the given transition system
     let mut scc = SCC::new();
     scc.find_sccs(transition_system);
-    scc.print_sccs();
 
     for cluster in scc.sccs {
         for state in cluster {
@@ -26,14 +27,14 @@ pub fn find_scc_in_ts(transition_system: &TransitionSystem, property: &Property<
             if !check_property_on_state(state, transition_system, property) {
                 // we have a state which satisfies -f in a cluster
                 // check if state is reachable from start
-                if let Ok(came_from) = is_reachable(transition_system, transition_system.get_initial_states(), state) {
+                if let Ok(came_from) = is_reachable(
+                    transition_system,
+                    transition_system.get_initial_states(),
+                    state,
+                ) {
                     // if its reachable, we found an SCC containing a bad state
                     // => give counterexample
-                    return Err(reconstruct_path(
-                        transition_system,
-                        &came_from,
-                        state
-                    ));
+                    return Err(reconstruct_path(transition_system, &came_from, state));
                 }
             }
         }
@@ -41,21 +42,28 @@ pub fn find_scc_in_ts(transition_system: &TransitionSystem, property: &Property<
     Ok(true)
 }
 
-fn check_property_on_state(state: usize, transition_system: &TransitionSystem, property: &Property<String>) -> bool {
+fn check_property_on_state(
+    state: usize,
+    transition_system: &TransitionSystem,
+    property: &Property<String>,
+) -> bool {
     let bit_label = transition_system.get_state_label(state);
     let string_labels_of_current = bit_vec_to_ap_strings(transition_system, bit_label);
 
     property.evaluate(&string_labels_of_current)
 }
 
-pub fn persistence_checking_with_scc(transition_system: &TransitionSystem, property: &Property<String>)
-    -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
+pub fn persistence_checking_with_scc(
+    transition_system: &TransitionSystem,
+    property: &Property<String>,
+) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
     find_scc_in_ts(transition_system, property)
 }
 
-fn is_reachable(transition_system: &TransitionSystem,
-                    starts: &Vec<usize>,
-                    target: usize
+fn is_reachable(
+    transition_system: &TransitionSystem,
+    starts: &Vec<usize>,
+    target: usize,
 ) -> Result<HashMap<usize, usize>, bool> {
     let mut visited = HashSet::new();
     let mut queue = VecDeque::new();
@@ -90,7 +98,7 @@ struct SCC {
     low_link: HashMap<usize, usize>,
     visited: HashSet<usize>,
     stack: Vec<usize>,
-    sccs: Vec<Vec<usize>>
+    sccs: Vec<Vec<usize>>,
 }
 impl SCC {
     fn new() -> Self {
@@ -117,15 +125,14 @@ impl SCC {
                 self.tarjan(v_prime, transition_system);
                 let new_low = std::cmp::min(
                     *self.low_link.get(&v).unwrap(),
-                    *self.low_link.get(&v_prime).unwrap()
+                    *self.low_link.get(&v_prime).unwrap(),
                 );
                 self.low_link.insert(v, new_low);
-            } else if self.visited.contains(&v_prime) { // check if v_prime is on stack
+            } else if self.visited.contains(&v_prime) {
+                // check if v_prime is on stack
                 // node already visited and is on stack
-                let new_low = std::cmp::min(
-                    *self.low_link.get(&v).unwrap(),
-                    self.dfs_num[&v_prime],
-                );
+                let new_low =
+                    std::cmp::min(*self.low_link.get(&v).unwrap(), self.dfs_num[&v_prime]);
                 self.low_link.insert(v, new_low);
             }
         }
@@ -142,13 +149,18 @@ impl SCC {
                 }
             }
             // check if scc is a trivial cluster (no self transition and size 1)
-            if scc.len() == 1 && transition_system.get_successor_states(scc[0]).contains(&scc[0]) || scc.len() > 1 {
+            if scc.len() == 1
+                && transition_system
+                    .get_successor_states(scc[0])
+                    .contains(&scc[0])
+                || scc.len() > 1
+            {
                 self.sccs.push(scc);
             }
         }
     }
 
-    fn find_sccs(&mut self, transition_system: &TransitionSystem ) {
+    fn find_sccs(&mut self, transition_system: &TransitionSystem) {
         for node in transition_system.get_states() {
             if !self.dfs_num.contains_key(&node) {
                 self.tarjan(node, transition_system);
@@ -175,7 +187,8 @@ impl SCC {
 fn reconstruct_path(
     ts: &TransitionSystem,
     came_from: &HashMap<usize, usize>,
-    end_state: usize) -> (Vec<Vec<String>>, Vec<usize>) {
+    end_state: usize,
+) -> (Vec<Vec<String>>, Vec<usize>) {
     let mut path = Vec::new();
     let mut states = Vec::new();
     let mut current = end_state;
@@ -200,12 +213,12 @@ fn reconstruct_path(
 
 #[cfg(test)]
 mod tests {
+    use crate::checker::scc::persistence_checking_with_scc;
     use crate::common::sparse_matrix::SparseMatrix;
     use crate::common::transition_system::TransitionSystem;
     use crate::parser::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
     use bit_vec::BitVec;
     use std::collections::HashMap;
-    use crate::checker::scc::persistence_checking_with_scc;
 
     #[test]
     fn test_scc_true() {
@@ -219,7 +232,10 @@ mod tests {
             FormulaTreeNodeType::Atomic,
         );
 
-        let property = Property::new("PersistenceProperty".to_string(), PropertyType::Persistence(root));
+        let property = Property::new(
+            "PersistenceProperty".to_string(),
+            PropertyType::Persistence(root),
+        );
 
         assert!(persistence_checking_with_scc(&transition_system, &property).is_ok());
     }
@@ -236,7 +252,10 @@ mod tests {
             FormulaTreeNodeType::Atomic,
         );
 
-        let property = Property::new("PersistenceProperty".to_string(), PropertyType::Persistence(root));
+        let property = Property::new(
+            "PersistenceProperty".to_string(),
+            PropertyType::Persistence(root),
+        );
 
         let result = persistence_checking_with_scc(&transition_system, &property);
 
@@ -250,7 +269,10 @@ mod tests {
                 println!("Trace indexes: {:?}", trace_indexes);
 
                 // Optionally include assertions to validate the counterexample.
-                assert!(!counterexample.is_empty(), "Expected non-empty counterexample.");
+                assert!(
+                    !counterexample.is_empty(),
+                    "Expected non-empty counterexample."
+                );
             }
         }
 
@@ -285,13 +307,13 @@ mod tests {
             vec![0], // initial_states
             state_labels,
             label_state_map,
-            ap
+            ap,
         )
     }
 
     fn create_test_transition_system_2() -> TransitionSystem {
         let transitions = vec![
-            vec![false, true, true], // State 0 -> State 1, State 0 -> State 2
+            vec![false, true, true],  // State 0 -> State 1, State 0 -> State 2
             vec![false, true, false], // State 1 -> State 1
             vec![false, false, true], // State 2 -> State 2
         ];
@@ -323,7 +345,7 @@ mod tests {
             vec![0], // initial_states
             state_labels,
             label_state_map,
-            ap
+            ap,
         )
     }
 }

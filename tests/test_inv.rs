@@ -3,7 +3,7 @@ macro_rules! check_file {
         let (ts, props, is_trues) = gntmc::parse_gntmc_file($file);
         for (prop, is_true) in props.iter().zip(is_trues.iter()) {
             let mut options = thunder::checker::checker::Options::new();
-            options.set_persistence_algorithm(thunder::checker::checker::PersistenceCheckingAlgorithm::Scc);
+            options.set_persistence_algorithm(thunder::checker::checker::PersistenceCheckingAlgorithm::NestedDfs);
             let prop_fulfilled = check(&ts, prop, &options);
             let mut fail_message = format!("Failed at file {}.", $file);
 
@@ -32,10 +32,9 @@ macro_rules! generate_res_test {
 
 #[cfg(test)]
 mod tests {
-    use thunder::parser::gntmc;
     use thunder::checker::checker::check;
+    use thunder::parser::gntmc;
     generate_res_test!(test_inv_1, test_inv_2, test_inv_3, test_inv_4);
-
 
     #[test]
     fn test_inv_philosophers_broken() {
@@ -56,5 +55,4 @@ mod tests {
             );
         }
     }
-
 }

@@ -1,4 +1,5 @@
 use bit_vec::BitVec;
+use itertools::Itertools;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
@@ -26,6 +27,7 @@ enum GntmcPropositionalFormula {
     Not(Box<GntmcPropositionalFormula>),
     And(Vec<GntmcPropositionalFormula>),
     Or(Vec<GntmcPropositionalFormula>),
+    True,
 }
 
 impl GntmcPropositionalFormula {
@@ -74,6 +76,9 @@ impl GntmcPropositionalFormula {
                     FormulaTreeNodeType::Or,
                 ),
             },
+            GntmcPropositionalFormula::True => {
+                FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::True)
+            }
         }
     }
 }
@@ -130,11 +135,22 @@ impl GntmcFiniteAutomaton {
             Acceptance::Nfa => AcceptanceType::Nfa,
             Acceptance::Buchi => AcceptanceType::Buchi,
         };
-        let transitions = self
+        let mut transitions: Vec<_> = self
             .edges
             .iter()
             .map(|e| (e.start, e.destination, e.actions.translate()))
-            .collect::<Vec<_>>();
+            .collect();
+
+        transitions.sort_by_key(|(src, _, _)| *src);
+        let transitions: Vec<_> = transitions
+            .into_iter()
+            .chunk_by(|(src, dst, _)| (*src, *dst))
+            .into_iter()
+            .map(|((src, dst), group)| {
+                let actions = group.into_iter().map(|(_, _, t)| t).collect();
+                (src, dst, actions)
+            })
+            .collect();
 
         let last_state = self.states.len() - 1;
         let mut current_state = BitVec::from_elem(last_state + 1, false);
@@ -147,7 +163,7 @@ impl GntmcFiniteAutomaton {
         }
         FiniteAutomaton::new(
             acceptance,
-            SparseMatrix::from_list_of_entries(last_state + 1, last_state + 1, &transitions),
+            SparseMatrix::from_sorted_list_of_entries(last_state + 1, last_state + 1, &transitions),
             last_state,
             current_state,
             accepting_states,
