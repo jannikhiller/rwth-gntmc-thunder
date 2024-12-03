@@ -48,6 +48,6 @@ macro_rules! generate_res_test {
 mod test {
     use thunder::checker::checker::check;
     use thunder::parser::gntmc;
-    //the first test, is Exc 2 from sheet 3
-    generate_res_test!(test_safe_1);
+
+    generate_res_test!(test_safe_1, test_safe_2);
 }
