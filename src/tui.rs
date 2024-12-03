@@ -1,10 +1,10 @@
+use crate::checker::checker::{check, Options, PersistenceCheckingAlgorithm};
 use crate::common::transition_system::TransitionSystem;
 use crate::parser::gntmc::parse_gntmc_file;
 use crate::parser::property::Property;
 use clap::Parser;
 use env_logger::Builder;
 use std::io::Write;
-use crate::checker::checker::{check, PersistenceCheckingAlgorithm, Options};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -15,9 +15,9 @@ struct Cli {
     /// Verbosity level, increase by repeating (-v -vv ...)
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
-    
+
     #[arg(short, long, default_value_t, value_enum)]
-    persistence: PersistenceCheckingAlgorithm
+    persistence: PersistenceCheckingAlgorithm,
 }
 
 fn initialize_logger(verbosity: u8) {

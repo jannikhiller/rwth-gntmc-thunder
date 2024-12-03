@@ -1,5 +1,5 @@
-use bit_vec::BitVec;
 use crate::common::transition_system::TransitionSystem;
+use bit_vec::BitVec;
 
 /// Returns a string vec for the given bit vec.
 ///
@@ -19,4 +19,3 @@ pub fn bit_vec_to_ap_strings(transition_system: &TransitionSystem, label: &BitVe
         .map(|(index, _)| ap_names[index].clone()) // get according AP-String
         .collect()
 }
-

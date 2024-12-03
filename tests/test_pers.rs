@@ -15,7 +15,7 @@ macro_rules! check_file {
             }
             let expected_ndfs = is_true.unwrap_or($($is_true ||)? false);
             assert_eq!(prop_fulfilled_ndfs.is_ok(), expected_ndfs, "{}", fail_message_ndfs);
-            
+
             let mut options_scc = thunder::checker::checker::Options::new();
             options_scc.set_persistence_algorithm(thunder::checker::checker::PersistenceCheckingAlgorithm::Scc);
             let prop_fulfilled_scc = check(&ts, prop, &options_scc);
@@ -46,8 +46,8 @@ macro_rules! generate_res_test {
 
 #[cfg(test)]
 mod test {
-    use thunder::parser::gntmc;
     use thunder::checker::checker::check;
-    
+    use thunder::parser::gntmc;
+
     generate_res_test!(test_persistence_1, test_persistence_2);
 }

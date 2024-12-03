@@ -1,15 +1,15 @@
-use crate::common::transition_system::TransitionSystem;
-use crate::parser::property::{FiniteAutomaton, FormulaTreeNodeType, Property};
-use bit_vec::BitVec;
-use std::collections::{HashMap};
 use crate::checker::checker::{Options, PersistenceCheckingAlgorithm};
 use crate::checker::invariant::bfs_invariant_checking;
 use crate::checker::nested_dfs::persistence_checking_with_nested_dfs;
-use crate::checker::scc::{persistence_checking_with_scc};
+use crate::checker::scc::persistence_checking_with_scc;
 use crate::common::sparse_matrix::SparseMatrix;
+use crate::common::transition_system::TransitionSystem;
 use crate::parser::property::AcceptanceType::Nfa;
-use crate::parser::property::PropertyType;
 use crate::parser::property::FormulaTreeNode;
+use crate::parser::property::PropertyType;
+use crate::parser::property::{FiniteAutomaton, FormulaTreeNodeType, Property};
+use bit_vec::BitVec;
+use std::collections::HashMap;
 
 /// Checks if the given transition system satisfies the given property. It accepts regular safety
 /// properties and omega regular properties. For regular safety properties it builds the sync.
@@ -25,11 +25,15 @@ use crate::parser::property::FormulaTreeNode;
 /// A Result with `Ok` if the property is fulfilled and Err with a path and a trace otherwise.
 pub fn regular_safety_and_omega_checking(
     transition_system: &TransitionSystem,
-    property: &Property<String>, options: &Options) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
+    property: &Property<String>,
+    options: &Options,
+) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
     let automaton: FiniteAutomaton<String>;
     let is_omega: bool;
     match property.property_type.clone() {
-        PropertyType::Invariant(_) | PropertyType::Persistence(_) => { panic!("Wrong Datatype") }
+        PropertyType::Invariant(_) | PropertyType::Persistence(_) => {
+            panic!("Wrong Datatype")
+        }
         // TODO: here we can also differentiate by the acceptance criteria and hence do not need
         // two separate match cases
         PropertyType::RegularSafety(finite_automata) => {
@@ -56,8 +60,7 @@ pub fn regular_safety_and_omega_checking(
         FormulaTreeNodeType::Atomic,
     );
 
-    let empty_property = Property::new("emptyProperty".to_string(),
-                                       PropertyType::Invariant(node));
+    let empty_property = Property::new("emptyProperty".to_string(), PropertyType::Invariant(node));
 
     if is_omega {
         // distinguish according to the persistence algorithm set in the options
@@ -189,12 +192,12 @@ fn create_test_automaton_for_product() -> FiniteAutomaton<String> {
         FormulaTreeNodeType::Not,
     );
     let transitions = vec![
-        (0, 0, not_a_node.clone()),
-        (0, 1, a_node.clone()),
-        (1, 1, not_b_node.clone()),
-        (1, 2, b_node.clone()),
-        (2, 0, not_a_node.clone()),
-        (2, 1, a_node.clone()),
+        (0, 0, vec![not_a_node.clone()]),
+        (0, 1, vec![a_node.clone()]),
+        (1, 1, vec![not_b_node.clone()]),
+        (1, 2, vec![b_node.clone()]),
+        (2, 0, vec![not_a_node.clone()]),
+        (2, 1, vec![a_node.clone()]),
     ];
     let transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
     let mut init_states = BitVec::from_elem(3, false);
@@ -202,13 +205,7 @@ fn create_test_automaton_for_product() -> FiniteAutomaton<String> {
     let mut accepting_states = BitVec::from_elem(3, false);
     accepting_states.set(2, true);
 
-    FiniteAutomaton::new(
-        Nfa,
-        transition_matrix,
-        2,
-        init_states,
-        accepting_states,
-    )
+    FiniteAutomaton::new(Nfa, transition_matrix, 2, init_states, accepting_states)
 }
 fn create_test_transition_system_for_regular_expression() -> TransitionSystem {
     let transitions = vec![
@@ -294,10 +291,10 @@ fn create_test_automaton_for_regular_expression() -> FiniteAutomaton<String> {
     );
     //we check on always a so I build automata for alawys not a
     let transitions = vec![
-        (0, 0, not_a_node.clone()),
-        (0, 1, a_node.clone()),
-        (1, 0, not_a_node.clone()),
-        (1, 1, a_node.clone()),
+        (0, 0, vec![not_a_node.clone()]),
+        (0, 1, vec![a_node.clone()]),
+        (1, 0, vec![not_a_node.clone()]),
+        (1, 1, vec![a_node.clone()]),
     ];
     let transition_matrix = SparseMatrix::from_list_of_entries(2, 2, &transitions);
     let mut init_states = BitVec::from_elem(2, false);
@@ -305,11 +302,5 @@ fn create_test_automaton_for_regular_expression() -> FiniteAutomaton<String> {
     let mut accepting_states = BitVec::from_elem(2, false);
     accepting_states.set(1, true);
 
-    FiniteAutomaton::new(
-        Nfa,
-        transition_matrix,
-        1,
-        init_states,
-        accepting_states,
-    )
+    FiniteAutomaton::new(Nfa, transition_matrix, 1, init_states, accepting_states)
 }

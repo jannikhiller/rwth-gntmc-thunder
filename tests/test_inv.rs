@@ -32,10 +32,9 @@ macro_rules! generate_res_test {
 
 #[cfg(test)]
 mod tests {
-    use thunder::parser::gntmc;
     use thunder::checker::checker::check;
+    use thunder::parser::gntmc;
     generate_res_test!(test_inv_1, test_inv_2, test_inv_3, test_inv_4);
-
 
     #[test]
     fn test_inv_philosophers_broken() {
@@ -56,5 +55,4 @@ mod tests {
             );
         }
     }
-
 }
