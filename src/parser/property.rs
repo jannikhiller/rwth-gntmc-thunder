@@ -168,6 +168,7 @@ impl FormulaTreeNode<String> {
                 |l| !l.evaluate(labels),
             ),
             FormulaTreeNodeType::Atomic => labels.contains(self.label.as_ref().unwrap()),
+            FormulaTreeNodeType::True => true,
         }
     }
 }
@@ -183,6 +184,7 @@ pub enum FormulaTreeNodeType {
     Not,
     #[default]
     Atomic,
+    True,
 }
 
 #[derive(Debug, Copy, Clone)]

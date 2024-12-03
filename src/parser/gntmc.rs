@@ -26,6 +26,7 @@ enum GntmcPropositionalFormula {
     Not(Box<GntmcPropositionalFormula>),
     And(Vec<GntmcPropositionalFormula>),
     Or(Vec<GntmcPropositionalFormula>),
+    True,
 }
 
 impl GntmcPropositionalFormula {
@@ -74,6 +75,12 @@ impl GntmcPropositionalFormula {
                     FormulaTreeNodeType::Or,
                 ),
             },
+            GntmcPropositionalFormula::True => FormulaTreeNode::new(
+                None,
+                None,
+                None,
+                FormulaTreeNodeType::True
+            )
         }
     }
 }
@@ -136,6 +143,8 @@ impl GntmcFiniteAutomaton {
             .map(|e| (e.start, e.destination, e.actions.translate()))
             .collect::<Vec<_>>();
 
+        println!("{:?}", transitions);
+        
         let last_state = self.states.len() - 1;
         let mut current_state = BitVec::from_elem(last_state + 1, false);
         for &state in &self.initial_states {
