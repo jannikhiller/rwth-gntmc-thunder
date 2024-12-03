@@ -2,7 +2,7 @@ use crate::checker::helper::bit_vec_to_ap_strings;
 use crate::common::sparse_matrix::*;
 use crate::parser::property::FiniteAutomaton;
 use bit_vec::BitVec;
-use log::trace;
+use log::{debug, trace};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Represents a transition system with states, transitions, and labels.
@@ -177,6 +177,7 @@ impl TransitionSystem {
     /// # Returns
     /// The reachable fragment of the product transition system
     pub fn product_with(&self, mut auto: FiniteAutomaton<String>) -> TransitionSystem {
+        debug!("Computing product of transition system with automaton");
         let orig_init_states = self.initial_states.clone();
         // Maps from the labels given as a BitVec to the corresponding String Vec.
         // Used as a buffer to improve performance
@@ -191,8 +192,7 @@ impl TransitionSystem {
         for state in orig_init_states {
             let bv_label = self.get_state_label(state);
             let labels = bitvecs_to_states
-                .get(bv_label)
-                .map(|x| x.clone())
+                .get(bv_label).cloned()
                 .unwrap_or_else(|| bit_vec_to_ap_strings(self, bv_label));
 
             let auto_states = auto.step(auto.get_initial_state().clone(), &labels);
@@ -230,8 +230,7 @@ impl TransitionSystem {
                 trace!("\tConsidering successor {}", ts_succ);
                 let ts_succ_label = self.get_state_label(*ts_succ);
                 let labels = bitvecs_to_states
-                    .get(ts_succ_label)
-                    .map(|x| x.clone())
+                    .get(ts_succ_label).cloned()
                     .unwrap_or_else(|| bit_vec_to_ap_strings(self, ts_succ_label));
                 let mut current_auto_state = BitVec::from_elem(auto.get_last_state() + 1, false);
                 current_auto_state.set(auto_state, true);
@@ -263,6 +262,7 @@ impl TransitionSystem {
             .enumerate()
             .map(|(i, state)| (state, i))
             .collect::<HashMap<_, _>>();
+        trace!("Mapping of new states: {:?}", to_state_name_index);
         // total number of states in the new TS. => The last state is num_of_new_states-1
         let num_of_new_states = to_state_name_index.len();
 
@@ -350,7 +350,7 @@ impl TransitionSystem {
 
             (label, states)
         }));
-        trace!("Finished computation of product.");
+        debug!("Finished computation of product.");
 
         TransitionSystem::new(
             tmatrix,

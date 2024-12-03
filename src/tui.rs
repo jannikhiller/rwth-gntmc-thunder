@@ -75,7 +75,7 @@ fn check_properties(ts: &TransitionSystem, props: &[Property<String>], options: 
             result.is_ok()
         );
         if result.is_err() {
-            let (path, trace) = result.err().unwrap();
+            let (trace, path) = result.err().unwrap();
             println!("\tFound following path as counterexample: {:?}", path);
             println!("\tCorresponding trace: {:?}", trace);
         }

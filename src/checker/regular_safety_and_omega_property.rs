@@ -56,13 +56,13 @@ pub fn regular_safety_and_omega_checking(
     let node = FormulaTreeNode::new(
         None,
         None,
-        Some("".to_string()),
+        None,
         FormulaTreeNodeType::Atomic,
     );
 
-    let empty_property = Property::new("emptyProperty".to_string(), PropertyType::Invariant(node));
 
     if is_omega {
+        let empty_property = Property::new("emptyProperty".to_string(), PropertyType::Persistence(node));
         // distinguish according to the persistence algorithm set in the options
         match options.persistence_algorithm {
             PersistenceCheckingAlgorithm::Scc => {
@@ -73,6 +73,7 @@ pub fn regular_safety_and_omega_checking(
             }
         }
     } else {
+        let empty_property = Property::new("emptyProperty".to_string(), PropertyType::Invariant(node));
         bfs_invariant_checking(product_ts, &empty_property)
     }
 }
