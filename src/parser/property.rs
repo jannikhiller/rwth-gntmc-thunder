@@ -169,6 +169,7 @@ impl FormulaTreeNode<String> {
                 |l| !l.evaluate(labels),
             ),
             FormulaTreeNodeType::Atomic => labels.contains(self.label.as_ref().unwrap()),
+            FormulaTreeNodeType::Until => panic!("this operator is only used for ")
         }
     }
 }
@@ -182,6 +183,9 @@ pub enum FormulaTreeNodeType {
     And,
     Or,
     Not,
+    //ltl-types
+    Next,
+    Until,
     #[default]
     Atomic,
 }
