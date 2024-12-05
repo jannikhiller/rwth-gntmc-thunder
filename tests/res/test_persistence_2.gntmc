@@ -1,0 +1,62 @@
+{
+  "name": "Test persistence properties",
+  "lts": {
+    "states": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "actions": [
+      0
+    ],
+    "transitions": [
+      [0, 0, 1],
+      [0, 0, 2],
+      [0, 0, 3],
+      [1, 0, 5],
+      [2, 0, 5],
+      [3, 0, 3],
+      [4, 0, 3],
+      [5, 0, 5]
+    ],
+    "initial_states": [
+      4
+    ],
+    "labelling": {
+      "0": ["a"],
+      "1": ["c"],
+      "2": ["b"],
+      "3": [],
+      "4": ["b"],
+      "5": ["a", "c"]
+    }
+  },
+  "properties": [
+    {
+      "name": "eventually always not b",
+      "persistence": {
+        "not": {
+          "atom": "b"
+        }
+      },
+      "is_true": true
+    },
+    {
+      "name": "eventually always a",
+      "persistence": {
+        "atom": "a"
+      },
+      "is_true": false
+    },
+    {
+      "name": "eventually always b",
+      "persistence": {
+        "atom": "b"
+      },
+      "is_true": false
+    }
+  ]
+}

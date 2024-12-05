@@ -1,0 +1,7 @@
+You can download the variant for 6 processes from
+
+https://gigamove.rwth-aachen.de/en/download/a6f97953721721782b814dcca9f575c3
+
+(Link will expire Dec 13 2024)
+
+The unpacked .gntmc file size is approx 3.8 GB

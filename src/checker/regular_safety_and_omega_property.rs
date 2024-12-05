@@ -1,18 +1,20 @@
+use crate::checker::checker::{Options, PersistenceCheckingAlgorithm};
+use crate::checker::invariant::bfs_invariant_checking;
+use crate::checker::nested_dfs::persistence_checking_with_nested_dfs;
+use crate::checker::scc::persistence_checking_with_scc;
+use crate::common::sparse_matrix::SparseMatrix;
 use crate::common::transition_system::TransitionSystem;
+use crate::parser::property::AcceptanceType::Nfa;
+use crate::parser::property::FormulaTreeNode;
+use crate::parser::property::PropertyType;
 use crate::parser::property::{FiniteAutomaton, FormulaTreeNodeType, Property};
 use bit_vec::BitVec;
-use std::collections::{HashMap};
-use crate::checker::invariant::bfs_invariant_checking;
-use crate::checker::scc::{find_scc_in_ts};
-use crate::common::sparse_matrix::SparseMatrix;
-use crate::parser::property::AcceptanceType::Nfa;
-use crate::parser::property::PropertyType;
-use crate::parser::property::FormulaTreeNode;
+use std::collections::HashMap;
 
 /// Checks if the given transition system satisfies the given property. It accepts regular safety
 /// properties and omega regular properties. For regular safety properties it builds the sync.
 /// product and then runs an invariant check on this product. For omega regular properties, it
-/// builds a product as well and runs a persistence afterwards.
+/// builds a product as well and runs a persistence check afterwards.
 ///
 /// # Parameters
 ///
@@ -23,42 +25,51 @@ use crate::parser::property::FormulaTreeNode;
 /// A Result with `Ok` if the property is fulfilled and Err with a path and a trace otherwise.
 pub fn regular_safety_and_omega_checking(
     transition_system: &TransitionSystem,
-    property: &Property<String>) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
-    let mut automaton: FiniteAutomaton<String>;
+    property: &Property<String>,
+    options: &Options,
+) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
+    let automaton: FiniteAutomaton<String>;
     let is_omega: bool;
     match property.property_type.clone() {
-        PropertyType::Invariant(_) => { panic!("Wrong Datatype") }
-        PropertyType::Persistence(_) => { panic!("Wrong Datatype") }
-        PropertyType::RegularSafety(finiteAutomata) => {
+        PropertyType::Invariant(_) | PropertyType::Persistence(_) => {
+            panic!("Wrong Datatype")
+        }
+        // TODO: here we can also differentiate by the acceptance criteria and hence do not need
+        // two separate match cases
+        PropertyType::RegularSafety(finite_automata) => {
             // if cloned would be needed here, the compiler would not be satisfied, and we don't need
             // a copy anyways
-            automaton = finiteAutomata;
+            automaton = finite_automata;
             is_omega = false;
         }
-        PropertyType::OmegaRegular(finiteAutomata) => {
-            automaton = finiteAutomata;
+        PropertyType::OmegaRegular(finite_automata) => {
+            automaton = finite_automata;
             is_omega = true;
         }
     }
 
     let product_ts = &transition_system.product_with(automaton);
 
+    // here we construct a property to check if every state in the reachable part of
+    // the transitions system does not have a label
+    // if one does, then we know that a bad state is reachable
+    let node = FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::Atomic);
+
     if is_omega {
-        find_scc_in_ts(product_ts)
+        let empty_property =
+            Property::new("emptyProperty".to_string(), PropertyType::Persistence(node));
+        // distinguish according to the persistence algorithm set in the options
+        match options.persistence_algorithm {
+            PersistenceCheckingAlgorithm::Scc => {
+                persistence_checking_with_scc(product_ts, &empty_property)
+            }
+            PersistenceCheckingAlgorithm::NestedDfs => {
+                persistence_checking_with_nested_dfs(product_ts, &empty_property)
+            }
+        }
     } else {
-        // here we construct a property to check if every state in the reachable part of
-        // the transitions system does not have a label
-        // if one does, then we know that a bad state is reachable
-        let node = FormulaTreeNode::new(
-            None,
-            None,
-            Some("".to_string()),
-            FormulaTreeNodeType::Atomic,
-        );
-
-        let empty_property = Property::new("emptyProperty".to_string(),
-                                           PropertyType::Invariant(node));
-
+        let empty_property =
+            Property::new("emptyProperty".to_string(), PropertyType::Invariant(node));
         bfs_invariant_checking(product_ts, &empty_property)
     }
 }
@@ -73,12 +84,14 @@ mod tests {
         let ts = create_test_transition_system_for_regular_expression();
         let automaton: FiniteAutomaton<String> = create_test_automaton_for_regular_expression();
         let reg_prop = Property::new("Test".to_string(), PropertyType::RegularSafety(automaton));
-        match regular_safety_and_omega_checking(&ts, &reg_prop) {
-            Ok(result) => println!("Die Invariantenprüfung war erfolgreich: {}", result),
+        let mut options = Options::new();
+        options.set_persistence_algorithm(PersistenceCheckingAlgorithm::Scc);
+        match regular_safety_and_omega_checking(&ts, &reg_prop, &options) {
+            Ok(result) => println!("The invariant checking was successful: {}", result),
             Err((error_details, indices)) => {
-                println!("Hält nicht");
-                println!("Details zum Fehler: {:?}", error_details);
-                println!("Indizes der Probleme: {:?}", indices);
+                println!("Property does not hold");
+                println!("Further information: {:?}", error_details);
+                println!("Indices of the violation: {:?}", indices);
             }
         }
         assert!(true);
@@ -88,12 +101,14 @@ mod tests {
         let ts = create_test_transition_system_for_product();
         let automaton = create_test_automaton_for_product();
         let omega_prop = Property::new("Test".to_string(), PropertyType::OmegaRegular(automaton));
-        match regular_safety_and_omega_checking(&ts, &omega_prop) {
-            Ok(result) => println!("Die Invariantenprüfung war erfolgreich: {}", result),
+        let mut options = Options::new();
+        options.set_persistence_algorithm(PersistenceCheckingAlgorithm::Scc);
+        match regular_safety_and_omega_checking(&ts, &omega_prop, &options) {
+            Ok(result) => println!("The invariant checking was successful: {}", result),
             Err((error_details, indices)) => {
-                println!("Hält nicht");
-                println!("Details zum Fehler: {:?}", error_details);
-                println!("Indizes der Probleme: {:?}", indices);
+                println!("Property does not hold");
+                println!("Further information: {:?}", error_details);
+                println!("Indices of the violation: {:?}", indices);
             }
         }
         assert!(true);
@@ -174,12 +189,12 @@ fn create_test_automaton_for_product() -> FiniteAutomaton<String> {
         FormulaTreeNodeType::Not,
     );
     let transitions = vec![
-        (0, 0, not_a_node.clone()),
-        (0, 1, a_node.clone()),
-        (1, 1, not_b_node.clone()),
-        (1, 2, b_node.clone()),
-        (2, 0, not_a_node.clone()),
-        (2, 1, a_node.clone()),
+        (0, 0, vec![not_a_node.clone()]),
+        (0, 1, vec![a_node.clone()]),
+        (1, 1, vec![not_b_node.clone()]),
+        (1, 2, vec![b_node.clone()]),
+        (2, 0, vec![not_a_node.clone()]),
+        (2, 1, vec![a_node.clone()]),
     ];
     let transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
     let mut init_states = BitVec::from_elem(3, false);
@@ -187,13 +202,7 @@ fn create_test_automaton_for_product() -> FiniteAutomaton<String> {
     let mut accepting_states = BitVec::from_elem(3, false);
     accepting_states.set(2, true);
 
-    FiniteAutomaton::new(
-        Nfa,
-        transition_matrix,
-        2,
-        init_states,
-        accepting_states,
-    )
+    FiniteAutomaton::new(Nfa, transition_matrix, 2, init_states, accepting_states)
 }
 fn create_test_transition_system_for_regular_expression() -> TransitionSystem {
     let transitions = vec![
@@ -279,10 +288,10 @@ fn create_test_automaton_for_regular_expression() -> FiniteAutomaton<String> {
     );
     //we check on always a so I build automata for alawys not a
     let transitions = vec![
-        (0, 0, not_a_node.clone()),
-        (0, 1, a_node.clone()),
-        (1, 0, not_a_node.clone()),
-        (1, 1, a_node.clone()),
+        (0, 0, vec![not_a_node.clone()]),
+        (0, 1, vec![a_node.clone()]),
+        (1, 0, vec![not_a_node.clone()]),
+        (1, 1, vec![a_node.clone()]),
     ];
     let transition_matrix = SparseMatrix::from_list_of_entries(2, 2, &transitions);
     let mut init_states = BitVec::from_elem(2, false);
@@ -290,11 +299,5 @@ fn create_test_automaton_for_regular_expression() -> FiniteAutomaton<String> {
     let mut accepting_states = BitVec::from_elem(2, false);
     accepting_states.set(1, true);
 
-    FiniteAutomaton::new(
-        Nfa,
-        transition_matrix,
-        1,
-        init_states,
-        accepting_states,
-    )
+    FiniteAutomaton::new(Nfa, transition_matrix, 1, init_states, accepting_states)
 }

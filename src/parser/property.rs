@@ -6,7 +6,7 @@ use crate::common::sparse_matrix::{SparseMatrix, SparseMatrixElement};
 #[derive(Debug, Clone)]
 pub enum PropertyType<ValueType> {
     Invariant(FormulaTreeNode<ValueType>),
-    Persistence(FiniteAutomaton<ValueType>),
+    Persistence(FormulaTreeNode<ValueType>),
     RegularSafety(FiniteAutomaton<ValueType>),
     OmegaRegular(FiniteAutomaton<ValueType>),
 }
@@ -70,11 +70,10 @@ impl Property<String> {
             self.property_type
         );
         match &self.property_type {
-            PropertyType::Invariant(formula) => formula.evaluate(labels),
-            PropertyType::Persistence(_) | PropertyType::RegularSafety(_) => panic!(
-                "This is an automaton property, use the automatons member functions instead."
-            ),
-            PropertyType::OmegaRegular(_)  => panic!(
+            PropertyType::Invariant(formula) | PropertyType::Persistence(formula) => {
+                formula.evaluate(labels)
+            }
+            PropertyType::OmegaRegular(_) | PropertyType::RegularSafety(_) => panic!(
                 "This is an automaton property, use the automatons member functions instead."
             ),
         }
@@ -168,6 +167,14 @@ impl FormulaTreeNode<String> {
                 },
                 |l| !l.evaluate(labels),
             ),
+            FormulaTreeNodeType::Atomic => {
+                if self.label.as_ref().is_none() {
+                    labels.is_empty()
+                } else {
+                    labels.contains(self.label.as_ref().unwrap())
+                }
+            }
+            FormulaTreeNodeType::True => true,
             FormulaTreeNodeType::Atomic => labels.contains(self.label.as_ref().unwrap()),
             FormulaTreeNodeType::Until => panic!("this operator is only used for ")
         }
@@ -188,6 +195,7 @@ pub enum FormulaTreeNodeType {
     Until,
     #[default]
     Atomic,
+    True,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -205,7 +213,7 @@ pub struct FiniteAutomaton<ValueType> {
     /// The type of acceptance for this automaton.
     acceptance: AcceptanceType,
     /// The transition matrix of the automaton.
-    transition_matrix: SparseMatrix<FormulaTreeNode<ValueType>>,
+    transition_matrix: SparseMatrix<Vec<FormulaTreeNode<ValueType>>>,
     /// Highest state index in the automaton.
     last_state: usize,
     /// The initial state of the automaton represented as element of the powerset of indexes
@@ -217,7 +225,7 @@ pub struct FiniteAutomaton<ValueType> {
 impl FiniteAutomaton<String> {
     pub fn new(
         acceptance: AcceptanceType,
-        transition_matrix: SparseMatrix<FormulaTreeNode<String>>,
+        transition_matrix: SparseMatrix<Vec<FormulaTreeNode<String>>>,
         last_state: usize,
         initial_state: BitVec,
         accepting_states: BitVec,
@@ -239,28 +247,29 @@ impl FiniteAutomaton<String> {
 
     #[allow(dead_code)]
     pub fn step(&mut self, state: BitVec, label: &Vec<String>) -> BitVec {
+        let get_successors_of_index = |index: usize| {
+            self.transition_matrix
+                .get_row(index)
+                .into_iter()
+                .map(|SparseMatrixElement { col_index, value }| {
+                    value.into_iter().map(move |tree| (tree, col_index))
+                })
+                .flatten()
+        };
+
+        let state_successors = state
+            .into_iter()
+            .enumerate()
+            .filter_map(|(i, value)| if value { Some(i) } else { None })
+            .map(get_successors_of_index)
+            .flatten();
+
         let mut new_state = BitVec::from_elem(self.last_state + 1, false);
-        for (i, value) in state.iter().enumerate() {
-            if !value {
-                continue;
-            }
-            trace!("Determining successors of {:?}", i);
-            for SparseMatrixElement {
-                col_index,
-                value: formula,
-            } in self.transition_matrix.get_row(i as usize)
-            {
-                trace!(
-                    "   Evaluating formula {:?} for possible successor {:?}",
-                    formula,
-                    col_index
-                );
-                if formula.evaluate(label) {
-                    new_state.set(col_index, true);
-                }
+        for (tree, col_index) in state_successors {
+            if tree.evaluate(label) {
+                new_state.set(col_index, true);
             }
         }
-
         new_state
     }
 
@@ -278,7 +287,7 @@ impl FiniteAutomaton<String> {
     pub fn get_acceptance_type(&self) -> AcceptanceType {
         self.acceptance
     }
-    
+
     pub fn get_accepting_states(&self) -> &BitVec {
         &self.accepting_states
     }
@@ -578,10 +587,10 @@ mod tests {
             4,
             4,
             &vec![
-                (0, 1, atomic_a),
-                (1, 2, atomic_b),
-                (2, 3, atomic_c),
-                (3, 0, atomic_d),
+                (0, 1, vec![atomic_a]),
+                (1, 2, vec![atomic_b]),
+                (2, 3, vec![atomic_c]),
+                (3, 0, vec![atomic_d]),
             ],
         );
         println!("{:?}", transition_matrix);

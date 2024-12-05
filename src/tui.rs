@@ -1,11 +1,10 @@
+use crate::checker::checker::{check, Options, PersistenceCheckingAlgorithm};
 use crate::common::transition_system::TransitionSystem;
 use crate::parser::gntmc::parse_gntmc_file;
 use crate::parser::property::Property;
 use clap::Parser;
 use env_logger::Builder;
 use std::io::Write;
-use crate::checker::checker::check;
-//use crate::checker::checker::check;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -16,6 +15,9 @@ struct Cli {
     /// Verbosity level, increase by repeating (-v -vv ...)
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+
+    #[arg(short, long, default_value_t, value_enum)]
+    persistence: PersistenceCheckingAlgorithm,
 }
 
 fn initialize_logger(verbosity: u8) {
@@ -55,13 +57,12 @@ fn parse_model_and_properties(
     (ts, props, parsing_time)
 }
 
-fn check_properties(ts: &TransitionSystem, props: &[Property<String>]) -> f64 {
+fn check_properties(ts: &TransitionSystem, props: &[Property<String>], options: &Options) -> f64 {
     let mut total_model_checking_time = std::time::Duration::new(0, 0);
     for (i, prop) in props.iter().enumerate() {
         println!("Checking property {i}: {:?}...", prop.name);
         let pre_checking_time = std::time::Instant::now();
-        //toDo: add new function here
-        let result = check(ts, prop);
+        let result = check(ts, prop, options);
         let post_checking_time = std::time::Instant::now();
         println!(
             "Done. Checking took {}s",
@@ -74,7 +75,7 @@ fn check_properties(ts: &TransitionSystem, props: &[Property<String>]) -> f64 {
             result.is_ok()
         );
         if result.is_err() {
-            let (path, trace) = result.err().unwrap();
+            let (trace, path) = result.err().unwrap();
             println!("\tFound following path as counterexample: {:?}", path);
             println!("\tCorresponding trace: {:?}", trace);
         }
@@ -91,7 +92,11 @@ pub fn run() {
     let args = Cli::parse();
     initialize_logger(args.verbose);
     let (ts, props, parsing_time) = parse_model_and_properties(&args.gntmc_file);
-    let checking_time = check_properties(&ts, &props);
+
+    let persistence_algorithm = args.persistence;
+    let mut options = Options::new();
+    options.set_persistence_algorithm(persistence_algorithm);
+    let checking_time = check_properties(&ts, &props, &options);
 
     println!("Total runtime: {:?}", parsing_time + checking_time);
 }
