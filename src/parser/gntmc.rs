@@ -184,7 +184,7 @@ pub enum GntmcLtlFormula{
     Finally(Box<GntmcLtlFormula>),
     Globally(Box<GntmcLtlFormula>),
     //should a true be added?
-    //True,
+    True,
 }
 
 impl GntmcLtlFormula {
@@ -279,11 +279,20 @@ impl GntmcLtlFormula {
                 ),
             },
             GntmcLtlFormula::Finally(ref f) => FormulaTreeNode::new(
+                Some(Box::from(GntmcLtlFormula::True.translate())),
                 Some(Box::from(f.translate())),
                 None,
-                None,
-                FormulaTreeNodeType::Finally,
+                FormulaTreeNodeType::Until,
             ),
+            GntmcLtlFormula::Globally(ref f) => FormulaTreeNode::new(
+                Some(Box::from(GntmcLtlFormula::Finally(GntmcLtlFormula::Not(f)).translate())),
+                None,
+                None,
+                FormulaTreeNodeType::Not,
+            ),
+            GntmcLtlFormula::True => {
+                FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::True)
+            }
         }
     }
 }
