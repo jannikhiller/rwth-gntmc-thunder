@@ -46,6 +46,7 @@ pub fn regular_safety_and_omega_checking(
             automaton = finite_automata;
             is_omega = true;
         }
+        PropertyType::Ltl(_) => panic!("Wrong Propertytype"),
     }
 
     let product_ts = &transition_system.product_with(automaton);
