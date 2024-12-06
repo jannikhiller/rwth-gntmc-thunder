@@ -266,9 +266,9 @@ impl GntmcLtlFormula {
                     ])).translate(),
                 //A => B => C <=> not A or B => C
                 3.. =>{
-                    let mut list = vec!(Box::from(GntmcLtlFormula::Not(f.first().unwrap().clone())));
-                    for prop in f[1..].to_vec(){ list.push(prop)}
-                    Box::from(GntmcLtlFormula::Implies(list)).translate()
+                    let not_a = Box::from(GntmcLtlFormula::Not(f.first().unwrap().clone()));
+                    let rest_implies = Box::from(GntmcLtlFormula::Implies(f[1..].to_vec()));
+                    Box::from(GntmcLtlFormula::Or(vec!(not_a, rest_implies))).translate()
                 }
 
             },
@@ -442,8 +442,8 @@ fn build_properties(props: Vec<GntmcProperty>) -> (Vec<Property<String>>, Vec<Op
                         GntmcPropertyKind::OmegaRegular(automaton) => {
                             PropertyType::OmegaRegular(automaton.translate())
                         }
-                        GntmcPropertyKind::Ltl(automaton) => {
-                            PropertyType::Ltl(automaton.translate())
+                        GntmcPropertyKind::Ltl(formula) => {
+                            PropertyType::Ltl(formula.translate())
                         }
                     },
                 ),
