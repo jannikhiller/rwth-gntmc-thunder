@@ -28,6 +28,7 @@ mod tests {
     fn test_parse_ltl() {
 
         check_file!("./tests/res/test_ltl_parse_1.gntmc");
+        check_file!("./tests/peterson_ltl/peterson.2.gntmc");
         true;
     }
 }
