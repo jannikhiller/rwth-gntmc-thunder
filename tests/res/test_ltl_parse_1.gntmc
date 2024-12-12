@@ -49,18 +49,16 @@
       "ltl": {
         "implies": [
           {"atom": "a"},
-          {"atom": "b"},
-          {"atom": "c"}
+          {"atom": "b"}
         ]
       }
     },
     {
       "name": "test_or",
       "ltl": {
-        "or": [
+        "or":  [
           {"atom": "a"},
-          {"atom": "b"},
-          {"atom": "c"}
+          {"atom": "b"}
         ]
       }
     },

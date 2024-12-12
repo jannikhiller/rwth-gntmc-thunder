@@ -176,14 +176,13 @@ impl GntmcFiniteAutomaton {
 pub enum GntmcLtlFormula{
     Atom(String),
     Not(Box<GntmcLtlFormula>),
-    And(Vec<Box<GntmcLtlFormula>>),
-    Or(Vec<Box<GntmcLtlFormula>>),
+    And(Box<GntmcLtlFormula>, Box<GntmcLtlFormula>),
+    Or(Box<GntmcLtlFormula>, Box<GntmcLtlFormula>),
     Next(Box<GntmcLtlFormula>),
-    Until(Vec<Box<GntmcLtlFormula>>),
-    Implies(Vec<Box<GntmcLtlFormula>>),
+    Until(Box<GntmcLtlFormula>, Box<GntmcLtlFormula>),
+    Implies(Box<GntmcLtlFormula>, Box<GntmcLtlFormula>),
     Finally(Box<GntmcLtlFormula>),
     Globally(Box<GntmcLtlFormula>),
-    //should a true be added?
     True,
 }
 
@@ -199,39 +198,20 @@ impl GntmcLtlFormula {
                 None,
                 FormulaTreeNodeType::Not,
             ),
-            GntmcLtlFormula::And(ref f) => match f.len() {
-                ..=1 => panic!("Not enough elements in formula"),
-                2 => FormulaTreeNode::new(
-                    Some(Box::from(f.first().unwrap().translate())),
-                    Some(Box::from(f.last().unwrap().translate())),
-                    None,
-                    FormulaTreeNodeType::And,
-                ),
-                3.. => FormulaTreeNode::new(
-                    Some(Box::from(f.first().unwrap().translate())),
-                    Some(Box::from(
-                        GntmcLtlFormula::And(f[1..].to_vec()).translate(),
-                    )),
-                    None,
-                    FormulaTreeNodeType::And,
-                ),
-            },
+            GntmcLtlFormula::And(ref left, ref right) => FormulaTreeNode::new(
+                Some(Box::from(left.translate())),
+                Some(Box::from(right.translate())),
+                None,
+                FormulaTreeNodeType::And,
+            ),
             // A Or B <=> not(not A and not b)
-            GntmcLtlFormula::Or(ref f) => match f.len() {
-                ..=1 => panic!("Not enough elements in formula"),
-
-                // A OR B OR C ... <=> not(not A and not B and not C...)
-                2.. => FormulaTreeNode::new(
-                    Some(Box::from(GntmcLtlFormula::And(
-                        f.iter()
-                            .map(|v| Box::from(GntmcLtlFormula::Not((*v).clone())))
-                            .collect(),
-                    ).translate())),
-                    None,
-                    None,
-                    FormulaTreeNodeType::Not,
-                )
-            },
+            GntmcLtlFormula::Or(ref left, ref right) => FormulaTreeNode::new(
+                Some(Box::from(GntmcLtlFormula::And(Box::from(GntmcLtlFormula::Not(left.clone())),
+                                                    Box::from(GntmcLtlFormula::Not(right.clone()))).translate())),
+                None,
+                None,
+                FormulaTreeNodeType::Not,
+            ),
             // we handle the Next, like the Not-Operator and save them on the left side, of the tree
             GntmcLtlFormula::Next(ref f) => FormulaTreeNode::new(
                 Some(Box::from(f.translate())),
@@ -239,39 +219,15 @@ impl GntmcLtlFormula {
                 None,
                 FormulaTreeNodeType::Next,
             ),
-            GntmcLtlFormula::Until(ref f) => match f.len() {
-                ..=1 => panic!("Not enough elements in formula"),
-                2 => FormulaTreeNode::new(
-                    Some(Box::from(f.first().unwrap().translate())),
-                    Some(Box::from(f.last().unwrap().translate())),
-                    None,
-                    FormulaTreeNodeType::Until,
-                ),
-                3.. => FormulaTreeNode::new(
-                    Some(Box::from(f.first().unwrap().translate())),
-                    Some(Box::from(
-                        GntmcLtlFormula::Until(f[1..].to_vec()).translate(),
-                    )),
-                    None,
-                    FormulaTreeNodeType::Until,
-                ),
-            },
+            GntmcLtlFormula::Until(ref left, ref right) => FormulaTreeNode::new(
+                Some(Box::from(left.translate())),
+                Some(Box::from(right.translate())),
+                None,
+                FormulaTreeNodeType::Until,
+            ),
             // A Implies B <=> not A or B
-            GntmcLtlFormula::Implies(ref f) => match f.len() {
-                ..=1 => panic!("Not enough elements in formula"),
-                2 =>
-                    Box::from(GntmcLtlFormula::Or(vec![
-                        Box::from(GntmcLtlFormula::Not(f.first().unwrap().clone())),
-                        f[1].clone(),
-                    ])).translate(),
-                //A => B => C <=> not A or B => C
-                3.. =>{
-                    let not_a = Box::from(GntmcLtlFormula::Not(f.first().unwrap().clone()));
-                    let rest_implies = Box::from(GntmcLtlFormula::Implies(f[1..].to_vec()));
-                    Box::from(GntmcLtlFormula::Or(vec!(not_a, rest_implies))).translate()
-                }
-
-            },
+            GntmcLtlFormula::Implies(ref left, ref right) =>
+                GntmcLtlFormula::Or(Box::from(GntmcLtlFormula::Not(left.clone())), right.clone()).translate(),
             //Finally A <=> true Until A
             GntmcLtlFormula::Finally(ref f) => FormulaTreeNode::new(
                 Some(Box::from(GntmcLtlFormula::True.translate())),

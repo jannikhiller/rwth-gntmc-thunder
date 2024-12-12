@@ -22,13 +22,10 @@ macro_rules! generate_res_test {
 #[cfg(test)]
 mod tests {
     use thunder::parser::gntmc;
-    generate_res_test!(test_inv_1, test_inv_2, test_inv_3, test_inv_4);
+    generate_res_test!(test_ltl_parse_1);
 
     #[test]
-    fn test_parse_ltl() {
-
-        check_file!("./tests/res/test_ltl_parse_1.gntmc");
+    fn test_peterson_ltl() {
         check_file!("./tests/peterson_ltl/peterson.2.gntmc");
-        true;
     }
 }

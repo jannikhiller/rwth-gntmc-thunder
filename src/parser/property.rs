@@ -177,8 +177,8 @@ impl FormulaTreeNode<String> {
                 }
             }
             FormulaTreeNodeType::True => true,
-            FormulaTreeNodeType::Until => panic!("this operator is only used for "),
-            FormulaTreeNodeType::Next => panic!("this operator is only used for "),
+            FormulaTreeNodeType::Until => panic!("This operator is only used for LTL. Thus, no evaluation."),
+            FormulaTreeNodeType::Next => panic!("This operator is only used for LTL. Thus, no evaluation."),
         }
     }
 }
