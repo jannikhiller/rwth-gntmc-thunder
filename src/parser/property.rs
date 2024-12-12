@@ -9,6 +9,7 @@ pub enum PropertyType<ValueType> {
     Persistence(FormulaTreeNode<ValueType>),
     RegularSafety(FiniteAutomaton<ValueType>),
     OmegaRegular(FiniteAutomaton<ValueType>),
+    Ltl(FormulaTreeNode<ValueType>),
 }
 
 /// A tree structure representing a property with logical expressions.
@@ -76,6 +77,7 @@ impl Property<String> {
             PropertyType::OmegaRegular(_) | PropertyType::RegularSafety(_) => panic!(
                 "This is an automaton property, use the automatons member functions instead."
             ),
+            PropertyType::Ltl(_)  => panic!("This is a ltl property, which is used to create a GNBA and not to evaluate"),
         }
     }
 }
@@ -175,6 +177,8 @@ impl FormulaTreeNode<String> {
                 }
             }
             FormulaTreeNodeType::True => true,
+            FormulaTreeNodeType::Until => panic!("This operator is only used for LTL. Thus, no evaluation."),
+            FormulaTreeNodeType::Next => panic!("This operator is only used for LTL. Thus, no evaluation."),
         }
     }
 }
@@ -188,6 +192,9 @@ pub enum FormulaTreeNodeType {
     And,
     Or,
     Not,
+    //ltl-types
+    Next,
+    Until,
     #[default]
     Atomic,
     True,

@@ -1,0 +1,74 @@
+{
+  "name": "Test persistence properties",
+  "lts": {
+    "states": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "actions": [
+      0
+    ],
+    "transitions": [
+      [0, 0, 1],
+      [0, 0, 2],
+      [0, 0, 3],
+      [1, 0, 5],
+      [2, 0, 5],
+      [3, 0, 3],
+      [4, 0, 3],
+      [4, 0, 4],
+      [5, 0, 5]
+    ],
+    "initial_states": [
+      0
+    ],
+    "labelling": {
+      "0": ["a"],
+      "1": ["c"],
+      "2": ["b"],
+      "3": [],
+      "4": ["b"],
+      "5": ["a", "c"]
+    }
+  },
+  "properties": [
+    {
+      "name": "test_globally",
+      "ltl": {
+        "globally": {
+          "atom": "a"
+        }
+      }
+    },
+    {
+      "name": "test_implies",
+      "ltl": {
+        "implies": [
+          {"atom": "a"},
+          {"atom": "b"}
+        ]
+      }
+    },
+    {
+      "name": "test_or",
+      "ltl": {
+        "or":  [
+          {"atom": "a"},
+          {"atom": "b"}
+        ]
+      }
+    },
+    {
+      "name": "test_finally",
+      "ltl": {
+        "finally": {
+          "atom": "crit0"
+        }
+      }
+    }
+  ]
+}

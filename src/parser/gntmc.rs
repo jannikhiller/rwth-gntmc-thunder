@@ -171,6 +171,84 @@ impl GntmcFiniteAutomaton {
     }
 }
 
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum GntmcLtlFormula{
+    Atom(String),
+    Not(Box<GntmcLtlFormula>),
+    And(Box<GntmcLtlFormula>, Box<GntmcLtlFormula>),
+    Or(Box<GntmcLtlFormula>, Box<GntmcLtlFormula>),
+    Next(Box<GntmcLtlFormula>),
+    Until(Box<GntmcLtlFormula>, Box<GntmcLtlFormula>),
+    Implies(Box<GntmcLtlFormula>, Box<GntmcLtlFormula>),
+    Finally(Box<GntmcLtlFormula>),
+    Globally(Box<GntmcLtlFormula>),
+    True,
+}
+
+impl GntmcLtlFormula {
+    fn translate(&self) -> FormulaTreeNode<String> {
+        match self {
+            GntmcLtlFormula::Atom(ref f) => {
+                FormulaTreeNode::new(None, None, Some(f.to_string()), FormulaTreeNodeType::Atomic)
+            }
+            GntmcLtlFormula::Not(ref f) => FormulaTreeNode::new(
+                Some(Box::from(f.translate())),
+                None,
+                None,
+                FormulaTreeNodeType::Not,
+            ),
+            GntmcLtlFormula::And(ref left, ref right) => FormulaTreeNode::new(
+                Some(Box::from(left.translate())),
+                Some(Box::from(right.translate())),
+                None,
+                FormulaTreeNodeType::And,
+            ),
+            // A Or B <=> not(not A and not b)
+            GntmcLtlFormula::Or(ref left, ref right) => FormulaTreeNode::new(
+                Some(Box::from(GntmcLtlFormula::And(Box::from(GntmcLtlFormula::Not(left.clone())),
+                                                    Box::from(GntmcLtlFormula::Not(right.clone()))).translate())),
+                None,
+                None,
+                FormulaTreeNodeType::Not,
+            ),
+            // we handle the Next, like the Not-Operator and save them on the left side, of the tree
+            GntmcLtlFormula::Next(ref f) => FormulaTreeNode::new(
+                Some(Box::from(f.translate())),
+                None,
+                None,
+                FormulaTreeNodeType::Next,
+            ),
+            GntmcLtlFormula::Until(ref left, ref right) => FormulaTreeNode::new(
+                Some(Box::from(left.translate())),
+                Some(Box::from(right.translate())),
+                None,
+                FormulaTreeNodeType::Until,
+            ),
+            // A Implies B <=> not A or B
+            GntmcLtlFormula::Implies(ref left, ref right) =>
+                GntmcLtlFormula::Or(Box::from(GntmcLtlFormula::Not(left.clone())), right.clone()).translate(),
+            //Finally A <=> true Until A
+            GntmcLtlFormula::Finally(ref f) => FormulaTreeNode::new(
+                Some(Box::from(GntmcLtlFormula::True.translate())),
+                Some(Box::from(f.translate())),
+                None,
+                FormulaTreeNodeType::Until,
+            ),
+            //globally A <=> not Finally not A
+            GntmcLtlFormula::Globally(ref f) => FormulaTreeNode::new(
+                Some(Box::from(GntmcLtlFormula::Finally(Box::from(GntmcLtlFormula::Not(f.clone()))).translate())),
+                None,
+                None,
+                FormulaTreeNodeType::Not,
+            ),
+            GntmcLtlFormula::True => {
+                FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::True)
+            }
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 enum GntmcPropertyKind {
@@ -178,6 +256,7 @@ enum GntmcPropertyKind {
     RegularSafety(GntmcFiniteAutomaton),
     Persistence(GntmcPropositionalFormula),
     OmegaRegular(GntmcFiniteAutomaton),
+    Ltl(GntmcLtlFormula)
 }
 
 #[derive(Debug, Deserialize)]
@@ -318,6 +397,9 @@ fn build_properties(props: Vec<GntmcProperty>) -> (Vec<Property<String>>, Vec<Op
                         }
                         GntmcPropertyKind::OmegaRegular(automaton) => {
                             PropertyType::OmegaRegular(automaton.translate())
+                        }
+                        GntmcPropertyKind::Ltl(formula) => {
+                            PropertyType::Ltl(formula.translate())
                         }
                     },
                 ),

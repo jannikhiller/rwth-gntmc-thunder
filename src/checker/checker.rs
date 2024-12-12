@@ -36,6 +36,7 @@ pub fn check(
         PropertyType::RegularSafety(_) | PropertyType::OmegaRegular(_) => {
             regular_safety_and_omega_checking(transition_system, property, options)
         }
+        PropertyType::Ltl(_) => panic!("Not implemented yet"),
     }
 }
 
