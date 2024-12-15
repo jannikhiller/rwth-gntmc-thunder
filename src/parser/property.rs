@@ -88,7 +88,7 @@ impl Property<String> {
     ///
     /// # Panics
     /// - If the given property is not of type LTL.
-    fn negate(&mut self) {
+    pub fn negate(&mut self) {
         match &mut self.property_type {
             PropertyType::Invariant(_)
             | PropertyType::Persistence(_)
@@ -98,42 +98,10 @@ impl Property<String> {
             ),
             PropertyType::Ltl(formula_tree_node) => {
                 debug!("Before adding negation: \n{}", formula_tree_node);
-
-                // check if first node of current formula is already a `NOT`
-                if let Some(left_child) = formula_tree_node.left.as_mut() {
-                    if FormulaTreeNodeType::Not == left_child.node_type {
-                        // now we count the negations that are directly followed by the root node
-                        let mut current_node = left_child.clone();
-
-                        let mut number_of_nots = 1; // here we include the root node
-                        while let Some(next_node) = current_node.left.as_mut() {
-                            if FormulaTreeNodeType::Not == current_node.node_type {
-                                number_of_nots += 1;
-                                current_node = next_node.clone();
-                            } else {
-                                break;
-                            }
-                        }
-
-                        if number_of_nots % 2 == 0 {
-                            // if we have an even number of `NOT` nodes, then one single `NOT` node
-                            // is sufficient to add, while omitting all others from the formula tree
-                            // create `NOT` node as new root
-                            let not_node = FormulaTreeNode::new(
-                                Some(Box::new(*current_node.clone())),
-                                None,
-                                None,
-                                FormulaTreeNodeType::Not,
-                            );
-
-                            // replace the original formula tree with the new `NOT` node
-                            *formula_tree_node = not_node;
-                        } else {
-                            // if we have an odd number of `NOT` nodes, then we can omit them all,
-                            // as they would have been resolved when removing double negations
-                            *formula_tree_node = *current_node;
-                        }
-                    }
+                // if the formula tree starts with one or more `NOT`'s, then we have to handle this
+                // accordingly when negating the whole formula
+                if FormulaTreeNodeType::Not == formula_tree_node.node_type {
+                    Property::handle_leading_nots_when_negating(formula_tree_node);
                 }
                 debug!("After adding negation: \n{}", formula_tree_node);
 
@@ -142,6 +110,37 @@ impl Property<String> {
                 formula_tree_node.remove_double_negations();
                 debug!("After removing double negations: \n{}", formula_tree_node);
             }
+        }
+    }
+
+    fn handle_leading_nots_when_negating(formula_tree_node: &mut FormulaTreeNode<String>) {
+        let mut current_node = formula_tree_node.left.clone();
+
+        let mut number_of_nots = 1; // here we include the root node
+        // count the number of consecutive `NOT`s starting from the root
+        while current_node.is_some()
+            && current_node.as_ref().unwrap().node_type == FormulaTreeNodeType::Not {
+            number_of_nots += 1;
+            current_node = current_node.clone().unwrap().left;
+        }
+
+        if number_of_nots % 2 == 0 {
+            // if we have an even number of `NOT` nodes, then one single `NOT` node
+            // is sufficient to add, while omitting all others from the formula tree
+            // create `NOT` node as new root
+            let not_node = FormulaTreeNode::new(
+                Some(Box::new(*current_node.clone().unwrap())),
+                None,
+                None,
+                FormulaTreeNodeType::Not,
+            );
+
+            // replace the original formula tree with the new `NOT` node
+            *formula_tree_node = not_node;
+        } else {
+            // if we have an odd number of `NOT` nodes, then we can omit them all,
+            // as they would have been resolved when removing double negations
+            *formula_tree_node = *current_node.clone().unwrap();
         }
     }
 }
@@ -258,7 +257,7 @@ impl FormulaTreeNode<String> {
         } else {
             // check if there is a left child and if it is also a `NOT` node
             if let Some(left_child) = self.left.as_ref() {
-                if let FormulaTreeNodeType::Not = left_child.node_type {
+                if FormulaTreeNodeType::Not == left_child.node_type {
                     // check if it is followed by another `NOT` node
                     if let Some(child_of_left_child) = left_child.left.as_ref() {
                         if let FormulaTreeNodeType::Not = child_of_left_child.node_type {
