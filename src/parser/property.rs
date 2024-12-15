@@ -1,6 +1,10 @@
-use std::fmt;
 use bit_vec::BitVec;
+use itertools::Either;
 use log::*;
+use std::cmp::max;
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::fmt;
+use std::hash::Hash;
 
 use crate::common::sparse_matrix::{SparseMatrix, SparseMatrixElement};
 
@@ -78,7 +82,9 @@ impl Property<String> {
             PropertyType::OmegaRegular(_) | PropertyType::RegularSafety(_) => panic!(
                 "This is an automaton property, use the automatons member functions instead."
             ),
-            PropertyType::Ltl(_)  => panic!("This is a ltl property, which is used to create a GNBA and not to evaluate"),
+            PropertyType::Ltl(_) => {
+                panic!("This is a ltl property, which is used to create a GNBA and not to evaluate")
+            }
         }
     }
 
@@ -242,9 +248,30 @@ impl FormulaTreeNode<String> {
                 }
             }
             FormulaTreeNodeType::True => true,
-            FormulaTreeNodeType::Until => panic!("This operator is only used for LTL. Thus, no evaluation."),
-            FormulaTreeNodeType::Next => panic!("This operator is only used for LTL. Thus, no evaluation."),
+            FormulaTreeNodeType::Until => {
+                panic!("This operator is only used for LTL. Thus, no evaluation.")
+            }
+            FormulaTreeNodeType::Next => {
+                panic!("This operator is only used for LTL. Thus, no evaluation.")
+            }
         }
+    }
+
+    /// Traverses the formula tree in post order and applies the given function to each node.
+    ///
+    /// # Parameters
+    /// - `f`: The function that shall be applied.
+    fn post_order_traversal<F>(&self, f: &mut F)
+    where
+        F: FnMut(&Self),
+    {
+        if let Some(left) = &self.left {
+            left.post_order_traversal(f);
+        }
+        if let Some(right) = &self.right {
+            right.post_order_traversal(f);
+        }
+        f(self);
     }
 
     /// Recursively removes all double negations from this formula tree. We assume that the current
@@ -343,7 +370,7 @@ impl fmt::Display for FormulaTreeNode<String> {
 ///
 /// This enum defines the possible logical operations or atomic values that a node can represent,
 /// including `AND`, `OR`, `NOT`, and `ATOMIC`.
-#[derive(Debug, Copy, Clone, Default, PartialEq)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq, Hash)]
 pub enum FormulaTreeNodeType {
     And,
     Or,
@@ -449,6 +476,277 @@ impl FiniteAutomaton<String> {
     pub fn get_accepting_states(&self) -> &BitVec {
         &self.accepting_states
     }
+}
+
+/// Internal struct to handle elements of the closure during the computation of elementary sets
+/// in a more succinct and compact way.
+#[derive(Eq, Hash, PartialEq, Debug, Clone)]
+struct ElementaryNode {
+    is_atomic: bool,
+    // Either the index in the BitVec or the Node representing a negation (not part of closure bitvec)
+    left_value: Either<usize, Box<ElementaryNode>>,
+    right_value: Either<usize, Box<ElementaryNode>>,
+    operator: FormulaTreeNodeType,
+    formula: String,
+}
+
+impl ElementaryNode {
+    pub fn new(
+        is_atomic: bool,
+        left_value: Either<usize, Box<ElementaryNode>>,
+        right_value: Either<usize, Box<ElementaryNode>>,
+        operator: FormulaTreeNodeType,
+        formula: String,
+    ) -> Self {
+        Self {
+            is_atomic,
+            left_value,
+            right_value,
+            operator,
+            formula,
+        }
+    }
+
+    fn set_left_value(&mut self, left_value: Either<usize, Box<ElementaryNode>>) {
+        self.left_value = left_value;
+    }
+
+    fn set_right_value(&mut self, right_value: Either<usize, Box<ElementaryNode>>) {
+        self.right_value = right_value;
+    }
+
+    /// Derives the value of this node according to the given `state` where this node is expected
+    /// to be at the given `index`. The value is derived such that it is *maximally* and *locally*
+    /// consistent. If it is not possible to derive a value, all possibilities are returned.
+    ///
+    /// # Parameters
+    /// - `state`: The state from which the value shall be derived.
+    /// - `index`: The index that represents this node. I.e., the index to which the result shall be written.
+    fn derive(self, mut state: BitVec, index: usize) -> Vec<BitVec> {
+        /// Helper function that derives the value of a given sub formula. I.e. this handles the `Either`.
+        fn compute_value(
+            sub_form: Either<usize, Box<ElementaryNode>>,
+            state: &BitVec,
+            err_msg: &str,
+        ) -> bool {
+            match sub_form {
+                Either::Left(index) => state.get(index).expect(err_msg),
+                Either::Right(node) => !compute_value(node.left_value, state, err_msg),
+            }
+        }
+
+        let err_msg = "Index out of bounds during elementary subset computation";
+        let value_of = |sub_form: Either<usize, Box<ElementaryNode>>| -> bool {
+            compute_value(sub_form, &state, err_msg)
+        };
+
+        match self.operator {
+            FormulaTreeNodeType::True => {
+                state.set(index, true);
+                vec![state]
+            }
+            FormulaTreeNodeType::Atomic => {
+                let mut new_state = state.clone();
+                state.set(index, false);
+                new_state.set(index, true);
+                vec![state, new_state]
+            }
+            FormulaTreeNodeType::Next => {
+                let mut new_state = state.clone();
+                state.set(index, false);
+                new_state.set(index, true);
+                vec![state, new_state]
+            }
+            FormulaTreeNodeType::Not => {
+                state.set(index, !value_of(self.left_value));
+                vec![state]
+            }
+            FormulaTreeNodeType::Until => {
+                if value_of(self.right_value) {
+                    state.set(index, true);
+                    vec![state]
+                } else if !value_of(self.left_value) {
+                    state.set(index, false);
+                    vec![state]
+                } else {
+                    let mut new_state = state.clone();
+                    state.set(index, false);
+                    new_state.set(index, true);
+                    vec![state, new_state]
+                }
+            }
+            FormulaTreeNodeType::And => {
+                state.set(
+                    index,
+                    value_of(self.left_value) && value_of(self.right_value),
+                );
+                vec![state]
+            }
+            _ => panic!("Only and, not, next and until are allowed in elementary subsets"),
+        }
+    }
+}
+
+/// Computes the elementary sets of a given LTL property. I.e. all maximally and locally consistent
+/// subsets of its closure. Only positive elements are considered.
+/// Note: This only works for LTL-formulae.
+///
+/// # Parameters
+/// - `property`: The Property for which the elementary sets shall be computed.
+///
+/// # Returns
+/// - A HashMap that maps from the indices of the bitvecs to the represented formula.
+/// - A vector of bitvecs each representing an elementary set. If `true` is contained in the
+///   given formula, it is also contained in the binary sets.
+///
+/// # Panics
+/// If the given property is not an LTL-formula.
+pub fn comp_elementary_sets(
+    property: Property<String>,
+) -> (HashMap<usize, FormulaTreeNode<String>>, Vec<BitVec>) {
+    let formula = match property.property_type {
+        PropertyType::Ltl(formula) => formula,
+        _ => panic!("Cannot compute elementary sets of something other than an LTL formula."),
+    };
+
+    trace!("Computing elementary sets for formula {}", formula);
+
+    let mut closure_formula_indices: HashMap<String, usize> = HashMap::new();
+    let mut indices_to_formula: HashMap<usize, FormulaTreeNode<String>> = HashMap::new();
+    let mut closure: Vec<ElementaryNode> = Vec::new();
+    let mut not_nodes: HashMap<String, ElementaryNode> = HashMap::new();
+
+    // Traverse the formula to capture all nodes and map them into the intermediate struct (`ElementaryNode`)
+    FormulaTreeNode::post_order_traversal(&formula, &mut |node: &FormulaTreeNode<String>| {
+        let is_atomic = node.node_type == FormulaTreeNodeType::True
+            || node.node_type == FormulaTreeNodeType::Atomic
+            || node.node_type == FormulaTreeNodeType::Next;
+
+        if node.node_type != FormulaTreeNodeType::Not {
+            let insert = closure_formula_indices.insert(node.to_string(), closure.len());
+            // As `try_insert` is not yet stable, we have to manually reinsert the old value
+            // such that the map does not change in case a value was already present
+            if let Some(index) = insert {
+                closure_formula_indices.insert(node.to_string(), index);
+            } else {
+                indices_to_formula.insert(closure.len(), node.clone());
+
+                /*
+                 * For both (left and right) children:
+                 * if the current node is atomic, the children do not matter => we set them to index 0
+                 * if the curren node is a not node, we have to point to the not_nodes data structure (Either::Right)
+                 * else we can just point to the index of the predecessor
+                 */
+                let left_child = if is_atomic {
+                        Either::Left(0)
+                    } else if node.clone().left.unwrap().node_type == FormulaTreeNodeType::Not {
+                        Either::Right(Box::from(
+                            not_nodes
+                                .get(&node.clone().left.unwrap().to_string())
+                                .unwrap()
+                                .clone(),
+                        ))
+                    } else {
+                        let left_node = closure_formula_indices.get(&node.clone().left.unwrap().to_string());
+                        Either::Left(*left_node.unwrap())
+                    };
+                let right_child = if is_atomic {
+                        Either::Left(0)
+                    } else if node.clone().right.unwrap().node_type == FormulaTreeNodeType::Not {
+                        Either::Right(Box::from(
+                            not_nodes
+                                .get(&node.clone().right.unwrap().to_string())
+                                .unwrap()
+                                .clone(),
+                        ))
+                    } else {
+                        let right_node = closure_formula_indices.get(&node.clone().right.unwrap().to_string());
+                        Either::Left(*right_node.unwrap())
+                    };
+
+                closure.push(ElementaryNode::new(
+                    is_atomic,
+                    left_child,
+                    right_child,
+                    node.node_type,
+                    node.to_string(),
+                ));
+                trace!("Added subformula {} to closure.", node);
+            }
+        } else {
+            let child_index = closure_formula_indices
+                .get(&node.clone().left.unwrap().to_string())
+                .unwrap();
+            not_nodes.insert(
+                node.to_string(),
+                ElementaryNode::new(
+                    false,
+                    Either::Left(*child_index),
+                    Either::Left(0),
+                    node.node_type,
+                    node.to_string(),
+                ),
+            );
+            trace!(
+                "Added subformula {} to helper structure because it is negated.",
+                node
+            );
+        }
+    });
+
+    trace!("Closure consists of {} positive elements.", closure.len());
+
+    let mut stack: Vec<BitVec> = vec![BitVec::from_elem(closure.len(), false)];
+    let mut res: Vec<BitVec> = Vec::new();
+
+    // Compute initial states. I.e., a vector of state that contains all possible combinations
+    // for the atomic elements (e.g., a; b; next b; true).
+    trace!("Compute all possible combinations for atomic subformulas in the closure...");
+    closure
+        .iter()
+        .filter(|node| node.is_atomic)
+        .for_each(|node| {
+            let mut helper = Vec::new();
+            for state in stack.iter() {
+                helper.append(&mut node.clone().derive(
+                    state.clone(),
+                    *closure_formula_indices.get(&node.formula).unwrap(),
+                ));
+            }
+            stack = helper;
+        });
+
+    // Based on the initial states, derive all elementary sets
+    while let Some(s) = stack.pop() {
+        trace!(
+            "Computing elementary set based on atomic combination: {:?}",
+            s
+        );
+        let mut sets = vec![s];
+        for closure_elem in closure.iter().filter(|node| !node.is_atomic) {
+            trace!("\tconsider formula {}", closure_elem.formula);
+            let news = sets
+                .iter()
+                .flat_map(|set| {
+                    closure_elem.clone().derive(
+                        set.clone(),
+                        *closure_formula_indices.get(&closure_elem.formula).unwrap(),
+                    )
+                })
+                .collect::<Vec<_>>();
+
+            sets = news;
+            trace!("\tobtained new sets {:?}", sets);
+        }
+
+        res.append(&mut sets);
+        trace!("Obtained following intermediate result: {:?}", res);
+    }
+
+    trace!("Found the following {} elementary sets:", res.len());
+    trace!("{:?}", res);
+
+    (indices_to_formula, res)
 }
 
 #[cfg(test)]
@@ -1123,7 +1421,7 @@ mod tests {
     }
 
     #[test]
-    fn test_negation_ltl6() {
+    fn test_negation_ltl5() {
         let atomic_a = FormulaTreeNode::new(
             None,
             None,
@@ -1172,5 +1470,329 @@ mod tests {
                 assert_eq!(FormulaTreeNodeType::Atomic, right_and.node_type);
             }
         }
+    }
+
+    #[test]
+    fn test_compute_elementary_sets_of_ltl1() {
+        // In this test case we heavily rely on exercise 3 of the 5th exercise sheet from the model
+        // checking course. Hence, we check if the elementary sets given in the sample solution are
+        // equivalent to our computation. Note that we now consider elementary sets with 7 truth
+        // values, different from the sample solution of the exercise, as we consider `true` as an
+        // atomic value with its own entry inside our bitvectors, which represent the elementary sets.
+
+        // phi' = true UNTIL (a AND NOT ((NOT b) UNTIL (a AND b)))
+        let ltl_tree = FormulaTreeNode::new(
+            Some(Box::from(FormulaTreeNode::new(
+                None,
+                None,
+                None,
+                FormulaTreeNodeType::True,
+            ))),
+            Some(Box::from(FormulaTreeNode::new(
+                Some(Box::from(FormulaTreeNode::new(
+                    None,
+                    None,
+                    Some("a".to_string()),
+                    FormulaTreeNodeType::Atomic,
+                ))),
+                Some(Box::from(FormulaTreeNode::new(
+                    Some(Box::from(FormulaTreeNode::new(
+                        Some(Box::from(FormulaTreeNode::new(
+                            Some(Box::from(FormulaTreeNode::new(
+                                None,
+                                None,
+                                Some("b".to_string()),
+                                FormulaTreeNodeType::Atomic,
+                            ))),
+                            None,
+                            None,
+                            FormulaTreeNodeType::Not,
+                        ))),
+                        Some(Box::from(FormulaTreeNode::new(
+                            Some(Box::from(FormulaTreeNode::new(
+                                None,
+                                None,
+                                Some("a".to_string()),
+                                FormulaTreeNodeType::Atomic,
+                            ))),
+                            Some(Box::from(FormulaTreeNode::new(
+                                None,
+                                None,
+                                Some("b".to_string()),
+                                FormulaTreeNodeType::Atomic,
+                            ))),
+                            None,
+                            FormulaTreeNodeType::And,
+                        ))),
+                        None,
+                        FormulaTreeNodeType::Until,
+                    ))),
+                    None,
+                    None,
+                    FormulaTreeNodeType::Not,
+                ))),
+                None,
+                FormulaTreeNodeType::And,
+            ))),
+            None,
+            FormulaTreeNodeType::Until,
+        );
+
+        // create elementary sets based on exercise solution
+        let mut b1 = BitVec::from_elem(7, false);
+        b1.set(0, true);
+        let mut b2 = BitVec::from_elem(7, false);
+        b2.set(0, true);
+        b2.set(6, true);
+        let mut b3 = BitVec::from_elem(7, false);
+        b3.set(0, true);
+        b3.set(4, true);
+        let mut b4 = BitVec::from_elem(7, false);
+        b4.set(0, true);
+        b4.set(4, true);
+        b4.set(6, true);
+        let mut b5 = BitVec::from_elem(7, false);
+        b5.set(0, true);
+        b5.set(2, true);
+        let mut b6 = BitVec::from_elem(7, false);
+        b6.set(0, true);
+        b6.set(2, true);
+        b6.set(6, true);
+        let mut b7 = BitVec::from_elem(7, false);
+        b7.set(0, true);
+        b7.set(1, true);
+        b7.set(5, true);
+        b7.set(6, true);
+        let mut b8 = BitVec::from_elem(7, false);
+        b8.set(0, true);
+        b8.set(1, true);
+        b8.set(4, true);
+        let mut b9 = BitVec::from_elem(7, false);
+        b9.set(0, true);
+        b9.set(1, true);
+        b9.set(4, true);
+        b9.set(6, true);
+        let mut b10 = BitVec::from_elem(7, false);
+        b10.set(0, true);
+        b10.set(1, true);
+        b10.set(2, true);
+        b10.set(3, true);
+        b10.set(4, true);
+        let mut b11 = BitVec::from_elem(7, false);
+        b11.set(0, true);
+        b11.set(1, true);
+        b11.set(2, true);
+        b11.set(3, true);
+        b11.set(4, true);
+        b11.set(6, true);
+
+        let (indices_to_subformulas, elementary_sets) = comp_elementary_sets(Property::new(
+            "ltl property1".to_string(),
+            PropertyType::Ltl(ltl_tree.clone()),
+        ));
+
+        assert_eq!(11, elementary_sets.len());
+        assert!(elementary_sets.contains(&b1));
+        assert!(elementary_sets.contains(&b2));
+        assert!(elementary_sets.contains(&b3));
+        assert!(elementary_sets.contains(&b4));
+        assert!(elementary_sets.contains(&b5));
+        assert!(elementary_sets.contains(&b6));
+        assert!(elementary_sets.contains(&b7));
+        assert!(elementary_sets.contains(&b8));
+        assert!(elementary_sets.contains(&b9));
+        assert!(elementary_sets.contains(&b10));
+        assert!(elementary_sets.contains(&b11));
+    }
+
+    #[test]
+    fn test_compute_elementary_sets_of_ltl2() {
+        // In this test case we heavily rely on exercise 1 of the 6th exercise sheet from the model
+        // checking course. Hence, we check if the elementary sets given in the sample solution are
+        // equivalent to our computation.
+
+        // phi' = (NOT (a AND (NEXT b)) AND NOT (a AND b)) UNTIL ((a AND (NEXT b)) AND NOT (a AND b))
+        let ltl_tree = FormulaTreeNode::new(
+            Some(Box::from(FormulaTreeNode::new(
+                // UNTIL
+                Some(Box::from(FormulaTreeNode::new(
+                    // NOT (a AND (NEXT b))
+                    Some(Box::from(FormulaTreeNode::new(
+                        Some(Box::from(FormulaTreeNode::new(
+                            None,
+                            None,
+                            Some("a".to_string()),
+                            FormulaTreeNodeType::Atomic,
+                        ))),
+                        Some(Box::from(FormulaTreeNode::new(
+                            Some(Box::from(FormulaTreeNode::new(
+                                None,
+                                None,
+                                Some("b".to_string()),
+                                FormulaTreeNodeType::Atomic,
+                            ))),
+                            None,
+                            None,
+                            FormulaTreeNodeType::Next,
+                        ))),
+                        None,
+                        FormulaTreeNodeType::And,
+                    ))),
+                    None,
+                    None,
+                    FormulaTreeNodeType::Not,
+                ))),
+                Some(Box::from(FormulaTreeNode::new(
+                    // NOT (a AND b)
+                    Some(Box::from(FormulaTreeNode::new(
+                        Some(Box::from(FormulaTreeNode::new(
+                            None,
+                            None,
+                            Some("a".to_string()),
+                            FormulaTreeNodeType::Atomic,
+                        ))),
+                        Some(Box::from(FormulaTreeNode::new(
+                            None,
+                            None,
+                            Some("b".to_string()),
+                            FormulaTreeNodeType::Atomic,
+                        ))),
+                        None,
+                        FormulaTreeNodeType::And,
+                    ))),
+                    None,
+                    None,
+                    FormulaTreeNodeType::Not,
+                ))),
+                Some("a".to_string()),
+                FormulaTreeNodeType::And,
+            ))),
+            Some(Box::from(FormulaTreeNode::new(
+                Some(Box::from(FormulaTreeNode::new(
+                    // (a AND (NEXT b))
+                    Some(Box::from(FormulaTreeNode::new(
+                        None,
+                        None,
+                        Some("a".to_string()),
+                        FormulaTreeNodeType::Atomic,
+                    ))),
+                    Some(Box::from(FormulaTreeNode::new(
+                        Some(Box::from(FormulaTreeNode::new(
+                            None,
+                            None,
+                            Some("b".to_string()),
+                            FormulaTreeNodeType::Atomic,
+                        ))),
+                        None,
+                        None,
+                        FormulaTreeNodeType::Next,
+                    ))),
+                    None,
+                    FormulaTreeNodeType::And,
+                ))),
+                Some(Box::from(FormulaTreeNode::new(
+                    // NOT (a AND b)
+                    Some(Box::from(FormulaTreeNode::new(
+                        Some(Box::from(FormulaTreeNode::new(
+                            None,
+                            None,
+                            Some("a".to_string()),
+                            FormulaTreeNodeType::Atomic,
+                        ))),
+                        Some(Box::from(FormulaTreeNode::new(
+                            None,
+                            None,
+                            Some("b".to_string()),
+                            FormulaTreeNodeType::Atomic,
+                        ))),
+                        None,
+                        FormulaTreeNodeType::And,
+                    ))),
+                    None,
+                    None,
+                    FormulaTreeNodeType::Not,
+                ))),
+                None,
+                FormulaTreeNodeType::And,
+            ))),
+            None,
+            FormulaTreeNodeType::Until,
+        );
+
+        let (indices_to_subformulas, elementary_sets) = comp_elementary_sets(Property::new(
+            "ltl property2".to_string(),
+            PropertyType::Ltl(ltl_tree.clone()),
+        ));
+
+        // create elementary sets based on exercise solution
+        let mut b1 = BitVec::from_elem(8, false);
+        b1.set(5, true);
+        let mut b2 = BitVec::from_elem(8, false);
+        b2.set(5, true);
+        b2.set(7, true);
+        let mut b3 = BitVec::from_elem(8, false);
+        b3.set(2, true);
+        b3.set(5, true);
+        let mut b4 = BitVec::from_elem(8, false);
+        b4.set(2, true);
+        b4.set(5, true);
+        b4.set(7, true);
+        let mut b5 = BitVec::from_elem(8, false);
+        b5.set(1, true);
+        b5.set(5, true);
+        let mut b6 = BitVec::from_elem(8, false);
+        b6.set(1, true);
+        b6.set(5, true);
+        b6.set(7, true);
+        let mut b7 = BitVec::from_elem(8, false);
+        b7.set(1, true);
+        b7.set(2, true);
+        b7.set(5, true);
+        let mut b8 = BitVec::from_elem(8, false);
+        b8.set(1, true);
+        b8.set(2, true);
+        b8.set(5, true);
+        b8.set(7, true);
+        let mut b9 = BitVec::from_elem(8, false);
+        b9.set(0, true);
+        b9.set(5, true);
+        let mut b10 = BitVec::from_elem(8, false);
+        b10.set(0, true);
+        b10.set(5, true);
+        b10.set(7, true);
+        let mut b11 = BitVec::from_elem(8, false);
+        b11.set(0, true);
+        b11.set(2, true);
+        b11.set(3, true);
+        b11.set(6, true);
+        b11.set(7, true);
+        let mut b12 = BitVec::from_elem(8, false);
+        b12.set(0, true);
+        b12.set(1, true);
+        b12.set(4, true);
+        let mut b13 = BitVec::from_elem(8, false);
+        b13.set(0, true);
+        b13.set(1, true);
+        b13.set(2, true);
+        b13.set(3, true);
+        b13.set(4, true);
+
+        println!("{:?}", elementary_sets.len());
+        println!("{:?}", elementary_sets);
+
+        assert_eq!(13, elementary_sets.len());
+        assert!(elementary_sets.contains(&b1));
+        assert!(elementary_sets.contains(&b2));
+        assert!(elementary_sets.contains(&b3));
+        assert!(elementary_sets.contains(&b4));
+        assert!(elementary_sets.contains(&b5));
+        assert!(elementary_sets.contains(&b6));
+        assert!(elementary_sets.contains(&b7));
+        assert!(elementary_sets.contains(&b8));
+        assert!(elementary_sets.contains(&b9));
+        assert!(elementary_sets.contains(&b10));
+        assert!(elementary_sets.contains(&b11));
+        assert!(elementary_sets.contains(&b12));
+        assert!(elementary_sets.contains(&b13));
     }
 }
