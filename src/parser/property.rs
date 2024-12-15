@@ -100,9 +100,7 @@ impl Property<String> {
                 debug!("Before adding negation: \n{}", formula_tree_node);
                 // if the formula tree starts with one or more `NOT`'s, then we have to handle this
                 // accordingly when negating the whole formula
-                if FormulaTreeNodeType::Not == formula_tree_node.node_type {
-                    Property::handle_leading_nots_when_negating(formula_tree_node);
-                }
+                Property::handle_leading_nots_when_negating_from_root(formula_tree_node);
                 debug!("After adding negation: \n{}", formula_tree_node);
 
                 debug!("Before removing double negations: \n{}", formula_tree_node);
@@ -113,15 +111,19 @@ impl Property<String> {
         }
     }
 
-    fn handle_leading_nots_when_negating(formula_tree_node: &mut FormulaTreeNode<String>) {
-        let mut current_node = formula_tree_node.left.clone();
+    fn handle_leading_nots_when_negating_from_root(formula_tree_node: &mut FormulaTreeNode<String>) {
+        let mut number_of_nots = 0; // no leading `NOT` nodes in the beginning
+        let mut current_node = Some(Box::new(formula_tree_node.clone()));
+        if FormulaTreeNodeType::Not == formula_tree_node.node_type {
+            current_node = formula_tree_node.left.clone();
+            number_of_nots += 1; // here we include the root node
 
-        let mut number_of_nots = 1; // here we include the root node
-        // count the number of consecutive `NOT`s starting from the root
-        while current_node.is_some()
-            && current_node.as_ref().unwrap().node_type == FormulaTreeNodeType::Not {
-            number_of_nots += 1;
-            current_node = current_node.clone().unwrap().left;
+            // count the number of consecutive `NOT`s starting from the root
+            while current_node.is_some()
+                && current_node.as_ref().unwrap().node_type == FormulaTreeNodeType::Not {
+                number_of_nots += 1;
+                current_node = current_node.clone().unwrap().left;
+            }
         }
 
         if number_of_nots % 2 == 0 {
@@ -254,29 +256,29 @@ impl FormulaTreeNode<String> {
         if let FormulaTreeNodeType::Atomic = self.node_type {
             // reached a leaf node, return
             return
-        } else {
-            // check if there is a left child and if it is also a `NOT` node
-            if let Some(left_child) = self.left.as_ref() {
-                if FormulaTreeNodeType::Not == left_child.node_type {
-                    // check if it is followed by another `NOT` node
-                    if let Some(child_of_left_child) = left_child.left.as_ref() {
-                        if let FormulaTreeNodeType::Not = child_of_left_child.node_type {
-                            // found two consecutive `NOT` nodes
-                            self.left = child_of_left_child.left.clone();
-                        }
+        }
+
+        // check if there is a left child and if it is also a `NOT` node
+        if let Some(left_child) = self.left.as_ref() {
+            if FormulaTreeNodeType::Not == left_child.node_type {
+                // check if it is followed by another `NOT` node
+                if let Some(child_of_left_child) = left_child.left.as_ref() {
+                    if let FormulaTreeNodeType::Not = child_of_left_child.node_type {
+                        // found two consecutive `NOT` nodes
+                        self.left = child_of_left_child.left.clone();
                     }
                 }
             }
+        }
 
-            // check if there is a right child and if it is also a `NOT` node
-            if let Some(right_child) = self.right.as_ref() {
-                if let FormulaTreeNodeType::Not = right_child.node_type {
-                    // check if it is followed by another `NOT` node
-                    if let Some(child_of_right_child) = right_child.left.as_ref() {
-                        if let FormulaTreeNodeType::Not = child_of_right_child.node_type {
-                            // found two consecutive `NOT` nodes
-                            self.right = child_of_right_child.left.clone();
-                        }
+        // check if there is a right child and if it is also a `NOT` node
+        if let Some(right_child) = self.right.as_ref() {
+            if let FormulaTreeNodeType::Not = right_child.node_type {
+                // check if it is followed by another `NOT` node
+                if let Some(child_of_right_child) = right_child.left.as_ref() {
+                    if let FormulaTreeNodeType::Not = child_of_right_child.node_type {
+                        // found two consecutive `NOT` nodes
+                        self.right = child_of_right_child.left.clone();
                     }
                 }
             }
@@ -1116,6 +1118,58 @@ mod tests {
                 let left_child_of_not_a = left_child_of_next.left.as_ref().unwrap();
                 assert_eq!(FormulaTreeNodeType::Atomic, left_child_of_not_a.node_type);
                 assert_eq!("A", left_child_of_not_a.label.as_ref().unwrap());
+            }
+        }
+    }
+
+    #[test]
+    fn test_negation_ltl6() {
+        let atomic_a = FormulaTreeNode::new(
+            None,
+            None,
+            Some("A".to_string()),
+            FormulaTreeNodeType::Atomic,
+        );
+        let atomic_b = FormulaTreeNode::new(
+            None,
+            None,
+            Some("B".to_string()),
+            FormulaTreeNodeType::Atomic,
+        );
+        let root = FormulaTreeNode::new(
+            Some(Box::new(atomic_a)),
+            Some(Box::new(atomic_b)),
+            None,
+            FormulaTreeNodeType::And,
+        );
+
+        let mut property = Property::new("Example LTL Property".to_string(), PropertyType::Ltl(root.clone()));
+
+        println!("Tree before negating: \n {}", &root);
+
+        property.negate();
+
+        match property.property_type {
+            PropertyType::Invariant(_)
+            | PropertyType::Persistence(_)
+            | PropertyType::OmegaRegular(_)
+            | PropertyType::RegularSafety(_) => panic!(
+                "Invalid property type inside test. Really impressive!"
+            ),
+            PropertyType::Ltl(formula_tree_node) => {
+                println!("Tree after negating: \n {}", &formula_tree_node);
+
+                let root_node = &formula_tree_node;
+                assert_eq!(FormulaTreeNodeType::Not, root_node.node_type);
+
+                let left_child_of_root = formula_tree_node.left.as_ref().unwrap();
+                assert_eq!(FormulaTreeNodeType::And, left_child_of_root.node_type);
+
+                let left_and = left_child_of_root.left.as_ref().unwrap();
+                assert_eq!(FormulaTreeNodeType::Atomic, left_and.node_type);
+
+                let right_and = left_child_of_root.right.as_ref().unwrap();
+                assert_eq!(FormulaTreeNodeType::Atomic, right_and.node_type);
             }
         }
     }
