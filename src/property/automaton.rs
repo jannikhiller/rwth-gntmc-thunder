@@ -4,7 +4,7 @@ use log::trace;
 use crate::common::sparse_matrix::{SparseMatrix, SparseMatrixElement};
 use crate::property::property::{comp_elementary_sets, FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AcceptanceType {
     /// An NFA accepts once it reaches a final state.
     Nfa,
@@ -14,7 +14,7 @@ pub enum AcceptanceType {
 }
 
 /// A finite automaton that can be used to represent regular safety or omega-regular properties.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FiniteAutomaton<ValueType> {
     /// The type of acceptance for this automaton.
     acceptance: AcceptanceType,
@@ -44,6 +44,114 @@ impl FiniteAutomaton<String> {
             accepting_states,
         }
     }
+
+    pub fn from_gnba(gnba: LtlGnba) -> Self {
+        fn create_formula_from_state_aps(aps: Vec<String>) -> FormulaTreeNode<String> {
+            if aps.is_empty() {
+                FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::Atomic)
+            } else if aps.len() == 1 {
+                FormulaTreeNode::new(
+                    None,
+                    None,
+                    Some(aps[0].to_string()),
+                    FormulaTreeNodeType::Atomic,
+                )
+            } else {
+                FormulaTreeNode::new(
+                    Some(Box::from(FormulaTreeNode::new(
+                        None,
+                        None,
+                        Some(aps[0].to_string()),
+                        FormulaTreeNodeType::Atomic,
+                    ))),
+                    Some(Box::from(create_formula_from_state_aps(aps[1..].to_owned()))),
+                    None,
+                    FormulaTreeNodeType::And,
+                )
+            }
+        }
+
+        assert!(!gnba.accepting_states.is_empty(), "Found no accepting states in GNBA. Thus, property is trivially true as no undesired behavior can ever occur.");
+        
+        let num_accepting_sets = gnba.accepting_states.len();
+        let num_of_gnba_states = gnba.last_state + 1;
+        let nba_last_state = (num_of_gnba_states * num_accepting_sets) - 1; // - 1 because 0 is the first state
+        let initial_state = BitVec::from_fn(nba_last_state + 1, |index| {
+            gnba.initial_state.get(index).unwrap_or_default()
+        });
+        let accepting_states = BitVec::from_fn(nba_last_state + 1, |index| {
+            gnba.accepting_states[0].get(index).unwrap_or_default()
+        });
+        let acceptance = AcceptanceType::Buchi;
+        let mut list_of_entries = vec![];
+
+        println!("Number of states: {}", num_of_gnba_states);
+        println!("Number of accepting sets: {}", num_accepting_sets);
+        println!("Number of initial states: {}", initial_state.count_ones());
+        println!("Last state: {}", nba_last_state);
+
+        for current_accepting_set in 0 .. num_accepting_sets {
+            println!("Current accepting set, i.e., copy of the gnba: {}", current_accepting_set);
+            for gnba_state in 0 .. num_of_gnba_states {
+                let state_copy_offset = current_accepting_set * num_of_gnba_states;
+                let nba_state = gnba_state + state_copy_offset;
+
+                println!("Current NBA state {:?} equals GNBA state {:?} in copy {:?}", nba_state,
+                    gnba_state, current_accepting_set);
+
+                // we need this to construct our transition matrix
+                let formula = create_formula_from_state_aps(gnba.aps_of_state[gnba_state].clone());
+
+                // check if state is an accepting state in the current copy of the GNBA
+                if gnba.accepting_states[current_accepting_set][gnba_state] {
+                    println!("transition to new partition");
+                    // use step from gnba
+                    // give current state in bitvec and aps as label
+                    // iterate over enumerated result
+                    // if contained in result => we found a successor
+                    // calculate modulo sum and add to list of entries
+
+                    let mut gstate_bv = BitVec::from_elem(gnba.last_state + 1, false);
+                    gstate_bv.set(gnba_state, true);
+
+                    let target_states = gnba.step(gstate_bv, &gnba.aps_of_state[gnba_state]);
+                    target_states.iter().enumerate().for_each(|(gnba_successor_state, is_reachable)| {
+                        if is_reachable {
+                            // gnba_successor_state + state_copy_offset => corresponding state in the current copy/partition
+                            // + num_of_gnba_states => switch to corresponding state in next partition
+                            trace!("({} + {} + {}) % ({} * {}) = {}", gnba_successor_state, state_copy_offset, num_of_gnba_states, num_accepting_sets, num_of_gnba_states, (gnba_successor_state + state_copy_offset + num_of_gnba_states) % (num_accepting_sets * num_of_gnba_states));
+                            let next_nba_state = (gnba_successor_state + state_copy_offset + num_of_gnba_states) % (num_accepting_sets * num_of_gnba_states);
+                            list_of_entries.push((nba_state, next_nba_state, vec![formula.clone()]));
+                        }
+                    })
+                } else {
+                    let mut gstate_bv = BitVec::from_elem(gnba.last_state + 1, false);
+                    gstate_bv.set(gnba_state, true);
+
+                    let target_states = gnba.step(gstate_bv, &gnba.aps_of_state[gnba_state]);
+                    target_states.iter().enumerate().for_each(|(gnba_successor_state, is_reachable)| {
+                        if is_reachable {
+                            let next_nba_state = gnba_successor_state + state_copy_offset;
+                            list_of_entries.push((nba_state, next_nba_state, vec![formula.clone()]));
+                        }
+                    })
+                }
+            }
+        }
+
+        println!("{:?}", list_of_entries);
+
+        let transition_matrix = SparseMatrix::from_list_of_entries(nba_last_state + 1, nba_last_state + 1, &list_of_entries);
+
+        Self {
+            acceptance,
+            transition_matrix,
+            last_state: nba_last_state,
+            initial_state,
+            accepting_states
+        }
+    }
+
     #[allow(dead_code)]
     pub fn is_accepting(&self, state: BitVec) -> bool {
         let mut res = state;
@@ -101,7 +209,7 @@ impl FiniteAutomaton<String> {
 
 pub struct LtlGnba {
     pub transition_matrix: SparseMatrix<bool>,
-    // in this construction, states only have successors if the APs they match
+    // in this construction, states only have successors if their APs match
     // the label, so we store the APs for each state to decide if there is an outgoing transition
     pub aps_of_state: Vec<Vec<String>>,
     pub initial_state: BitVec,
@@ -109,7 +217,7 @@ pub struct LtlGnba {
     last_state: usize,
 }
 
-fn filter_succesors_with_next(
+fn filter_successors_with_next(
     set: &BitVec,
     elementary_sets: &Vec<BitVec>,
     index_of_formula: usize,
@@ -295,7 +403,7 @@ impl LtlGnba {
             for (&j, formula) in indices_to_formula.iter() {
                 match formula.node_type {
                     FormulaTreeNodeType::Next => {
-                        filter_succesors_with_next(
+                        filter_successors_with_next(
                             set,
                             &elementary_sets,
                             j,
@@ -386,6 +494,7 @@ impl LtlGnba {
 #[cfg(test)]
 mod tests {
     use bit_vec::BitVec;
+    use env_logger::init;
     use crate::common::sparse_matrix::SparseMatrix;
     use crate::property::automaton::{AcceptanceType, FiniteAutomaton, LtlGnba};
     use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
