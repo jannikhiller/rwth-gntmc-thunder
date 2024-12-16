@@ -1,6 +1,6 @@
 use crate::checker::helper::bit_vec_to_ap_strings;
 use crate::common::sparse_matrix::*;
-use crate::parser::property::FiniteAutomaton;
+use crate::property::automaton::FiniteAutomaton;
 use bit_vec::BitVec;
 use log::{debug, trace};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -370,8 +370,8 @@ impl TransitionSystem {
 mod tests {
     use super::*;
     use crate::common::sparse_matrix::SparseMatrix;
-    use crate::parser::property::AcceptanceType::Nfa;
-    use crate::parser::property::{FormulaTreeNode, FormulaTreeNodeType};
+    use crate::property::automaton::AcceptanceType::Nfa;
+    use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType};
 
     fn create_test_transition_system() -> TransitionSystem {
         let transitions = vec![

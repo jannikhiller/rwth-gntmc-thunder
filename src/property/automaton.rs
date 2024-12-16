@@ -786,4 +786,68 @@ mod tests {
 
         assert_eq!(ltl_accepting_states, accepting_states);
     }
+
+    #[test]
+    fn test_gnba_to_nba() {
+        let mut gnba_initial = BitVec::from_elem(3, false);
+        gnba_initial.set(0, true);
+        let mut gnba_accept1 = BitVec::from_elem(3, false);
+        gnba_accept1.set(1, true);
+        let mut gnba_accept2 = BitVec::from_elem(3, false);
+        gnba_accept2.set(2, true);
+        let gnba = LtlGnba {
+            transition_matrix: SparseMatrix::from_2d_vec(&vec![
+                vec![true, true, true],
+                vec![true, false, false],
+                vec![true, false, false],
+            ]),
+            aps_of_state: vec![vec!["q0".to_string()], vec!["q1".to_string()], vec!["q2".to_string()]],
+            initial_state: gnba_initial,
+            accepting_states: vec![gnba_accept1, gnba_accept2],
+            last_state: 2,
+        };
+
+        // q0,1 -> 0, q1,1 -> 1, q2,1 -> 2
+        // q0,2 -> 3, q1,2 -> 4, q2,2 -> 5
+        let mut initial_state_bitvec = BitVec::from_elem(6, false);
+        initial_state_bitvec.set(0, true);
+        let mut accepting_states_bitvec = BitVec::from_elem(6, false);
+        accepting_states_bitvec.set(1, true);
+
+        let q0_formula = FormulaTreeNode::new(
+            None,
+            None,
+            Some("q0".to_string()),
+            FormulaTreeNodeType::Atomic,
+        );
+        let q1_formula = FormulaTreeNode::new(
+            None,
+            None,
+            Some("q1".to_string()),
+            FormulaTreeNodeType::Atomic,
+        );
+        let q2_formula = FormulaTreeNode::new(
+            None,
+            None,
+            Some("q2".to_string()),
+            FormulaTreeNodeType::Atomic,
+        );
+        let nba_transitions = SparseMatrix::from_2d_vec(&vec![
+            vec![vec![q0_formula.clone()], vec![q0_formula.clone()], vec![q0_formula.clone()], vec![], vec![], vec![]],
+            vec![vec![], vec![], vec![], vec![q1_formula.clone()], vec![], vec![]],
+            vec![vec![q2_formula.clone()], vec![], vec![], vec![], vec![], vec![]],
+            vec![vec![], vec![], vec![], vec![q0_formula.clone()], vec![q0_formula.clone()], vec![q0_formula.clone()]],
+            vec![vec![], vec![], vec![], vec![q1_formula.clone()], vec![], vec![]],
+            vec![vec![q2_formula.clone()], vec![], vec![], vec![], vec![], vec![]],
+        ]);
+        let nba = FiniteAutomaton {
+            acceptance: AcceptanceType::Buchi,
+            transition_matrix: nba_transitions,
+            last_state: 5,
+            initial_state: initial_state_bitvec,
+            accepting_states: accepting_states_bitvec
+        };
+
+        assert_eq!(nba, FiniteAutomaton::from_gnba(gnba));
+    }
 }
