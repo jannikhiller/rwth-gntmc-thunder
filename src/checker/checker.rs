@@ -3,7 +3,7 @@ use crate::checker::nested_dfs::persistence_checking_with_nested_dfs;
 use crate::checker::regular_safety_and_omega_property::regular_safety_and_omega_checking;
 use crate::checker::scc::persistence_checking_with_scc;
 use crate::common::transition_system::TransitionSystem;
-use crate::parser::property::{Property, PropertyType};
+use crate::property::property::{Property, PropertyType};
 
 /// Wrapper function which acts as an interface to correctly handle checking different types of
 /// properties on a given transition system.

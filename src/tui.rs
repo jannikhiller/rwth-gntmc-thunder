@@ -1,7 +1,7 @@
 use crate::checker::checker::{check, Options, PersistenceCheckingAlgorithm};
 use crate::common::transition_system::TransitionSystem;
 use crate::parser::gntmc::parse_gntmc_file;
-use crate::parser::property::Property;
+use crate::property::property::Property;
 use clap::Parser;
 use env_logger::Builder;
 use std::io::Write;

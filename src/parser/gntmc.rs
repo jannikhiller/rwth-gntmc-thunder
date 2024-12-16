@@ -9,7 +9,8 @@ use log::*;
 
 use crate::common::sparse_matrix::SparseMatrix;
 use crate::common::transition_system::*;
-use crate::parser::property::*;
+use crate::property::automaton::{AcceptanceType, FiniteAutomaton};
+use crate::property::property::*;
 
 #[derive(Debug, Deserialize)]
 struct GntmcTransitionSystem {
