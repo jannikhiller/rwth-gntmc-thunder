@@ -49,5 +49,5 @@ mod test {
     use thunder::checker::checker::check;
     use thunder::parser::gntmc;
 
-    generate_res_test!(test_ltl_1, test_ltl_2);
+    generate_res_test!(test_ltl_1, test_ltl_2, test_ltl_3);
 }
