@@ -53,6 +53,15 @@
           ]
         }
       }
+    },
+    {
+      "name": "always_a",
+      "is_true": false,
+      "ltl": {
+        "globally": {
+          "atom": "a"
+        }
+      }
     }
   ]
 }
