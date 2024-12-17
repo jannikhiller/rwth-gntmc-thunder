@@ -53,6 +53,15 @@
           ]
         }
       }
+    },
+    {
+      "name": "phi_negative",
+      "is_true": false,
+      "ltl": {
+        "globally": {
+          "atom": "a"
+        }
+      }
     }
   ]
 }
