@@ -1,0 +1,79 @@
+{
+  "name": "LTL TS",
+  "lts": {
+    "states": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "actions": [
+      0
+    ],
+    "transitions": [
+      [0, 0, 1],
+      [0, 0, 3],
+      [1, 0, 2],
+      [2, 0, 2],
+      [2, 0, 3],
+      [3, 0, 0]
+    ],
+    "initial_states": [
+      0
+    ],
+    "labelling": {
+      "0": ["c"],
+      "1": ["b"],
+      "2": ["a", "b"],
+      "3": ["a"]
+    }
+  },
+  "properties": [
+      {
+        "name": "phi_negative",
+        "is_true": false,
+        "ltl": {
+          "globally": {
+                "implies": [
+                    {"atom": "a"},
+                    {
+                        "until": [
+                            {
+                                "not": {
+                                    "atom": "b"
+                                }
+                            },
+                            {
+                                "and": [
+                                    {"atom": "a"},
+                                    {"atom": "b"}
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+          }
+      },
+      {
+        "name": "phi_positive",
+        "is_true": true,
+        "ltl": {
+            "globally": {
+                "or": [
+                    {
+                       "not": {
+                            "atom": "a"
+                       }
+                    },
+                    {
+                       "next": {
+                            "atom": "a"
+                       }
+                    }
+                ]
+            }
+        }
+      }
+  ]
+}

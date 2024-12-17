@@ -1,4 +1,5 @@
 use crate::checker::invariant::bfs_invariant_checking;
+use crate::checker::ltl::ltl_checking;
 use crate::checker::nested_dfs::persistence_checking_with_nested_dfs;
 use crate::checker::regular_safety_and_omega_property::regular_safety_and_omega_checking;
 use crate::checker::scc::persistence_checking_with_scc;
@@ -36,7 +37,9 @@ pub fn check(
         PropertyType::RegularSafety(_) | PropertyType::OmegaRegular(_) => {
             regular_safety_and_omega_checking(transition_system, property, options)
         }
-        PropertyType::Ltl(_) => panic!("Not implemented yet"),
+        PropertyType::Ltl(_) => {
+            ltl_checking(transition_system, property, options)
+        }
     }
 }
 

@@ -1,5 +1,4 @@
 use bit_vec::BitVec;
-use itertools::Either;
 use log::*;
 use std::collections::{HashMap};
 use std::fmt;
@@ -20,7 +19,7 @@ pub enum PropertyType<ValueType> {
 ///
 /// The `Property` contains a root node (`FormulaTreeNode`), a type of property
 /// (`PropertyType`), and a name to identify the property.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Property<ValueType> {
     /// The type of property represented by this tree.
     pub property_type: PropertyType<ValueType>,
@@ -390,9 +389,8 @@ pub enum FormulaTreeNodeType {
 #[derive(Eq, Hash, PartialEq, Debug, Clone)]
 struct ElementaryNode {
     is_atomic: bool,
-    // Either the index in the BitVec or the Node representing a negation (not part of closure bitvec)
-    left_value: Either<usize, Box<ElementaryNode>>,
-    right_value: Either<usize, Box<ElementaryNode>>,
+    left_value: usize,
+    right_value: usize,
     operator: FormulaTreeNodeType,
     formula: String,
 }
@@ -400,8 +398,8 @@ struct ElementaryNode {
 impl ElementaryNode {
     pub fn new(
         is_atomic: bool,
-        left_value: Either<usize, Box<ElementaryNode>>,
-        right_value: Either<usize, Box<ElementaryNode>>,
+        left_value: usize,
+        right_value: usize,
         operator: FormulaTreeNodeType,
         formula: String,
     ) -> Self {
@@ -414,11 +412,11 @@ impl ElementaryNode {
         }
     }
 
-    fn set_left_value(&mut self, left_value: Either<usize, Box<ElementaryNode>>) {
+    fn set_left_value(&mut self, left_value: usize) {
         self.left_value = left_value;
     }
 
-    fn set_right_value(&mut self, right_value: Either<usize, Box<ElementaryNode>>) {
+    fn set_right_value(&mut self, right_value: usize) {
         self.right_value = right_value;
     }
 
@@ -430,21 +428,9 @@ impl ElementaryNode {
     /// - `state`: The state from which the value shall be derived.
     /// - `index`: The index that represents this node. I.e., the index to which the result shall be written.
     fn derive(self, mut state: BitVec, index: usize) -> Vec<BitVec> {
-        /// Helper function that derives the value of a given sub formula. I.e. this handles the `Either`.
-        fn compute_value(
-            sub_form: Either<usize, Box<ElementaryNode>>,
-            state: &BitVec,
-            err_msg: &str,
-        ) -> bool {
-            match sub_form {
-                Either::Left(index) => state.get(index).expect(err_msg),
-                Either::Right(node) => !compute_value(node.left_value, state, err_msg),
-            }
-        }
-
         let err_msg = "Index out of bounds during elementary subset computation";
-        let value_of = |sub_form: Either<usize, Box<ElementaryNode>>| -> bool {
-            compute_value(sub_form, &state, err_msg)
+        let value_of = |sub_form: usize| -> bool {
+            state.get(sub_form).expect(err_msg)
         };
 
         match self.operator {
@@ -521,7 +507,6 @@ pub fn comp_elementary_sets(
     let mut closure_formula_indices: HashMap<String, usize> = HashMap::new();
     let mut indices_to_formula: HashMap<usize, FormulaTreeNode<String>> = HashMap::new();
     let mut closure: Vec<ElementaryNode> = Vec::new();
-    let mut not_nodes: HashMap<String, ElementaryNode> = HashMap::new();
 
     // Traverse the formula to capture all nodes and map them into the intermediate struct (`ElementaryNode`)
     FormulaTreeNode::post_order_traversal(&formula, &mut |node: &FormulaTreeNode<String>| {
@@ -529,81 +514,43 @@ pub fn comp_elementary_sets(
             || node.node_type == FormulaTreeNodeType::Atomic
             || node.node_type == FormulaTreeNodeType::Next;
 
-        if node.node_type != FormulaTreeNodeType::Not {
-            let insert = closure_formula_indices.insert(node.to_string(), closure.len());
-            // As `try_insert` is not yet stable, we have to manually reinsert the old value
-            // such that the map does not change in case a value was already present
-            if let Some(index) = insert {
-                closure_formula_indices.insert(node.to_string(), index);
-            } else {
-                indices_to_formula.insert(closure.len(), node.clone());
-
-                /*
-                 * For both (left and right) children:
-                 * if the current node is atomic, the children do not matter => we set them to index 0
-                 * if the curren node is a not node, we have to point to the not_nodes data structure (Either::Right)
-                 * else we can just point to the index of the predecessor
-                 */
-                let left_child = if is_atomic {
-                    Either::Left(0)
-                } else if node.clone().left.unwrap().node_type == FormulaTreeNodeType::Not {
-                    Either::Right(Box::from(
-                        not_nodes
-                            .get(&node.clone().left.unwrap().to_string())
-                            .unwrap()
-                            .clone(),
-                    ))
-                } else {
-                    let left_node =
-                        closure_formula_indices.get(&node.clone().left.unwrap().to_string());
-                    Either::Left(*left_node.unwrap())
-                };
-                let right_child = if is_atomic {
-                    Either::Left(0)
-                } else if node.clone().right.unwrap().node_type == FormulaTreeNodeType::Not {
-                    Either::Right(Box::from(
-                        not_nodes
-                            .get(&node.clone().right.unwrap().to_string())
-                            .unwrap()
-                            .clone(),
-                    ))
-                } else {
-                    let right_node =
-                        closure_formula_indices.get(&node.clone().right.unwrap().to_string());
-                    Either::Left(*right_node.unwrap())
-                };
-
-                closure.push(ElementaryNode::new(
-                    is_atomic,
-                    left_child,
-                    right_child,
-                    node.node_type,
-                    node.to_string(),
-                ));
-                trace!("Added subformula {} to closure.", node);
-            }
+        let insert = closure_formula_indices.insert(node.to_string(), closure.len());
+        // As `try_insert` is not yet stable, we have to manually reinsert the old value
+        // such that the map does not change in case a value was already present
+        if let Some(index) = insert {
+            closure_formula_indices.insert(node.to_string(), index);
         } else {
-            let child_index = closure_formula_indices
-                .get(&node.clone().left.unwrap().to_string())
-                .unwrap();
-            not_nodes.insert(
+            indices_to_formula.insert(closure.len(), node.clone());
+
+            /*
+             * For both (left and right) children:
+             * if the current node is atomic, the children do not matter => we set them to index 0
+             * if the curren node is a not node, we have to point to the not_nodes data structure (Either::Right)
+             * else we can just point to the index of the predecessor
+             */
+            let left_child = if is_atomic {
+                0
+            } else {
+                *closure_formula_indices.get(&node.clone().left.unwrap().to_string()).unwrap()
+            };
+            let right_child = if is_atomic || node.right.is_none() {
+                0
+            } else {
+                *closure_formula_indices.get(&node.clone().right.unwrap().to_string()).unwrap()
+            };
+
+            closure.push(ElementaryNode::new(
+                is_atomic,
+                left_child,
+                right_child,
+                node.node_type,
                 node.to_string(),
-                ElementaryNode::new(
-                    false,
-                    Either::Left(*child_index),
-                    Either::Left(0),
-                    node.node_type,
-                    node.to_string(),
-                ),
-            );
-            trace!(
-                "Added subformula {} to helper structure because it is negated.",
-                node
-            );
+            ));
+            trace!("Added subformula {} to closure.", node);
         }
     });
 
-    trace!("Closure consists of {} positive elements.", closure.len());
+    trace!("Closure consists of {} elements.", closure.len());
 
     let mut stack: Vec<BitVec> = vec![BitVec::from_elem(closure.len(), false)];
     let mut res: Vec<BitVec> = Vec::new();
@@ -1312,9 +1259,11 @@ mod tests {
     fn test_compute_elementary_sets_of_ltl1() {
         // In this test case we heavily rely on exercise 3 of the 5th exercise sheet from the model
         // checking course. Hence, we check if the elementary sets given in the sample solution are
-        // equivalent to our computation. Note that we now consider elementary sets with 7 truth
+        // equivalent to our computation. Note that we now consider elementary sets with 9 truth
         // values, different from the sample solution of the exercise, as we consider `true` as an
         // atomic value with its own entry inside our bitvectors, which represent the elementary sets.
+        // Additionally, we added the negated formulas to the closure as well, as they are later
+        // needed to construct the automaton.
 
         // phi' = true UNTIL (a AND NOT ((NOT b) UNTIL (a AND b)))
         let ltl_tree = FormulaTreeNode::new(
@@ -1375,57 +1324,76 @@ mod tests {
         );
 
         // create elementary sets based on exercise solution
-        let mut b1 = BitVec::from_elem(7, false);
+        let mut b1 = BitVec::from_elem(9, false);
         b1.set(0, true);
-        let mut b2 = BitVec::from_elem(7, false);
+        b1.set(1, true);
+        b1.set(2, true);
+        b1.set(4, true);
+        b1.set(5, true);
+        let mut b2 = BitVec::from_elem(9, false);
         b2.set(0, true);
-        b2.set(6, true);
-        let mut b3 = BitVec::from_elem(7, false);
+        b2.set(1, true);
+        b2.set(2, true);
+        b2.set(4, true);
+        b2.set(5, true);
+        b2.set(8, true);
+        let mut b3 = BitVec::from_elem(9, false);
         b3.set(0, true);
-        b3.set(4, true);
-        let mut b4 = BitVec::from_elem(7, false);
+        b3.set(1, true);
+        b3.set(3, true);
+        b3.set(6, true);
+        b3.set(7, true);
+        b3.set(8, true);
+        let mut b4 = BitVec::from_elem(9, false);
         b4.set(0, true);
-        b4.set(4, true);
-        b4.set(6, true);
-        let mut b5 = BitVec::from_elem(7, false);
+        b4.set(1, true);
+        b4.set(3, true);
+        b4.set(5, true);
+        let mut b5 = BitVec::from_elem(9, false);
         b5.set(0, true);
-        b5.set(2, true);
-        let mut b6 = BitVec::from_elem(7, false);
+        b5.set(1, true);
+        b5.set(3, true);
+        b5.set(5, true);
+        b5.set(8, true);
+        let mut b6 = BitVec::from_elem(9, false);
         b6.set(0, true);
         b6.set(2, true);
         b6.set(6, true);
-        let mut b7 = BitVec::from_elem(7, false);
+        let mut b7 = BitVec::from_elem(9, false);
         b7.set(0, true);
-        b7.set(1, true);
-        b7.set(5, true);
+        b7.set(2, true);
         b7.set(6, true);
-        let mut b8 = BitVec::from_elem(7, false);
+        b7.set(8, true);
+        let mut b8 = BitVec::from_elem(9, false);
         b8.set(0, true);
-        b8.set(1, true);
-        b8.set(4, true);
-        let mut b9 = BitVec::from_elem(7, false);
+        b8.set(3, true);
+        b8.set(6, true);
+        let mut b9 = BitVec::from_elem(9, false);
         b9.set(0, true);
-        b9.set(1, true);
-        b9.set(4, true);
+        b9.set(3, true);
         b9.set(6, true);
-        let mut b10 = BitVec::from_elem(7, false);
+        b9.set(8, true);
+        let mut b10 = BitVec::from_elem(9, false);
         b10.set(0, true);
-        b10.set(1, true);
-        b10.set(2, true);
         b10.set(3, true);
-        b10.set(4, true);
-        let mut b11 = BitVec::from_elem(7, false);
+        b10.set(5, true);
+        let mut b11 = BitVec::from_elem(9, false);
         b11.set(0, true);
-        b11.set(1, true);
-        b11.set(2, true);
         b11.set(3, true);
-        b11.set(4, true);
-        b11.set(6, true);
+        b11.set(5, true);
+        b11.set(8, true);
 
         let (indices_to_subformulas, elementary_sets) = comp_elementary_sets(&Property::new(
             "ltl property1".to_string(),
             PropertyType::Ltl(ltl_tree.clone()),
         ));
+
+        for i in indices_to_subformulas.keys() {
+            println!("{}: {}", i, indices_to_subformulas.get(i).unwrap());
+        }
+
+        println!("{:?}", elementary_sets.len());
+        println!("{:?}", elementary_sets);
 
         assert_eq!(11, elementary_sets.len());
         assert!(elementary_sets.contains(&b1));
@@ -1561,57 +1529,81 @@ mod tests {
         ));
 
         // create elementary sets based on exercise solution
-        let mut b1 = BitVec::from_elem(8, false);
+        // note that the length of the bit vectors again differ from the exercise solution, as we
+        // consider negated subformulas as well for the automaton construction.
+        let mut b1 = BitVec::from_elem(10, false);
+        b1.set(0, true);
+        b1.set(1, true);
+        b1.set(2, true);
+        b1.set(3, true);
         b1.set(5, true);
-        let mut b2 = BitVec::from_elem(8, false);
+        let mut b2 = BitVec::from_elem(10, false);
+        b2.set(0, true);
+        b2.set(1, true);
+        b2.set(4, true);
         b2.set(5, true);
-        b2.set(7, true);
-        let mut b3 = BitVec::from_elem(8, false);
+        let mut b3 = BitVec::from_elem(10, false);
+        b3.set(0, true);
         b3.set(2, true);
-        b3.set(5, true);
-        let mut b4 = BitVec::from_elem(8, false);
-        b4.set(2, true);
-        b4.set(5, true);
+        b3.set(3, true);
+        b3.set(6, true);
+        b3.set(8, true);
+        b3.set(9, true);
+        let mut b4 = BitVec::from_elem(10, false);
+        b4.set(0, true);
+        b4.set(4, true);
+        b4.set(6, true);
         b4.set(7, true);
-        let mut b5 = BitVec::from_elem(8, false);
-        b5.set(1, true);
-        b5.set(5, true);
-        let mut b6 = BitVec::from_elem(8, false);
+        let mut b5 = BitVec::from_elem(10, false);
+        b5.set(0, true);
+        b5.set(4, true);
+        b5.set(6, true);
+        b5.set(7, true);
+        b5.set(9, true);
+        let mut b6 = BitVec::from_elem(10, false);
         b6.set(1, true);
-        b6.set(5, true);
+        b6.set(2, true);
+        b6.set(4, true);
+        b6.set(6, true);
         b6.set(7, true);
-        let mut b7 = BitVec::from_elem(8, false);
+        let mut b7 = BitVec::from_elem(10, false);
         b7.set(1, true);
         b7.set(2, true);
-        b7.set(5, true);
-        let mut b8 = BitVec::from_elem(8, false);
+        b7.set(4, true);
+        b7.set(6, true);
+        b7.set(7, true);
+        b7.set(9, true);
+        let mut b8 = BitVec::from_elem(10, false);
         b8.set(1, true);
-        b8.set(2, true);
-        b8.set(5, true);
+        b8.set(4, true);
+        b8.set(6, true);
         b8.set(7, true);
-        let mut b9 = BitVec::from_elem(8, false);
-        b9.set(0, true);
-        b9.set(5, true);
-        let mut b10 = BitVec::from_elem(8, false);
-        b10.set(0, true);
-        b10.set(5, true);
+        let mut b9 = BitVec::from_elem(10, false);
+        b9.set(1, true);
+        b9.set(4, true);
+        b9.set(6, true);
+        b9.set(7, true);
+        b9.set(9, true);
+        let mut b10 = BitVec::from_elem(10, false);
+        b10.set(2, true);
+        b10.set(4, true);
+        b10.set(6, true);
         b10.set(7, true);
-        let mut b11 = BitVec::from_elem(8, false);
-        b11.set(0, true);
+        let mut b11 = BitVec::from_elem(10, false);
         b11.set(2, true);
-        b11.set(3, true);
+        b11.set(4, true);
         b11.set(6, true);
         b11.set(7, true);
-        let mut b12 = BitVec::from_elem(8, false);
-        b12.set(0, true);
-        b12.set(1, true);
+        b11.set(9, true);
+        let mut b12 = BitVec::from_elem(10, false);
         b12.set(4, true);
-        let mut b13 = BitVec::from_elem(8, false);
-        b13.set(0, true);
-        b13.set(1, true);
-        b13.set(2, true);
-        b13.set(3, true);
+        b12.set(6, true);
+        b12.set(7, true);
+        let mut b13 = BitVec::from_elem(10, false);
         b13.set(4, true);
+        b13.set(6, true);
+        b13.set(7, true);
+        b13.set(9, true);
 
         println!("{:?}", elementary_sets.len());
         println!("{:?}", elementary_sets);

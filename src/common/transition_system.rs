@@ -4,6 +4,8 @@ use crate::property::automaton::FiniteAutomaton;
 use bit_vec::BitVec;
 use log::{debug, trace};
 use std::collections::{HashMap, HashSet, VecDeque};
+use array_tool::vec::*;
+
 
 /// Represents a transition system with states, transitions, and labels.
 ///
@@ -181,23 +183,32 @@ impl TransitionSystem {
         let orig_init_states = self.initial_states.clone();
         // Maps from the labels given as a BitVec to the corresponding String Vec.
         // Used as a buffer to improve performance
-        let bitvecs_to_states: HashMap<BitVec, Vec<String>> = HashMap::new();
+        let mut bitvecs_to_states: HashMap<BitVec, Vec<String>> = HashMap::new();
         let mut new_states: HashSet<(usize, usize)> = HashSet::new();
         // new state |-> new label, i.e., the state of the automaton
         let mut new_state_labels: HashMap<(usize, usize), usize> = HashMap::new();
         let mut new_trans: Vec<((usize, usize), (usize, usize))> = vec![];
         let new_init_states: HashSet<(usize, usize)>;
+        let auto_aps: Option<Vec<String>> = auto.get_atomic_propositions();
 
         trace!("Computing init states...");
         for state in orig_init_states {
+            trace!("TS state: {:?}", state);
             let bv_label = self.get_state_label(state);
             let labels = bitvecs_to_states
                 .get(bv_label)
                 .cloned()
-                .unwrap_or_else(|| bit_vec_to_ap_strings(self, bv_label));
+                .unwrap_or_else(|| {
+                    let label = bit_vec_to_ap_strings(self, bv_label);
+                    let filtered_label = if auto_aps.is_some() {
+                        label.intersect(auto_aps.clone().unwrap())
+                    } else { label };
+                    bitvecs_to_states.insert(bv_label.clone(), filtered_label.clone());
+                    filtered_label
+                });
 
             let auto_states = auto.step(auto.get_initial_state().clone(), &labels);
-
+            trace!("Label: {:?}\nSuccessor states in automaton: {:?}", labels, auto_states);
             for (auto_state, is_set) in auto_states.iter().enumerate() {
                 if !is_set {
                     continue;
@@ -233,7 +244,14 @@ impl TransitionSystem {
                 let labels = bitvecs_to_states
                     .get(ts_succ_label)
                     .cloned()
-                    .unwrap_or_else(|| bit_vec_to_ap_strings(self, ts_succ_label));
+                    .unwrap_or_else(|| {
+                        let label = bit_vec_to_ap_strings(self, ts_succ_label);
+                        let filtered_label = if auto_aps.is_some() {
+                            label.intersect(auto_aps.clone().unwrap())
+                        } else { label };
+                        bitvecs_to_states.insert(ts_succ_label.clone(), filtered_label.clone());
+                        filtered_label
+                    });
                 let mut current_auto_state = BitVec::from_elem(auto.get_last_state() + 1, false);
                 current_auto_state.set(auto_state, true);
                 let auto_states = auto.step(current_auto_state, &labels);

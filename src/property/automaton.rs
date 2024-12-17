@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use bit_vec::BitVec;
-use log::trace;
+use log::{debug, trace};
+use array_tool::vec::*;
 use crate::common::sparse_matrix::{SparseMatrix, SparseMatrixElement};
 use crate::property::property::{comp_elementary_sets, FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
 
@@ -26,6 +27,9 @@ pub struct FiniteAutomaton<ValueType> {
     initial_state: BitVec,
     /// The accepting states of the automaton.
     accepting_states: BitVec,
+    /// The set of atomic propositions on which the automaton operates. It should be the least alphabet of this automaton.
+    /// It is optional as it is only necessary for Buchi automata derived from LTL formulae.
+    atomic_propositions: Option<Vec<ValueType>>,
 }
 
 impl FiniteAutomaton<String> {
@@ -42,12 +46,30 @@ impl FiniteAutomaton<String> {
             last_state,
             initial_state,
             accepting_states,
+            atomic_propositions: None,
+        }
+    }
+    pub fn new_with_aps(
+        acceptance: AcceptanceType,
+        transition_matrix: SparseMatrix<Vec<FormulaTreeNode<String>>>,
+        last_state: usize,
+        initial_state: BitVec,
+        accepting_states: BitVec,
+        atomic_propositions: Option<Vec<String>>
+    ) -> Self {
+        FiniteAutomaton {
+            acceptance,
+            transition_matrix,
+            last_state,
+            initial_state,
+            accepting_states,
+            atomic_propositions,
         }
     }
 
     pub fn from_gnba(gnba: LtlGnba) -> Self {
         fn create_formula_from_state_aps(aps: Vec<String>) -> FormulaTreeNode<String> {
-            if aps.is_empty() {
+            let res = if aps.is_empty() {
                 FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::Atomic)
             } else if aps.len() == 1 {
                 FormulaTreeNode::new(
@@ -68,11 +90,13 @@ impl FiniteAutomaton<String> {
                     None,
                     FormulaTreeNodeType::And,
                 )
-            }
+            };
+            trace!("Formula: {}", res);
+            res
         }
 
         assert!(!gnba.accepting_states.is_empty(), "Found no accepting states in GNBA. Thus, property is trivially true as no undesired behavior can ever occur.");
-        
+
         let num_accepting_sets = gnba.accepting_states.len();
         let num_of_gnba_states = gnba.last_state + 1;
         let nba_last_state = (num_of_gnba_states * num_accepting_sets) - 1; // - 1 because 0 is the first state
@@ -85,18 +109,18 @@ impl FiniteAutomaton<String> {
         let acceptance = AcceptanceType::Buchi;
         let mut list_of_entries = vec![];
 
-        println!("Number of states: {}", num_of_gnba_states);
-        println!("Number of accepting sets: {}", num_accepting_sets);
-        println!("Number of initial states: {}", initial_state.count_ones());
-        println!("Last state: {}", nba_last_state);
+        debug!("Number of states: {}", num_of_gnba_states); // TODO trace!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        debug!("Number of accepting sets: {}", num_accepting_sets);
+        debug!("Number of initial states: {}", initial_state.count_ones());
+        debug!("Last state: {}", nba_last_state);
 
         for current_accepting_set in 0 .. num_accepting_sets {
-            println!("Current accepting set, i.e., copy of the gnba: {}", current_accepting_set);
+            trace!("Current accepting set, i.e., copy of the gnba: {}", current_accepting_set);
             for gnba_state in 0 .. num_of_gnba_states {
                 let state_copy_offset = current_accepting_set * num_of_gnba_states;
                 let nba_state = gnba_state + state_copy_offset;
 
-                println!("Current NBA state {:?} equals GNBA state {:?} in copy {:?}", nba_state,
+                trace!("Current NBA state {:?} equals GNBA state {:?} in copy {:?}", nba_state,
                     gnba_state, current_accepting_set);
 
                 // we need this to construct our transition matrix
@@ -104,7 +128,7 @@ impl FiniteAutomaton<String> {
 
                 // check if state is an accepting state in the current copy of the GNBA
                 if gnba.accepting_states[current_accepting_set][gnba_state] {
-                    println!("transition to new partition");
+                    trace!("Found transition to next partition");
                     // use step from gnba
                     // give current state in bitvec and aps as label
                     // iterate over enumerated result
@@ -139,8 +163,6 @@ impl FiniteAutomaton<String> {
             }
         }
 
-        println!("{:?}", list_of_entries);
-
         let transition_matrix = SparseMatrix::from_list_of_entries(nba_last_state + 1, nba_last_state + 1, &list_of_entries);
 
         Self {
@@ -148,7 +170,8 @@ impl FiniteAutomaton<String> {
             transition_matrix,
             last_state: nba_last_state,
             initial_state,
-            accepting_states
+            accepting_states,
+            atomic_propositions: Some(gnba.aps_of_state.iter().fold(Vec::new(), |acc, val| acc.union(val.clone())))
         }
     }
 
@@ -159,31 +182,37 @@ impl FiniteAutomaton<String> {
         res.any()
     }
 
+    pub fn get_atomic_propositions(&self) -> Option<Vec<String>> {
+        self.atomic_propositions.clone()
+    }
+
     #[allow(dead_code)]
     pub fn step(&mut self, state: BitVec, label: &Vec<String>) -> BitVec {
+        trace!("State {} with label {:?}", state, label);
         let get_successors_of_index = |index: usize| {
             self.transition_matrix
                 .get_row(index)
-                .into_iter()
-                .map(|SparseMatrixElement { col_index, value }| {
-                    value.into_iter().map(move |tree| (tree, col_index))
+                .flat_map(|SparseMatrixElement { col_index, value }| {
+                    value.iter().map(move |tree| (tree, col_index))
                 })
-                .flatten()
         };
 
         let state_successors = state
             .into_iter()
             .enumerate()
             .filter_map(|(i, value)| if value { Some(i) } else { None })
-            .map(get_successors_of_index)
-            .flatten();
+            .flat_map(get_successors_of_index);
 
         let mut new_state = BitVec::from_elem(self.last_state + 1, false);
         for (tree, col_index) in state_successors {
+            trace!("Tree: {}", tree);
             if tree.evaluate(label) {
                 new_state.set(col_index, true);
+                trace!("Formula fullfilled => found successors: {:?}", new_state);
             }
         }
+
+        trace!("all successors: {:?}", new_state);
         new_state
     }
 
@@ -433,6 +462,7 @@ impl LtlGnba {
         }
         let transition_matrix =
             SparseMatrix::from_list_of_entries(last_state + 1, last_state + 1, &entries);
+
         let index_of_ltl_formula = *indices_to_formula
             .iter()
             .find(|(_, formula)| **formula == *ltl_formula)
@@ -494,7 +524,6 @@ impl LtlGnba {
 #[cfg(test)]
 mod tests {
     use bit_vec::BitVec;
-    use env_logger::init;
     use crate::common::sparse_matrix::SparseMatrix;
     use crate::property::automaton::{AcceptanceType, FiniteAutomaton, LtlGnba};
     use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
@@ -536,7 +565,6 @@ mod tests {
                 (3, 0, vec![atomic_d]),
             ],
         );
-        println!("{:?}", transition_matrix);
 
         let mut initial_state = BitVec::from_elem(4, false);
         initial_state.set(0, true);
@@ -740,10 +768,6 @@ mod tests {
         }
         let transition_matrix = SparseMatrix::from_2d_vec(&matrix);
 
-        for i in 0..transition_matrix.rows() {
-            println!("{:?}", ltl_gnba.transition_matrix.get_col_indexes_in_row(i));
-        }
-
         assert_eq!(ltl_gnba.transition_matrix, transition_matrix);
         let aps_of_state_b_sets = vec![
             vec![],
@@ -845,7 +869,8 @@ mod tests {
             transition_matrix: nba_transitions,
             last_state: 5,
             initial_state: initial_state_bitvec,
-            accepting_states: accepting_states_bitvec
+            accepting_states: accepting_states_bitvec,
+            atomic_propositions: Some(vec!["q0".to_string(), "q1".to_string(), "q2".to_string()]),
         };
 
         assert_eq!(nba, FiniteAutomaton::from_gnba(gnba));
