@@ -55,7 +55,7 @@
       }
     },
     {
-      "name": "phi_negative",
+      "name": "always_a",
       "is_true": false,
       "ltl": {
         "globally": {
