@@ -1,0 +1,61 @@
+{
+  "name": "LTL TS",
+  "lts": {
+    "states": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "actions": [
+      0
+    ],
+    "transitions": [
+      [0, 0, 3],
+      [1, 0, 2],
+      [2, 0, 2],
+      [2, 0, 3],
+      [3, 0, 0]
+    ],
+    "initial_states": [
+      0
+    ],
+    "labelling": {
+      "0": [],
+      "1": ["b"],
+      "2": ["a", "b"],
+      "3": ["a"]
+    }
+  },
+  "properties": [
+    {
+      "name": "eventually a",
+      "is_true": true,
+      "ltl": {
+        "finally": {
+          "atom": "a"
+        }
+      }
+    },
+    {
+      "name": "next a",
+      "is_true": true,
+      "ltl": {
+        "next": {
+          "atom": "a"
+        }
+      }
+    },
+      {
+        "name": "not next a",
+        "is_true": false,
+        "ltl": {
+          "next": {
+            "not": {
+              "atom": "a"
+            }
+          }
+        }
+      }
+  ]
+}

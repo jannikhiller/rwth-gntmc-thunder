@@ -67,7 +67,7 @@ impl FiniteAutomaton<String> {
         }
     }
 
-    pub fn from_gnba(gnba: LtlGnba) -> Self {
+    pub fn from_gnba(mut gnba: LtlGnba) -> Self {
         fn create_formula_from_state_aps(aps: Vec<String>) -> FormulaTreeNode<String> {
             let res = if aps.is_empty() {
                 FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::Atomic)
@@ -94,9 +94,14 @@ impl FiniteAutomaton<String> {
             trace!("Formula: {}", res);
             res
         }
-
-        assert!(!gnba.accepting_states.is_empty(), "Found no accepting states in GNBA. Thus, property is trivially true as no undesired behavior can ever occur.");
-
+        
+        // If the gnba does not contain any accepting sets, the property does not specify any
+        // infinite behavior, i.e., it does not contain any until. Thus, all states (= all
+        // behavior) is acceptable.
+        if gnba.accepting_states.is_empty() { 
+            gnba.accepting_states = vec![BitVec::from_elem(gnba.last_state + 1, true)];
+        }
+        
         let num_accepting_sets = gnba.accepting_states.len();
         let num_of_gnba_states = gnba.last_state + 1;
         let nba_last_state = (num_of_gnba_states * num_accepting_sets) - 1; // - 1 because 0 is the first state
@@ -109,7 +114,7 @@ impl FiniteAutomaton<String> {
         let acceptance = AcceptanceType::Buchi;
         let mut list_of_entries = vec![];
 
-        debug!("Number of states: {}", num_of_gnba_states); // TODO trace!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        debug!("Number of states: {}", num_of_gnba_states);
         debug!("Number of accepting sets: {}", num_accepting_sets);
         debug!("Number of initial states: {}", initial_state.count_ones());
         debug!("Last state: {}", nba_last_state);
