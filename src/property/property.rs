@@ -1,12 +1,10 @@
 use bit_vec::BitVec;
-use itertools::Either;
 use log::*;
-use std::cmp::max;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap};
 use std::fmt;
 use std::hash::Hash;
 
-use crate::common::sparse_matrix::{SparseMatrix, SparseMatrixElement};
+use crate::property::automaton::FiniteAutomaton;
 
 #[derive(Debug, Clone)]
 pub enum PropertyType<ValueType> {
@@ -21,7 +19,7 @@ pub enum PropertyType<ValueType> {
 ///
 /// The `Property` contains a root node (`FormulaTreeNode`), a type of property
 /// (`PropertyType`), and a name to identify the property.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Property<ValueType> {
     /// The type of property represented by this tree.
     pub property_type: PropertyType<ValueType>,
@@ -164,13 +162,13 @@ impl Property<String> {
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct FormulaTreeNode<ValueType> {
     /// The left child of this node (if any).
-    left: Option<Box<FormulaTreeNode<ValueType>>>,
+    pub left: Option<Box<FormulaTreeNode<ValueType>>>,
     /// The right child of this node (if any).
-    right: Option<Box<FormulaTreeNode<ValueType>>>,
+    pub right: Option<Box<FormulaTreeNode<ValueType>>>,
     /// An optional label for atomic expressions.
-    label: Option<ValueType>,
+    pub label: Option<ValueType>,
     /// The type of operation or node this represents.
-    node_type: FormulaTreeNodeType,
+    pub node_type: FormulaTreeNodeType,
 }
 
 impl FormulaTreeNode<String> {
@@ -199,7 +197,7 @@ impl FormulaTreeNode<String> {
     ///
     /// # Panics
     /// - If nodes required for the evaluation are missing in the tree.
-    fn evaluate(&self, labels: &Vec<String>) -> bool {
+    pub fn evaluate(&self, labels: &Vec<String>) -> bool {
         trace!("Evaluating subformula of type {:?}", self.node_type);
         match self.node_type {
             FormulaTreeNodeType::And => {
@@ -386,109 +384,13 @@ pub enum FormulaTreeNodeType {
     True,
 }
 
-#[derive(Debug, Copy, Clone)]
-pub enum AcceptanceType {
-    /// An NFA accepts once it reaches a final state.
-    Nfa,
-    /// A Buchi automaton accepts if accepting states are reached infinitely
-    /// often.
-    Buchi,
-}
-
-/// A finite automaton that can be used to represent regular safety or omega-regular properties.
-#[derive(Debug, Clone)]
-pub struct FiniteAutomaton<ValueType> {
-    /// The type of acceptance for this automaton.
-    acceptance: AcceptanceType,
-    /// The transition matrix of the automaton.
-    transition_matrix: SparseMatrix<Vec<FormulaTreeNode<ValueType>>>,
-    /// Highest state index in the automaton.
-    last_state: usize,
-    /// The initial state of the automaton represented as element of the powerset of indexes
-    initial_state: BitVec,
-    /// The accepting states of the automaton.
-    accepting_states: BitVec,
-}
-
-impl FiniteAutomaton<String> {
-    pub fn new(
-        acceptance: AcceptanceType,
-        transition_matrix: SparseMatrix<Vec<FormulaTreeNode<String>>>,
-        last_state: usize,
-        initial_state: BitVec,
-        accepting_states: BitVec,
-    ) -> Self {
-        FiniteAutomaton {
-            acceptance,
-            transition_matrix,
-            last_state,
-            initial_state,
-            accepting_states,
-        }
-    }
-    #[allow(dead_code)]
-    pub fn is_accepting(&self, state: BitVec) -> bool {
-        let mut res = state;
-        res.and(&self.accepting_states);
-        res.any()
-    }
-
-    #[allow(dead_code)]
-    pub fn step(&mut self, state: BitVec, label: &Vec<String>) -> BitVec {
-        let get_successors_of_index = |index: usize| {
-            self.transition_matrix
-                .get_row(index)
-                .into_iter()
-                .map(|SparseMatrixElement { col_index, value }| {
-                    value.into_iter().map(move |tree| (tree, col_index))
-                })
-                .flatten()
-        };
-
-        let state_successors = state
-            .into_iter()
-            .enumerate()
-            .filter_map(|(i, value)| if value { Some(i) } else { None })
-            .map(get_successors_of_index)
-            .flatten();
-
-        let mut new_state = BitVec::from_elem(self.last_state + 1, false);
-        for (tree, col_index) in state_successors {
-            if tree.evaluate(label) {
-                new_state.set(col_index, true);
-            }
-        }
-        new_state
-    }
-
-    #[allow(dead_code)]
-    pub fn get_initial_state(&self) -> &BitVec {
-        &self.initial_state
-    }
-
-    #[allow(dead_code)]
-    pub fn get_last_state(&self) -> usize {
-        self.last_state
-    }
-
-    #[allow(dead_code)]
-    pub fn get_acceptance_type(&self) -> AcceptanceType {
-        self.acceptance
-    }
-
-    pub fn get_accepting_states(&self) -> &BitVec {
-        &self.accepting_states
-    }
-}
-
 /// Internal struct to handle elements of the closure during the computation of elementary sets
 /// in a more succinct and compact way.
 #[derive(Eq, Hash, PartialEq, Debug, Clone)]
 struct ElementaryNode {
     is_atomic: bool,
-    // Either the index in the BitVec or the Node representing a negation (not part of closure bitvec)
-    left_value: Either<usize, Box<ElementaryNode>>,
-    right_value: Either<usize, Box<ElementaryNode>>,
+    left_value: usize,
+    right_value: usize,
     operator: FormulaTreeNodeType,
     formula: String,
 }
@@ -496,8 +398,8 @@ struct ElementaryNode {
 impl ElementaryNode {
     pub fn new(
         is_atomic: bool,
-        left_value: Either<usize, Box<ElementaryNode>>,
-        right_value: Either<usize, Box<ElementaryNode>>,
+        left_value: usize,
+        right_value: usize,
         operator: FormulaTreeNodeType,
         formula: String,
     ) -> Self {
@@ -510,11 +412,11 @@ impl ElementaryNode {
         }
     }
 
-    fn set_left_value(&mut self, left_value: Either<usize, Box<ElementaryNode>>) {
+    fn set_left_value(&mut self, left_value: usize) {
         self.left_value = left_value;
     }
 
-    fn set_right_value(&mut self, right_value: Either<usize, Box<ElementaryNode>>) {
+    fn set_right_value(&mut self, right_value: usize) {
         self.right_value = right_value;
     }
 
@@ -526,21 +428,9 @@ impl ElementaryNode {
     /// - `state`: The state from which the value shall be derived.
     /// - `index`: The index that represents this node. I.e., the index to which the result shall be written.
     fn derive(self, mut state: BitVec, index: usize) -> Vec<BitVec> {
-        /// Helper function that derives the value of a given sub formula. I.e. this handles the `Either`.
-        fn compute_value(
-            sub_form: Either<usize, Box<ElementaryNode>>,
-            state: &BitVec,
-            err_msg: &str,
-        ) -> bool {
-            match sub_form {
-                Either::Left(index) => state.get(index).expect(err_msg),
-                Either::Right(node) => !compute_value(node.left_value, state, err_msg),
-            }
-        }
-
         let err_msg = "Index out of bounds during elementary subset computation";
-        let value_of = |sub_form: Either<usize, Box<ElementaryNode>>| -> bool {
-            compute_value(sub_form, &state, err_msg)
+        let value_of = |sub_form: usize| -> bool {
+            state.get(sub_form).expect(err_msg)
         };
 
         match self.operator {
@@ -617,7 +507,6 @@ pub fn comp_elementary_sets(
     let mut closure_formula_indices: HashMap<String, usize> = HashMap::new();
     let mut indices_to_formula: HashMap<usize, FormulaTreeNode<String>> = HashMap::new();
     let mut closure: Vec<ElementaryNode> = Vec::new();
-    let mut not_nodes: HashMap<String, ElementaryNode> = HashMap::new();
 
     // Traverse the formula to capture all nodes and map them into the intermediate struct (`ElementaryNode`)
     FormulaTreeNode::post_order_traversal(&formula, &mut |node: &FormulaTreeNode<String>| {
@@ -625,81 +514,43 @@ pub fn comp_elementary_sets(
             || node.node_type == FormulaTreeNodeType::Atomic
             || node.node_type == FormulaTreeNodeType::Next;
 
-        if node.node_type != FormulaTreeNodeType::Not {
-            let insert = closure_formula_indices.insert(node.to_string(), closure.len());
-            // As `try_insert` is not yet stable, we have to manually reinsert the old value
-            // such that the map does not change in case a value was already present
-            if let Some(index) = insert {
-                closure_formula_indices.insert(node.to_string(), index);
-            } else {
-                indices_to_formula.insert(closure.len(), node.clone());
-
-                /*
-                 * For both (left and right) children:
-                 * if the current node is atomic, the children do not matter => we set them to index 0
-                 * if the curren node is a not node, we have to point to the not_nodes data structure (Either::Right)
-                 * else we can just point to the index of the predecessor
-                 */
-                let left_child = if is_atomic {
-                    Either::Left(0)
-                } else if node.clone().left.unwrap().node_type == FormulaTreeNodeType::Not {
-                    Either::Right(Box::from(
-                        not_nodes
-                            .get(&node.clone().left.unwrap().to_string())
-                            .unwrap()
-                            .clone(),
-                    ))
-                } else {
-                    let left_node =
-                        closure_formula_indices.get(&node.clone().left.unwrap().to_string());
-                    Either::Left(*left_node.unwrap())
-                };
-                let right_child = if is_atomic {
-                    Either::Left(0)
-                } else if node.clone().right.unwrap().node_type == FormulaTreeNodeType::Not {
-                    Either::Right(Box::from(
-                        not_nodes
-                            .get(&node.clone().right.unwrap().to_string())
-                            .unwrap()
-                            .clone(),
-                    ))
-                } else {
-                    let right_node =
-                        closure_formula_indices.get(&node.clone().right.unwrap().to_string());
-                    Either::Left(*right_node.unwrap())
-                };
-
-                closure.push(ElementaryNode::new(
-                    is_atomic,
-                    left_child,
-                    right_child,
-                    node.node_type,
-                    node.to_string(),
-                ));
-                trace!("Added subformula {} to closure.", node);
-            }
+        let insert = closure_formula_indices.insert(node.to_string(), closure.len());
+        // As `try_insert` is not yet stable, we have to manually reinsert the old value
+        // such that the map does not change in case a value was already present
+        if let Some(index) = insert {
+            closure_formula_indices.insert(node.to_string(), index);
         } else {
-            let child_index = closure_formula_indices
-                .get(&node.clone().left.unwrap().to_string())
-                .unwrap();
-            not_nodes.insert(
+            indices_to_formula.insert(closure.len(), node.clone());
+
+            /*
+             * For both (left and right) children:
+             * if the current node is atomic, the children do not matter => we set them to index 0
+             * if the curren node is a not node, we have to point to the not_nodes data structure (Either::Right)
+             * else we can just point to the index of the predecessor
+             */
+            let left_child = if is_atomic {
+                0
+            } else {
+                *closure_formula_indices.get(&node.clone().left.unwrap().to_string()).unwrap()
+            };
+            let right_child = if is_atomic || node.right.is_none() {
+                0
+            } else {
+                *closure_formula_indices.get(&node.clone().right.unwrap().to_string()).unwrap()
+            };
+
+            closure.push(ElementaryNode::new(
+                is_atomic,
+                left_child,
+                right_child,
+                node.node_type,
                 node.to_string(),
-                ElementaryNode::new(
-                    false,
-                    Either::Left(*child_index),
-                    Either::Left(0),
-                    node.node_type,
-                    node.to_string(),
-                ),
-            );
-            trace!(
-                "Added subformula {} to helper structure because it is negated.",
-                node
-            );
+            ));
+            trace!("Added subformula {} to closure.", node);
         }
     });
 
-    trace!("Closure consists of {} positive elements.", closure.len());
+    trace!("Closure consists of {} elements.", closure.len());
 
     let mut stack: Vec<BitVec> = vec![BitVec::from_elem(closure.len(), false)];
     let mut res: Vec<BitVec> = Vec::new();
@@ -754,289 +605,6 @@ pub fn comp_elementary_sets(
     (indices_to_formula, res)
 }
 
-pub struct LtlGnba {
-    transition_matrix: SparseMatrix<bool>,
-    // in this construction, states only have successors if the APs they match
-    // the label, so we store the APs for each state to decide if there is an outgoing transition
-    aps_of_state: Vec<Vec<String>>,
-    initial_state: BitVec,
-    accepting_states: Vec<BitVec>,
-    last_state: usize,
-}
-
-fn filter_succesors_with_next(
-    set: &BitVec,
-    elementary_sets: &Vec<BitVec>,
-    index_of_formula: usize,
-    index_of_subformula_of_next: &HashMap<usize, (bool, usize)>,
-    successors: &mut BitVec,
-) {
-    let (inverted, subformula_index) = index_of_subformula_of_next[&index_of_formula];
-    if set[index_of_formula] {
-        for successor_index in 0..successors.len() {
-            if !elementary_sets[successor_index][subformula_index] != inverted {
-                successors.set(successor_index, false);
-            }
-        }
-    } else {
-        for successor_index in 0..successors.len() {
-            if elementary_sets[successor_index][subformula_index] != inverted {
-                successors.set(successor_index, false);
-            }
-        }
-    }
-}
-
-fn filter_successors_with_until(
-    set: &BitVec,
-    elementary_sets: &Vec<BitVec>,
-    index_of_formula: usize,
-    index_of_subformula_of_until: &HashMap<usize, ((bool, usize), (bool, usize))>,
-    successors: &mut BitVec,
-) {
-    // Until(f, g) \in set <==> g \in set or (f \in set and Until(f, g) \in successor)
-    trace!(
-        "filtering successors with until formula: {}",
-        index_of_formula
-    );
-
-    let ((f_inverted, f_index), (g_inverted, g_index)) =
-        index_of_subformula_of_until[&index_of_formula];
-    trace!(
-        "f: {} {}, g: {} {}",
-        f_index,
-        f_inverted,
-        g_index,
-        g_inverted
-    );
-    if set[index_of_formula] {
-        trace!("set contains until formula");
-        if !set[g_index] != g_inverted {
-            trace!("g is not in set");
-            if !set[f_index] != f_inverted {
-                trace!("f is not in set");
-                successors.clear();
-            } else {
-                for successor_index in 0..successors.len() {
-                    if !elementary_sets[successor_index][index_of_formula] {
-                        trace!("g is not in successor {}", successor_index);
-                        successors.set(successor_index, false);
-                    }
-                }
-            }
-        }
-    } else {
-        // Until(f, g) \notin set => g \notin set and (f \notin set or Until(f, g) \notin successor)
-        trace!("set does not contain until formula");
-        if set[g_index] != g_inverted {
-            successors.clear();
-        } else if set[f_index] != f_inverted {
-            trace!("f is in set");
-            for successor_index in 0..successors.len() {
-                if elementary_sets[successor_index][index_of_formula] {
-                    trace!("g is in successor {}", successor_index);
-                    successors.set(successor_index, false);
-                }
-            }
-        }
-    }
-    trace!("successors after until: {:?}", successors);
-}
-
-impl LtlGnba {
-    pub fn from_ltl_property(ltl_prop: &Property<String>) -> LtlGnba {
-        let (indices_to_formula, elementary_sets) = comp_elementary_sets(ltl_prop);
-        let last_state = elementary_sets.len() - 1;
-
-        let ltl_formula = if let PropertyType::Ltl(formula) = &ltl_prop.property_type {
-            formula
-        } else {
-            panic!("This is not an LTL formula.");
-        };
-
-        // we precompute the indexes of the subformulas for next and until
-        let index_of_subformula_of_next: HashMap<usize, (bool, usize)> = indices_to_formula
-            .iter()
-            .filter(|(_, formula)| formula.node_type == FormulaTreeNodeType::Next)
-            .map(|(index, formula)| {
-                let mut subformula = formula.left.as_ref().unwrap();
-                let mut inverted = false;
-                if subformula.node_type == FormulaTreeNodeType::Not {
-                    inverted = true;
-                    subformula = subformula.left.as_ref().unwrap();
-                }
-                (
-                    *index,
-                    (
-                        inverted,
-                        *indices_to_formula
-                            .iter()
-                            .find(|(_, f)| **f == **subformula)
-                            .unwrap()
-                            .0,
-                    ),
-                )
-            })
-            .collect();
-
-        let index_of_subformula_of_until: HashMap<usize, ((bool, usize), (bool, usize))> =
-            indices_to_formula
-                .iter()
-                .filter(|(_, formula)| formula.node_type == FormulaTreeNodeType::Until)
-                .map(|(index, formula)| {
-                    let mut left_subformula = formula.left.as_ref().unwrap();
-                    let mut left_inverted = false;
-                    if left_subformula.node_type == FormulaTreeNodeType::Not {
-                        left_subformula = left_subformula.left.as_ref().unwrap();
-                        left_inverted = true;
-                    }
-                    let mut right_subformula = formula.right.as_ref().unwrap();
-                    let mut right_inverted = false;
-                    if right_subformula.node_type == FormulaTreeNodeType::Not {
-                        right_subformula = right_subformula.left.as_ref().unwrap();
-                        right_inverted = true;
-                    }
-                    (
-                        *index,
-                        (
-                            (
-                                left_inverted,
-                                *indices_to_formula
-                                    .iter()
-                                    .find(|(_, f)| **f == **left_subformula)
-                                    .unwrap()
-                                    .0,
-                            ),
-                            (
-                                right_inverted,
-                                *indices_to_formula
-                                    .iter()
-                                    .find(|(_, f)| **f == **right_subformula)
-                                    .unwrap()
-                                    .0,
-                            ),
-                        ),
-                    )
-                })
-                .collect();
-
-        let mut entries = vec![];
-        let mut aps_of_state = vec![];
-
-        trace!("indices to formula:");
-        for (i, f) in indices_to_formula.iter() {
-            trace!("{}: {}", i, f);
-        }
-
-        for (i, set) in elementary_sets.iter().enumerate() {
-            // the only outgoing transition a set has is with the label corresponding to the APs in
-            // it, so we determine this label
-            let mut aps: Vec<_> = set
-                .iter()
-                .enumerate()
-                .filter_map(|(j, value)| {
-                    let is_atomic =
-                        value && indices_to_formula[&j].node_type == FormulaTreeNodeType::Atomic;
-                    is_atomic.then(|| indices_to_formula[&j].label.as_ref().unwrap().clone())
-                })
-                .collect();
-            aps.sort();
-            aps_of_state.push(aps);
-
-            // now we narrow down possible successors
-            let mut successors = BitVec::from_elem(elementary_sets.len(), true);
-            trace!("finding successors for set: {:?} {:?}", i, set);
-
-            for (&j, formula) in indices_to_formula.iter() {
-                match formula.node_type {
-                    FormulaTreeNodeType::Next => {
-                        filter_succesors_with_next(
-                            set,
-                            &elementary_sets,
-                            j,
-                            &index_of_subformula_of_next,
-                            &mut successors,
-                        );
-                    }
-                    FormulaTreeNodeType::Until => {
-                        filter_successors_with_until(
-                            set,
-                            &elementary_sets,
-                            j,
-                            &index_of_subformula_of_until,
-                            &mut successors,
-                        );
-                    }
-                    _ => {}
-                }
-            }
-            trace!("successors: {:?}", successors);
-            entries.extend(
-                successors
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(j, value)| value.then_some((i, j, true))),
-            );
-        }
-        let transition_matrix =
-            SparseMatrix::from_list_of_entries(last_state + 1, last_state + 1, &entries);
-        let index_of_ltl_formula = *indices_to_formula
-            .iter()
-            .find(|(_, formula)| **formula == *ltl_formula)
-            .unwrap()
-            .0;
-        let mut initial_state = BitVec::from_elem(last_state + 1, false);
-        for (i, set) in elementary_sets.iter().enumerate() {
-            if set[index_of_ltl_formula] {
-                initial_state.set(i, true);
-            }
-        }
-        let accepting_states: Vec<_> = indices_to_formula
-            .iter()
-            .filter_map(|(i, formula)| {
-                (formula.node_type == FormulaTreeNodeType::Until).then_some(i)
-            })
-            .map(|&i| {
-                let mut f = BitVec::from_elem(last_state + 1, false);
-                let (_, (g_inverted, g)) = index_of_subformula_of_until[&i];
-                for (j, set) in elementary_sets.iter().enumerate() {
-                    if !set[i] || (set[g] != g_inverted) {
-                        f.set(j, true);
-                    }
-                }
-                f
-            })
-            .collect();
-
-        LtlGnba {
-            transition_matrix,
-            aps_of_state,
-            initial_state,
-            accepting_states,
-            last_state,
-        }
-    }
-
-    fn step(&self, state: BitVec, label: &Vec<String>) -> BitVec {
-        let mut sorted_label = label.clone();
-        sorted_label.sort();
-
-        let mut new_state = BitVec::from_elem(self.last_state + 1, false);
-        for i in state
-            .iter()
-            .enumerate()
-            .filter_map(|(i, value)| value.then_some(i))
-        {
-            if self.aps_of_state[i] != sorted_label {
-                continue;
-            }
-            for &j in self.transition_matrix.get_col_indexes_in_row(i) {
-                new_state.set(j, true);
-            }
-        }
-        new_state
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -1299,95 +867,6 @@ mod tests {
 
         let labels = vec!["A".to_string()];
         not_node.evaluate(&labels); // This should panic due to missing left child
-    }
-
-    #[test]
-    fn test_finite_automaton() {
-        let atomic_a = FormulaTreeNode::new(
-            None,
-            None,
-            Some("A".to_string()),
-            FormulaTreeNodeType::Atomic,
-        );
-        let atomic_b = FormulaTreeNode::new(
-            None,
-            None,
-            Some("B".to_string()),
-            FormulaTreeNodeType::Atomic,
-        );
-        let atomic_c = FormulaTreeNode::new(
-            None,
-            None,
-            Some("C".to_string()),
-            FormulaTreeNodeType::Atomic,
-        );
-        let atomic_d = FormulaTreeNode::new(
-            None,
-            None,
-            Some("D".to_string()),
-            FormulaTreeNodeType::Atomic,
-        );
-
-        let transition_matrix = SparseMatrix::from_list_of_entries(
-            4,
-            4,
-            &vec![
-                (0, 1, vec![atomic_a]),
-                (1, 2, vec![atomic_b]),
-                (2, 3, vec![atomic_c]),
-                (3, 0, vec![atomic_d]),
-            ],
-        );
-        println!("{:?}", transition_matrix);
-
-        let mut initial_state = BitVec::from_elem(4, false);
-        initial_state.set(0, true);
-
-        let mut accepting_states = BitVec::from_elem(4, false);
-        accepting_states.set(0, true);
-        accepting_states.set(3, true);
-
-        let mut automaton = FiniteAutomaton::new(
-            AcceptanceType::Buchi,
-            transition_matrix,
-            3,
-            initial_state,
-            accepting_states,
-        );
-
-        let labels = vec![
-            "A".to_string(),
-            "B".to_string(),
-            "C".to_string(),
-            "D".to_string(),
-        ];
-        assert!(
-            automaton.is_accepting(automaton.get_initial_state().clone()),
-            "Initial state should be accepting."
-        );
-
-        let automaton_state = automaton.get_initial_state();
-        println!("{:?}", automaton_state);
-        let automaton_state = automaton.step(automaton_state.clone(), &labels);
-        println!("{:?}", automaton_state);
-        assert!(
-            !automaton.is_accepting(automaton_state.clone()),
-            "State should not be accepting after one step."
-        );
-
-        let automaton_state = &automaton.step(automaton_state.clone(), &labels);
-        println!("{:?}", automaton_state);
-        assert!(
-            !automaton.is_accepting(automaton_state.clone()),
-            "State should not be accepting after two steps."
-        );
-
-        let automaton_state = automaton.step(automaton_state.clone(), &labels);
-        println!("{:?}", automaton_state);
-        assert!(
-            automaton.is_accepting(automaton_state),
-            "State should be accepting after three steps."
-        );
     }
 
     #[test]
@@ -1780,9 +1259,11 @@ mod tests {
     fn test_compute_elementary_sets_of_ltl1() {
         // In this test case we heavily rely on exercise 3 of the 5th exercise sheet from the model
         // checking course. Hence, we check if the elementary sets given in the sample solution are
-        // equivalent to our computation. Note that we now consider elementary sets with 7 truth
+        // equivalent to our computation. Note that we now consider elementary sets with 9 truth
         // values, different from the sample solution of the exercise, as we consider `true` as an
         // atomic value with its own entry inside our bitvectors, which represent the elementary sets.
+        // Additionally, we added the negated formulas to the closure as well, as they are later
+        // needed to construct the automaton.
 
         // phi' = true UNTIL (a AND NOT ((NOT b) UNTIL (a AND b)))
         let ltl_tree = FormulaTreeNode::new(
@@ -1843,57 +1324,76 @@ mod tests {
         );
 
         // create elementary sets based on exercise solution
-        let mut b1 = BitVec::from_elem(7, false);
+        let mut b1 = BitVec::from_elem(9, false);
         b1.set(0, true);
-        let mut b2 = BitVec::from_elem(7, false);
+        b1.set(1, true);
+        b1.set(2, true);
+        b1.set(4, true);
+        b1.set(5, true);
+        let mut b2 = BitVec::from_elem(9, false);
         b2.set(0, true);
-        b2.set(6, true);
-        let mut b3 = BitVec::from_elem(7, false);
+        b2.set(1, true);
+        b2.set(2, true);
+        b2.set(4, true);
+        b2.set(5, true);
+        b2.set(8, true);
+        let mut b3 = BitVec::from_elem(9, false);
         b3.set(0, true);
-        b3.set(4, true);
-        let mut b4 = BitVec::from_elem(7, false);
+        b3.set(1, true);
+        b3.set(3, true);
+        b3.set(6, true);
+        b3.set(7, true);
+        b3.set(8, true);
+        let mut b4 = BitVec::from_elem(9, false);
         b4.set(0, true);
-        b4.set(4, true);
-        b4.set(6, true);
-        let mut b5 = BitVec::from_elem(7, false);
+        b4.set(1, true);
+        b4.set(3, true);
+        b4.set(5, true);
+        let mut b5 = BitVec::from_elem(9, false);
         b5.set(0, true);
-        b5.set(2, true);
-        let mut b6 = BitVec::from_elem(7, false);
+        b5.set(1, true);
+        b5.set(3, true);
+        b5.set(5, true);
+        b5.set(8, true);
+        let mut b6 = BitVec::from_elem(9, false);
         b6.set(0, true);
         b6.set(2, true);
         b6.set(6, true);
-        let mut b7 = BitVec::from_elem(7, false);
+        let mut b7 = BitVec::from_elem(9, false);
         b7.set(0, true);
-        b7.set(1, true);
-        b7.set(5, true);
+        b7.set(2, true);
         b7.set(6, true);
-        let mut b8 = BitVec::from_elem(7, false);
+        b7.set(8, true);
+        let mut b8 = BitVec::from_elem(9, false);
         b8.set(0, true);
-        b8.set(1, true);
-        b8.set(4, true);
-        let mut b9 = BitVec::from_elem(7, false);
+        b8.set(3, true);
+        b8.set(6, true);
+        let mut b9 = BitVec::from_elem(9, false);
         b9.set(0, true);
-        b9.set(1, true);
-        b9.set(4, true);
+        b9.set(3, true);
         b9.set(6, true);
-        let mut b10 = BitVec::from_elem(7, false);
+        b9.set(8, true);
+        let mut b10 = BitVec::from_elem(9, false);
         b10.set(0, true);
-        b10.set(1, true);
-        b10.set(2, true);
         b10.set(3, true);
-        b10.set(4, true);
-        let mut b11 = BitVec::from_elem(7, false);
+        b10.set(5, true);
+        let mut b11 = BitVec::from_elem(9, false);
         b11.set(0, true);
-        b11.set(1, true);
-        b11.set(2, true);
         b11.set(3, true);
-        b11.set(4, true);
-        b11.set(6, true);
+        b11.set(5, true);
+        b11.set(8, true);
 
         let (indices_to_subformulas, elementary_sets) = comp_elementary_sets(&Property::new(
             "ltl property1".to_string(),
             PropertyType::Ltl(ltl_tree.clone()),
         ));
+
+        for i in indices_to_subformulas.keys() {
+            println!("{}: {}", i, indices_to_subformulas.get(i).unwrap());
+        }
+
+        println!("{:?}", elementary_sets.len());
+        println!("{:?}", elementary_sets);
 
         assert_eq!(11, elementary_sets.len());
         assert!(elementary_sets.contains(&b1));
@@ -2029,57 +1529,81 @@ mod tests {
         ));
 
         // create elementary sets based on exercise solution
-        let mut b1 = BitVec::from_elem(8, false);
+        // note that the length of the bit vectors again differ from the exercise solution, as we
+        // consider negated subformulas as well for the automaton construction.
+        let mut b1 = BitVec::from_elem(10, false);
+        b1.set(0, true);
+        b1.set(1, true);
+        b1.set(2, true);
+        b1.set(3, true);
         b1.set(5, true);
-        let mut b2 = BitVec::from_elem(8, false);
+        let mut b2 = BitVec::from_elem(10, false);
+        b2.set(0, true);
+        b2.set(1, true);
+        b2.set(4, true);
         b2.set(5, true);
-        b2.set(7, true);
-        let mut b3 = BitVec::from_elem(8, false);
+        let mut b3 = BitVec::from_elem(10, false);
+        b3.set(0, true);
         b3.set(2, true);
-        b3.set(5, true);
-        let mut b4 = BitVec::from_elem(8, false);
-        b4.set(2, true);
-        b4.set(5, true);
+        b3.set(3, true);
+        b3.set(6, true);
+        b3.set(8, true);
+        b3.set(9, true);
+        let mut b4 = BitVec::from_elem(10, false);
+        b4.set(0, true);
+        b4.set(4, true);
+        b4.set(6, true);
         b4.set(7, true);
-        let mut b5 = BitVec::from_elem(8, false);
-        b5.set(1, true);
-        b5.set(5, true);
-        let mut b6 = BitVec::from_elem(8, false);
+        let mut b5 = BitVec::from_elem(10, false);
+        b5.set(0, true);
+        b5.set(4, true);
+        b5.set(6, true);
+        b5.set(7, true);
+        b5.set(9, true);
+        let mut b6 = BitVec::from_elem(10, false);
         b6.set(1, true);
-        b6.set(5, true);
+        b6.set(2, true);
+        b6.set(4, true);
+        b6.set(6, true);
         b6.set(7, true);
-        let mut b7 = BitVec::from_elem(8, false);
+        let mut b7 = BitVec::from_elem(10, false);
         b7.set(1, true);
         b7.set(2, true);
-        b7.set(5, true);
-        let mut b8 = BitVec::from_elem(8, false);
+        b7.set(4, true);
+        b7.set(6, true);
+        b7.set(7, true);
+        b7.set(9, true);
+        let mut b8 = BitVec::from_elem(10, false);
         b8.set(1, true);
-        b8.set(2, true);
-        b8.set(5, true);
+        b8.set(4, true);
+        b8.set(6, true);
         b8.set(7, true);
-        let mut b9 = BitVec::from_elem(8, false);
-        b9.set(0, true);
-        b9.set(5, true);
-        let mut b10 = BitVec::from_elem(8, false);
-        b10.set(0, true);
-        b10.set(5, true);
+        let mut b9 = BitVec::from_elem(10, false);
+        b9.set(1, true);
+        b9.set(4, true);
+        b9.set(6, true);
+        b9.set(7, true);
+        b9.set(9, true);
+        let mut b10 = BitVec::from_elem(10, false);
+        b10.set(2, true);
+        b10.set(4, true);
+        b10.set(6, true);
         b10.set(7, true);
-        let mut b11 = BitVec::from_elem(8, false);
-        b11.set(0, true);
+        let mut b11 = BitVec::from_elem(10, false);
         b11.set(2, true);
-        b11.set(3, true);
+        b11.set(4, true);
         b11.set(6, true);
         b11.set(7, true);
-        let mut b12 = BitVec::from_elem(8, false);
-        b12.set(0, true);
-        b12.set(1, true);
+        b11.set(9, true);
+        let mut b12 = BitVec::from_elem(10, false);
         b12.set(4, true);
-        let mut b13 = BitVec::from_elem(8, false);
-        b13.set(0, true);
-        b13.set(1, true);
-        b13.set(2, true);
-        b13.set(3, true);
+        b12.set(6, true);
+        b12.set(7, true);
+        let mut b13 = BitVec::from_elem(10, false);
         b13.set(4, true);
+        b13.set(6, true);
+        b13.set(7, true);
+        b13.set(9, true);
 
         println!("{:?}", elementary_sets.len());
         println!("{:?}", elementary_sets);
@@ -2098,204 +1622,5 @@ mod tests {
         assert!(elementary_sets.contains(&b11));
         assert!(elementary_sets.contains(&b12));
         assert!(elementary_sets.contains(&b13));
-    }
-
-    #[test]
-    fn test_ltl_gnba_next() {
-        // phi' = NEXT a
-        let ltl_tree = FormulaTreeNode::new(
-            Some(Box::from(FormulaTreeNode::new(
-                None,
-                None,
-                Some("a".to_string()),
-                FormulaTreeNodeType::Atomic,
-            ))),
-            None,
-            None,
-            FormulaTreeNodeType::Next,
-        );
-        let ltl_gnba = LtlGnba::from_ltl_property(&Property::new(
-            "ltl property".to_string(),
-            PropertyType::Ltl(ltl_tree.clone()),
-        ));
-
-        assert_eq!(ltl_gnba.transition_matrix.rows(), 4);
-        assert_eq!(ltl_gnba.transition_matrix.cols(), 4);
-        let mut initial_state = BitVec::from_elem(4, false);
-        initial_state.set(0, true);
-        initial_state.set(2, true);
-        assert_eq!(ltl_gnba.initial_state, initial_state);
-
-        let transition_matrix = SparseMatrix::from_2d_vec(&vec![
-            vec![true, true, false, false],
-            vec![false, false, true, true],
-            vec![true, true, false, false],
-            vec![false, false, true, true],
-        ]);
-        assert_eq!(ltl_gnba.transition_matrix, transition_matrix);
-        assert_eq!(ltl_gnba.accepting_states, vec![]);
-        assert_eq!(
-            ltl_gnba.aps_of_state,
-            vec![vec!["a"], vec!["a"], vec![], vec![]]
-        );
-    }
-
-    #[test]
-    fn test_ltl_gnba_complex() {
-        // phi = true U (a AND (NOT ((NOT b) U (a AND b))))
-        let ltl_tree = FormulaTreeNode::new(
-            Some(Box::from(FormulaTreeNode::new(
-                None,
-                None,
-                None,
-                FormulaTreeNodeType::True,
-            ))),
-            Some(Box::from(FormulaTreeNode::new(
-                Some(Box::from(FormulaTreeNode::new(
-                    None,
-                    None,
-                    Some("a".to_string()),
-                    FormulaTreeNodeType::Atomic,
-                ))),
-                Some(Box::from(FormulaTreeNode::new(
-                    Some(Box::from(FormulaTreeNode::new(
-                        Some(Box::from(FormulaTreeNode::new(
-                            Some(Box::from(FormulaTreeNode::new(
-                                None,
-                                None,
-                                Some("b".to_string()),
-                                FormulaTreeNodeType::Atomic,
-                            ))),
-                            None,
-                            None,
-                            FormulaTreeNodeType::Not,
-                        ))),
-                        Some(Box::from(FormulaTreeNode::new(
-                            Some(Box::from(FormulaTreeNode::new(
-                                None,
-                                None,
-                                Some("a".to_string()),
-                                FormulaTreeNodeType::Atomic,
-                            ))),
-                            Some(Box::from(FormulaTreeNode::new(
-                                None,
-                                None,
-                                Some("b".to_string()),
-                                FormulaTreeNodeType::Atomic,
-                            ))),
-                            None,
-                            FormulaTreeNodeType::And,
-                        ))),
-                        None,
-                        FormulaTreeNodeType::Until,
-                    ))),
-                    None,
-                    None,
-                    FormulaTreeNodeType::Not,
-                ))),
-                None,
-                FormulaTreeNodeType::And,
-            ))),
-            None,
-            FormulaTreeNodeType::Until,
-        );
-
-        let ltl_gnba = LtlGnba::from_ltl_property(&Property::new(
-            "ltl property".to_string(),
-            PropertyType::Ltl(ltl_tree.clone()),
-        ));
-
-        let transition_matrix_b_sets = SparseMatrix::from_2d_vec(&vec![
-            vec![
-                true, false, false, false, true, false, false, false, false, false, false,
-            ],
-            vec![
-                false, true, false, false, false, true, true, false, false, false, false,
-            ],
-            vec![
-                false, false, true, false, false, false, false, true, false, true, false,
-            ],
-            vec![
-                false, false, false, true, false, false, false, false, true, false, true,
-            ],
-            vec![
-                true, false, true, false, true, false, false, true, false, true, false,
-            ],
-            vec![
-                false, true, false, true, false, true, true, false, true, false, true,
-            ],
-            vec![
-                true, true, false, false, true, true, true, false, false, false, false,
-            ],
-            vec![
-                false, false, true, false, false, false, false, true, false, true, false,
-            ],
-            vec![
-                false, false, false, true, false, false, false, false, true, false, true,
-            ],
-            vec![
-                true, false, true, false, true, false, false, true, false, true, false,
-            ],
-            vec![
-                false, true, false, true, false, true, true, false, true, false, true,
-            ],
-        ]);
-
-        let translation_to_index = vec![7, 8, 9, 10, 5, 6, 2, 3, 4, 0, 1];
-
-        let mut matrix = vec![vec![false; 11]; 11];
-        for row in 0..11 {
-            for col in 0..11 {
-                matrix[translation_to_index[row]][translation_to_index[col]] =
-                    transition_matrix_b_sets[(row, col)];
-            }
-        }
-        let transition_matrix = SparseMatrix::from_2d_vec(&matrix);
-
-        for i in 0..transition_matrix.rows() {
-            println!("{:?}", ltl_gnba.transition_matrix.get_col_indexes_in_row(i));
-        }
-
-        assert_eq!(ltl_gnba.transition_matrix, transition_matrix);
-        let aps_of_state_b_sets = vec![
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-            vec!["b"],
-            vec!["b"],
-            vec!["a"],
-            vec!["a"],
-            vec!["a"],
-            vec!["a", "b"],
-            vec!["a", "b"],
-        ];
-        let mut aps_of_state = vec![vec![]; 11];
-        for i in 0..11 {
-            aps_of_state[translation_to_index[i]] = aps_of_state_b_sets[i].clone();
-        }
-
-        assert_eq!(ltl_gnba.aps_of_state, aps_of_state);
-        let init_state_indexes_b_sets = vec![1, 3, 5, 6, 8, 10];
-        let mut initial_state = BitVec::from_elem(11, false);
-        for i in init_state_indexes_b_sets {
-            initial_state.set(translation_to_index[i], true);
-        }
-        assert_eq!(ltl_gnba.initial_state, initial_state);
-        print!("{:?}", ltl_gnba.accepting_states);
-
-        let accepting_states_b_sets = vec![vec![0, 1, 4, 5, 6, 9, 10], vec![0, 2, 4, 6, 7, 9]];
-        let mut accepting_states = vec![BitVec::from_elem(11, false); 2];
-
-        for i in 0..2 {
-            for j in accepting_states_b_sets[i].iter() {
-                accepting_states[i].set(translation_to_index[*j], true);
-            }
-        }
-        let mut ltl_accepting_states = ltl_gnba.accepting_states.clone();
-        ltl_accepting_states.sort();
-        accepting_states.sort();
-
-        assert_eq!(ltl_accepting_states, accepting_states);
     }
 }

@@ -8,6 +8,7 @@ Currently the following algorithms are implemented:
 - Persistence checking
 - Checking of regular properties (given as NFA)
 - Checking of omega-regular properties (given as NBA)
+- Checking of LTL-formulae
 
 Requirements
 ------------
@@ -33,7 +34,9 @@ thunder "filepath"
 ```
 where `"filepath"` is a path to the `gntmc`-file containing the specification of the model and properties.
 
-You can get further information calling `thunder --help`
+For model checking regular and omega regular properties the default mechanism is based on nested depth-first search.
+This can be changed to an SCC-based approach by specifing the `-p scc` option. <br /> 
+You can get further information calling `thunder --help`.
 
 ### Testing
 ```bash
