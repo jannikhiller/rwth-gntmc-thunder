@@ -54,6 +54,32 @@
                 ]
             }
           }
+      },
+      {
+        "name": "not in AP is satisfied",
+        "is_true": true,
+        "ltl": {
+          "globally": {
+            "implies": [
+              {"atom": "c"},
+              {
+                "until": [
+                  {
+                    "not": {
+                      "atom": "b"
+                    }
+                  },
+                  {
+                    "and": [
+                      {"atom": "a"},
+                      {"atom": "b"}
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
       }
   ]
 }
