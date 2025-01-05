@@ -1,6 +1,7 @@
 use crate::checker::invariant::bfs_invariant_checking;
 use crate::checker::ltl::ltl_checking;
-use crate::checker::nested_dfs::persistence_checking_with_nested_dfs;
+use crate::checker::nested_dfs;
+use crate::checker::new_nested_dfs;
 use crate::checker::regular_safety_and_omega_property::regular_safety_and_omega_checking;
 use crate::checker::scc::persistence_checking_with_scc;
 use crate::common::transition_system::TransitionSystem;
@@ -30,7 +31,10 @@ pub fn check(
                     persistence_checking_with_scc(transition_system, property)
                 }
                 PersistenceCheckingAlgorithm::NestedDfs => {
-                    persistence_checking_with_nested_dfs(transition_system, property)
+                    nested_dfs::persistence_checking_with_nested_dfs(transition_system, property)
+                }
+                PersistenceCheckingAlgorithm::NewNestedDfs => {
+                    new_nested_dfs::persistence_checking_with_nested_dfs(transition_system, property)
                 }
             }
         }
@@ -66,6 +70,7 @@ impl Options {
 #[derive(clap::ValueEnum, Default, Debug, Clone)]
 pub enum PersistenceCheckingAlgorithm {
     Scc,
-    #[default]
     NestedDfs,
+    #[default]
+    NewNestedDfs,
 }

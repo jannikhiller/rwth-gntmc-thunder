@@ -1,6 +1,7 @@
 use crate::checker::checker::{Options, PersistenceCheckingAlgorithm};
 use crate::checker::invariant::bfs_invariant_checking;
-use crate::checker::nested_dfs::persistence_checking_with_nested_dfs;
+use crate::checker::nested_dfs;
+use crate::checker::new_nested_dfs;
 use crate::checker::scc::persistence_checking_with_scc;
 use crate::common::sparse_matrix::SparseMatrix;
 use crate::common::transition_system::TransitionSystem;
@@ -39,7 +40,7 @@ pub fn regular_safety_and_omega_checking(
         // two separate match cases
         PropertyType::RegularSafety(finite_automata) => {
             // if cloned would be needed here, the compiler would not be satisfied, and we don't need
-            // a copy anyways
+            // a copy anyway
             automaton = finite_automata;
             is_omega = false;
         }
@@ -66,7 +67,10 @@ pub fn regular_safety_and_omega_checking(
                 persistence_checking_with_scc(product_ts, &empty_property)
             }
             PersistenceCheckingAlgorithm::NestedDfs => {
-                persistence_checking_with_nested_dfs(product_ts, &empty_property)
+                nested_dfs::persistence_checking_with_nested_dfs(product_ts, &empty_property)
+            }
+            PersistenceCheckingAlgorithm::NewNestedDfs => {
+                new_nested_dfs::persistence_checking_with_nested_dfs(product_ts, &empty_property)
             }
         }
     } else {
