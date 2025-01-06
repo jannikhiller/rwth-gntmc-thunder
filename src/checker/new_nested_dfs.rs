@@ -7,6 +7,7 @@ use log::{debug, trace};
 use std::collections::{VecDeque};
 use bit_vec::BitVec;
 
+
 /// Checks if the given transition system satisfies the given persistence property by applying the
 /// nested DFS algorithm as proposed by Stefan Schwoon and Javier Esparza in their
 /// paper `A Note on On-The-Fly Verification Algorithms`. <br />
@@ -27,13 +28,15 @@ pub fn persistence_checking_with_nested_dfs(
     let num_ts_states = transition_system.get_num_states();
     let mut bv_one = BitVec::from_elem(num_ts_states, false);
     let mut bv_two = BitVec::from_elem(num_ts_states, false);
-    
-    debug!("Starting ndfs.");
 
+    debug!("Starting ndfs.");
     for init_state in transition_system.get_initial_states() {
         trace!("Considering initial state: {}", init_state);
+
+        bv_one.clear();
+        bv_two.clear();
         let res = outer_dfs(transition_system, property, *init_state, &mut bv_one, &mut bv_two);
-        
+
         if res.is_err() {
             return res;
         }
@@ -45,58 +48,76 @@ pub fn persistence_checking_with_nested_dfs(
 fn outer_dfs(
     transition_system: &TransitionSystem,
     property: &Property<String>,
-    state: usize,
+    init_state: usize,
     bv_one: &mut BitVec,
     bv_two: &mut BitVec,
 ) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
-    
-    trace!("Visiting state {} in outer dfs", state);
-    set_color(state, Color::Cyan, bv_one, bv_two);
+    trace!("Starting outer dfs with state {}", init_state);
+    let mut outer_stack = vec![init_state];
+    let mut inner_stack = vec![];
 
-    for succ in transition_system.get_successor_states(state) {
-        trace!("Considering successor {} in outer dfs", succ);
-        if get_color(*succ, bv_one, bv_two) == Color::Cyan &&
-            (!check_property_on_state(state, transition_system, property) ||
-                !check_property_on_state(*succ, transition_system, property)) {
-            debug!("Found a cycle in NDFS during outer dfs.");
-            return Err((vec![], vec![]));
-        } else if get_color(*succ, bv_one, bv_two) == Color::White { 
-            outer_dfs(transition_system, property, *succ, bv_one, bv_two)?;
+    while let Some(state) = outer_stack.pop() {
+        if get_color(state, bv_one, bv_two) == Color::White {
+            outer_stack.push(state);
+            set_color(state, Color::Cyan, bv_one, bv_two);
+
+            for succ in transition_system.get_successor_states(state) {
+                trace!("Considering successor {} in outer dfs", succ);
+                if get_color(*succ, bv_one, bv_two) == Color::Cyan &&
+                    (!check_property_on_state(state, transition_system, property) ||
+                        !check_property_on_state(*succ, transition_system, property)) {
+                    debug!("Found a cycle in NDFS during outer dfs.");
+                    return Err(reconstruct_path(&mut outer_stack, &mut inner_stack, transition_system));
+                } else if get_color(*succ, bv_one, bv_two) == Color::White {
+                    outer_stack.push(*succ);
+                }
+            }
+        } else if get_color(state, bv_one, bv_two) == Color::Cyan {
+            if !check_property_on_state(state, transition_system, property) {
+                trace!("Property fulfilled on state {} in outer dfs => starting inner dfs", state);
+                let found_cycle = inner_dfs(state, bv_one, bv_two, &mut inner_stack, transition_system);
+
+                if found_cycle {
+                    debug!("Found a cycle in NDFS during inner dfs.");
+                    return Err(reconstruct_path(&mut outer_stack, &mut inner_stack, transition_system));
+                }
+
+                set_color(state, Color::Red, bv_one, bv_two);
+            } else {
+                trace!("Property not fulfilled on state {} in outer dfs", state);
+                set_color(state, Color::Blue, bv_one, bv_two);
+            }
         }
     }
-    
-    if !check_property_on_state(state, transition_system, property) {
-        trace!("Property fulfilled on state {} in outer dfs => starting inner dfs", state);
-        let found_cycle = inner_dfs(state, bv_one, bv_two, transition_system);
-        
-        if found_cycle {
-            debug!("Found a cycle in NDFS during inner dfs.");
-            return Err((vec![], vec![]));
-        }
-        
-        set_color(state, Color::Red, bv_one, bv_two);
-    } else {
-        trace!("Property not fulfilled on state {} in outer dfs", state);
-        set_color(state, Color::Blue, bv_one, bv_two);
-    }
-    
+
     Ok(true)
 }
 
-fn inner_dfs (
-    state: usize,
-    bv_one: &mut BitVec, 
+fn inner_dfs(
+    init_state: usize,
+    bv_one: &mut BitVec,
     bv_two: &mut BitVec,
+    stack: &mut Vec<usize>,
     transition_system: &TransitionSystem,
 ) -> bool {
-    for succ in transition_system.get_successor_states(state) {
-        trace!("Visiting state {} in inner dfs", state);
-        if get_color(*succ, bv_one, bv_two) == Color::Cyan {
-            return true;
-        } else if get_color(*succ, bv_one, bv_two) == Color::Blue {
-            set_color(*succ, Color::Red, bv_one, bv_two);
-            inner_dfs(*succ, bv_one, bv_two, transition_system);
+    stack.clear();
+    stack.push(init_state);
+
+    while let Some(state) = stack.pop() {
+        // Add state again in case it is needed for the counterexample
+        stack.push(state);
+
+        for succ in transition_system.get_successor_states(state) {
+            trace!("Visiting state {} in inner dfs", state);
+            if get_color(*succ, bv_one, bv_two) == Color::Cyan {
+                return true;
+            } else if get_color(*succ, bv_one, bv_two) == Color::Blue {
+                set_color(*succ, Color::Red, bv_one, bv_two);
+                stack.push(*succ);
+            }
         }
+        // Pop state again as it is not needed anymore
+        stack.pop();
     }
 
     false
@@ -114,24 +135,23 @@ fn check_property_on_state(
 }
 
 fn reconstruct_path(
-    pi: &mut VecDeque<usize>,
-    xi: &mut VecDeque<usize>,
+    pi: &mut Vec<usize>,
+    xi: &mut Vec<usize>,
     transition_system: &TransitionSystem,
 ) -> (Vec<Vec<String>>, Vec<usize>) {
     debug!("Constructing counterexample...");
 
     let mut trace = Vec::new();
-    let mut path = Vec::new();
+    let mut path = VecDeque::new();
 
-    while !pi.is_empty() {
-        path.push(pi.pop_front().unwrap());
+    while let Some(state) = pi.pop() {
+        path.push_front(state);
     }
 
     trace!("Looping part of counterexample:");
-    while !xi.is_empty() {
-        let state = xi.pop_front().unwrap();
+    while let Some(state) = xi.pop() {
         trace!("{}, ", state);
-        path.push(state);
+        path.push_front(state);
     }
 
     trace!("Length of counterexample: {:?}", path.len());
@@ -143,7 +163,7 @@ fn reconstruct_path(
         trace!("{:?}, ", state);
     }
 
-    (trace, path)
+    (trace, Vec::from(path))
 }
 
 #[derive(PartialEq, Debug)]
@@ -243,10 +263,10 @@ mod tests {
             Ok(success) => {
                 panic!("Property should fail!")
             }
-            Err((counterexample, println_indexes)) => {
+            Err((counterexample, trace_indexes)) => {
                 println!("The property does not hold.");
                 println!("Counterexample: {:?}", counterexample);
-                println!("println indexes: {:?}", println_indexes);
+                println!("Trace indexes: {:?}", trace_indexes);
 
                 // Optionally include assertions to validate the counterexample.
                 assert!(
