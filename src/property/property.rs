@@ -257,10 +257,16 @@ impl FormulaTreeNode<String> {
             }
             FormulaTreeNodeType::True => true,
             FormulaTreeNodeType::Until => {
-                panic!("This operator is only used for LTL. Thus, no evaluation.")
+                panic!("This operators evalutaion is not implemented yet for ctl")
             }
             FormulaTreeNodeType::Next => {
-                panic!("This operator is only used for LTL. Thus, no evaluation.")
+                panic!("This operators evalutaion is not implemented yet for ctl")
+            }
+            FormulaTreeNodeType::Globally =>{
+                panic!("This operators evalutaion is not implemented yet for ctl")
+            }
+            FormulaTreeNodeType::Exists =>{
+                panic!("This operators evalutaion is not implemented yet for ctl")
             }
         }
     }
@@ -348,6 +354,8 @@ impl FormulaTreeNode<String> {
             FormulaTreeNodeType::True => "TRUE",
             FormulaTreeNodeType::Until => "UNTIL",
             FormulaTreeNodeType::Next => "NEXT",
+            FormulaTreeNodeType::Exists => "EXISTS",
+            FormulaTreeNodeType::Globally => "GLOBALLY",
         };
 
         // write the current node's representation

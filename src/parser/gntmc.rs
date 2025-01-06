@@ -298,8 +298,7 @@ impl GntmcCtlStateFormula {
                     GntmcCtlStateFormula::And(
                         Box::from(GntmcCtlStateFormula::Not(left.clone())),
                         Box::from(GntmcCtlStateFormula::Not(right.clone())),
-                    )
-                        .translate(),
+                    ).translate(),
                 )),
                 None,
                 None,
@@ -310,100 +309,55 @@ impl GntmcCtlStateFormula {
                 GntmcCtlStateFormula::Or(Box::from(GntmcCtlStateFormula::Not(left.clone())), right.clone())
                     .translate()
             }
-            //Exists are fine, so we let them in
+            //Exists are fine, as we transform the evantually to an Until,
+            // always, next and globally are fine in ENF
             GntmcCtlStateFormula::Exists(ref path) => FormulaTreeNode::new(
                 Some(Box::from(path.translate())),
                 None,
                 None,
                 FormulaTreeNodeType::Exists,
             ),
-            //No Foralls in ENF, so get rid of them
+            //No Foralls in ENF, they have 4 following types of PathFormulas, following
             GntmcCtlStateFormula::Forall(ref path) =>{
                 match &**path {
-                    // Here we have ∀◯ Φ  this form <=> ¬∃◯ ¬Φ
+                    // Case ∀◯ Φ <=> ¬∃◯ ¬Φ
                     GntmcCtlPathFormula::Next(inner_path) => {
                         GntmcCtlStateFormula::Not(
-                            Box::from(GntmcCtlStateFormula::Exists(
-                                Box::from(GntmcCtlPathFormula::Next(
-                                    Box::from(GntmcCtlStateFormula::Not(inner_path.clone())),
+                            Box::new(GntmcCtlStateFormula::Exists(
+                                Box::new(GntmcCtlPathFormula::Next(
+                                    Box::new(GntmcCtlStateFormula::Not(inner_path.clone())),
                                 ))
-                        ))).translate()
+                            ))
+                        ).translate()
                     }
-                    // ∀(Φ U Ψ) = ¬∃(¬Ψ U (¬Φ ∧ ¬Ψ)) ∧ ¬∃□¬Ψ
-                    // Φ: left_inner_path and Ψ: right_inner_path
+                    // Case ∀(Φ U Ψ) = ¬∃(¬Ψ U (¬Φ ∧ ¬Ψ)) ∧ ¬∃□¬Ψ
                     GntmcCtlPathFormula::Until(left_inner_path, right_inner_path) => {
-                        FormulaTreeNode::new(
-                            //first part of and
-                            Some(Box::from(FormulaTreeNode::new(
-                                Some(Box::from(FormulaTreeNode::new(
-                                    Some(Box::from(FormulaTreeNode::new(
-                                        //left part of Until
-                                        Some(Box::from(FormulaTreeNode::new(
-                                            Some(Box::from(right_inner_path.translate())),
-                                            None,
-                                            None,
-                                            FormulaTreeNodeType::Not,
-                                        ))),
-                                        //right part of Until
-                                        Some(Box::from(FormulaTreeNode::new(
-                                            //left side from inner and
-                                            Some(Box::from(FormulaTreeNode::new(
-                                                Some(Box::from(left_inner_path.translate())),
-                                                None,
-                                                None,
-                                                FormulaTreeNodeType::Not,
-                                            ))),
-                                            //right side from inner and
-                                            Some(Box::from(FormulaTreeNode::new(
-                                                Some(Box::from(right_inner_path.translate())),
-                                                None,
-                                                None,
-                                                FormulaTreeNodeType::Not,
-                                            ))),
-                                            None,
-                                            FormulaTreeNodeType::And
-                                        ))),
-                                        None,
-                                        FormulaTreeNodeType::Until,
-                                    ))),
-                                    None,
-                                    None,
-                                    FormulaTreeNodeType::Exists,
-                                ))),
-                                None,
-                                None,
-                                FormulaTreeNodeType::Not
-                            ))),
-                            //second part of and
-                            Some(Box::from(FormulaTreeNode::new(
-                                Some(Box::from(FormulaTreeNode::new(
-                                    Some(Box::from(FormulaTreeNode::new(
-                                        Some(Box::from(FormulaTreeNode::new(
-                                            Some(Box::from(right_inner_path.translate())),
-                                            None,
-                                            None,
-                                            FormulaTreeNodeType::Not,
-                                        ))),
-                                        None,
-                                        None,
-                                        FormulaTreeNodeType::Globally,
-                                    ))),
-                                    None,
-                                    None,
-                                    FormulaTreeNodeType::Exists,
-                                ))),
-                                None,
-                                None,
-                                FormulaTreeNodeType::Not
-                            ))),
-                            None,
-                            FormulaTreeNodeType::And)
+                        GntmcCtlStateFormula::And(
+                            Box::from(GntmcCtlStateFormula::Not(
+                                Box::from(GntmcCtlStateFormula::Exists(
+                                    Box::from(GntmcCtlPathFormula::Until(
+                                        Box::from(GntmcCtlStateFormula::Not(right_inner_path.clone())),
+                                        Box::from(GntmcCtlStateFormula::And(
+                                            Box::from(GntmcCtlStateFormula::Not(left_inner_path.clone())),
+                                            Box::from(GntmcCtlStateFormula::Not(right_inner_path.clone())),
+                                        ))
+                                    ))
+                                ))
+                            )),
+                            Box::from(GntmcCtlStateFormula::Not(
+                                Box::from(GntmcCtlStateFormula::Exists(
+                                    Box::from(GntmcCtlPathFormula::Globally(
+                                        Box::from(GntmcCtlStateFormula::Not(right_inner_path.clone())),
+                                    ))
+                                ))
+                            ))
+                        ).translate()
                     }
-                    // ∀♦Φ ≡ ∀(true U Φ), the Until we can resolve
+                    // Case ∀♦Φ ≡ ∀(true U Φ)
                     GntmcCtlPathFormula::Finally(inner_path) => {
                         GntmcCtlStateFormula::Forall(Box::from(GntmcCtlPathFormula::Until(Box::from(GntmcCtlStateFormula::True),
                                                                                          inner_path.clone()))).translate()}
-                    // ∀□Φ ≡ ¬∃♦¬Φ
+                    // Case ∀□Φ ≡ ¬∃♦¬Φ
                     GntmcCtlPathFormula::Globally(inner_path) => {
                         GntmcCtlStateFormula::Not(Box::from(
                             GntmcCtlStateFormula::Exists(Box::from(
@@ -412,12 +366,7 @@ impl GntmcCtlStateFormula {
                                 )))))).translate()
                     }
                 }
-                FormulaTreeNode::new(
-                Some(Box::from(path.translate())),
-                None,
-                None,
-                FormulaTreeNodeType::Exists,
-            )}
+            }
             GntmcCtlStateFormula::True => {
                 FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::True)
             }
@@ -435,6 +384,7 @@ pub enum GntmcCtlPathFormula {
 }
 impl GntmcCtlPathFormula{
     fn translate(&self) -> FormulaTreeNode<String> {
+        // always, next and globally are fine in ENF
         match self {
             GntmcCtlPathFormula::Next(ref state) => FormulaTreeNode::new(
                 Some(Box::from(state.translate())),
@@ -448,9 +398,10 @@ impl GntmcCtlPathFormula{
                 None,
                 FormulaTreeNodeType::Until,
             ),
+            //finally gets broken down to an Until
             GntmcCtlPathFormula::Finally(ref left) => FormulaTreeNode::new(
+                Some(Box::from(GntmcCtlStateFormula::True.translate())),
                 Some(Box::from(left.translate())),
-                None,
                 None,
                 FormulaTreeNodeType::Until,
             ),
@@ -458,7 +409,7 @@ impl GntmcCtlPathFormula{
                 Some(Box::from(left.translate())),
                 None,
                 None,
-                FormulaTreeNodeType::Until,
+                FormulaTreeNodeType::Globally,
             ),
         }
     }
@@ -473,6 +424,7 @@ enum GntmcPropertyKind {
     Persistence(GntmcPropositionalFormula),
     OmegaRegular(GntmcFiniteAutomaton),
     Ltl(GntmcLtlFormula),
+    Ctl(GntmcCtlStateFormula),
 }
 
 #[derive(Debug, Deserialize)]
@@ -615,6 +567,7 @@ fn build_properties(props: Vec<GntmcProperty>) -> (Vec<Property<String>>, Vec<Op
                             PropertyType::OmegaRegular(automaton.translate())
                         }
                         GntmcPropertyKind::Ltl(formula) => PropertyType::Ltl(formula.translate()),
+                        GntmcPropertyKind::Ctl(formula) => PropertyType::Ctl(formula.translate()),
                     },
                 ),
                 p.is_true,
