@@ -13,6 +13,7 @@ pub enum PropertyType<ValueType> {
     RegularSafety(FiniteAutomaton<ValueType>),
     OmegaRegular(FiniteAutomaton<ValueType>),
     Ltl(FormulaTreeNode<ValueType>),
+    Ctl(FormulaTreeNode<ValueType>),
 }
 
 /// A tree structure representing a property with logical expressions.
@@ -83,6 +84,10 @@ impl Property<String> {
             PropertyType::Ltl(_) => {
                 panic!("This is a ltl property, which is used to create a GNBA and not to evaluate")
             }
+            //toDo: change this when implemented
+            PropertyType::Ctl(_) => {
+                panic!("This is a ctl property, the evaluation, is not implemented yet")
+            }
         }
     }
 
@@ -97,6 +102,8 @@ impl Property<String> {
             PropertyType::Invariant(_)
             | PropertyType::Persistence(_)
             | PropertyType::OmegaRegular(_)
+            //toDo: we want to use this for ctl aswell
+            | PropertyType::Ctl(_)
             | PropertyType::RegularSafety(_) => {
                 panic!("Negation of a property is currently only allowed for LTL properties.")
             }
@@ -379,6 +386,9 @@ pub enum FormulaTreeNodeType {
     //ltl-types
     Next,
     Until,
+    //ctl-types (only  enf operators)
+    Exists,
+    Globally,
     #[default]
     Atomic,
     True,
@@ -914,6 +924,7 @@ mod tests {
         match property.property_type {
             PropertyType::Invariant(_)
             | PropertyType::Persistence(_)
+            | PropertyType::Ctl(_)
             | PropertyType::OmegaRegular(_)
             | PropertyType::RegularSafety(_) => {
                 panic!("Invalid property type inside test. Really impressive!")
@@ -986,6 +997,7 @@ mod tests {
 
         match property.property_type {
             PropertyType::Invariant(_)
+            | PropertyType::Ctl(_)
             | PropertyType::Persistence(_)
             | PropertyType::OmegaRegular(_)
             | PropertyType::RegularSafety(_) => {
@@ -1068,6 +1080,7 @@ mod tests {
 
         match property.property_type {
             PropertyType::Invariant(_)
+            | PropertyType::Ctl(_)
             | PropertyType::Persistence(_)
             | PropertyType::OmegaRegular(_)
             | PropertyType::RegularSafety(_) => {
@@ -1162,6 +1175,7 @@ mod tests {
 
         match property.property_type {
             PropertyType::Invariant(_)
+            | PropertyType::Ctl(_)
             | PropertyType::Persistence(_)
             | PropertyType::OmegaRegular(_)
             | PropertyType::RegularSafety(_) => {
@@ -1232,6 +1246,7 @@ mod tests {
 
         match property.property_type {
             PropertyType::Invariant(_)
+            | PropertyType::Ctl(_)
             | PropertyType::Persistence(_)
             | PropertyType::OmegaRegular(_)
             | PropertyType::RegularSafety(_) => {
