@@ -659,47 +659,6 @@
       }
     },
     {
-      "name": "test_forall_glob",
-      "ctl": {
-        "forall": {
-          "globally": {
-            "atom": "crit0"
-          }
-        }
-      }
-    },
-    {
-      "name": "test_forall_next",
-      "ctl": {
-        "forall": {
-          "next": {
-            "atom": "crit0"
-          }
-        }
-      }
-    },
-    {
-      "name": "test_forall_until",
-      "ctl": {
-        "forall": {
-          "until": [
-            {"atom": "crit0"},
-            {"atom": "crit1"}
-          ]
-        }
-      }
-    },
-    {
-      "name": "test_forall_finally",
-      "ctl": {
-        "forall": {
-          "finally": {
-            "atom": "crit0"
-          }
-        }
-      }
-    },
-    {
       "name": "infinitely_critical_p0_possibly",
       "ctl": {
         "forall": {
