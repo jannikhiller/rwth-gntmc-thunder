@@ -179,10 +179,10 @@ impl TransitionSystem {
     /// # Returns
     /// The reachable fragment of the product transition system
     pub fn product_with(&self, mut auto: FiniteAutomaton<String>) -> TransitionSystem {
+        #[derive(Debug)]
         struct NewStateInfo {
             state_int: usize, // the state represented as a single integer for use in the new TS
-            label: usize, // i.e., the state of the automaton
-            // maybe include the next state(s), i.e., where the state can go to via a transition
+            succs: Vec<(usize, usize)> // states where the state can go to via a transition
         }
 
         debug!("Computing product of transition system with automaton");
@@ -191,8 +191,8 @@ impl TransitionSystem {
         // Used as a cache to improve performance
         let mut bitvecs_to_states: HashMap<BitVec, Vec<String>> = HashMap::new();
         let mut new_state_infos: HashMap<(usize, usize), NewStateInfo> = HashMap::new();
-        let mut new_trans: Vec<((usize, usize), (usize, usize))> = vec![];
-        let new_init_states: HashSet<(usize, usize)>;
+        // let mut new_trans: Vec<((usize, usize), (usize, usize))> = vec![];
+        let new_init_states: Vec<(usize, usize)>;
         let auto_aps: Option<Vec<String>> = auto.get_atomic_propositions();
 
         trace!("Computing init states...");
@@ -221,7 +221,7 @@ impl TransitionSystem {
                 trace!("original state {} corresponds to automaton state {} resulting in new state {:?}", state, auto_state, (state, auto_state));
                 let contained = new_state_infos.insert((state, auto_state), NewStateInfo{
                     state_int: new_state_infos.len(),
-                    label: auto_state,
+                    succs: Vec::new(),
                 });
                 if let Some(old) = contained {
                     new_state_infos.insert((state, auto_state), old);
@@ -273,15 +273,18 @@ impl TransitionSystem {
                     trace!("\tCorresponds to automaton state {}\n\t\t=> new state: {:?}; with transition {:?} -> {:?}", auto_succ, (*ts_succ, auto_succ), (ts_state, auto_state), (*ts_succ, auto_succ));
 
                     let old_value = new_state_infos.insert((*ts_succ, auto_succ), NewStateInfo{
-                        label: auto_succ,
-                        state_int: new_state_infos.get(&(*ts_succ, auto_succ)).map(|x| x.state_int).unwrap_or(new_state_infos.len()),
+                        succs: Vec::new(),
+                        state_int: new_state_infos.len(),
                     });
-                    new_trans.push(((ts_state, auto_state), (*ts_succ, auto_succ)));
 
-                    if old_value.is_none() {
+                    if let Some(old) = old_value { 
+                        new_state_infos.insert((*ts_succ, auto_succ), old);
+                    } else {
                         deque.push_back((*ts_succ, auto_succ));
                         trace!("\t\tNew state has not been seen yet. Adding to Queue...\n\t\tQueue updated to: {:?}", deque);
                     }
+
+                    new_state_infos.get_mut(&(ts_state, auto_state)).unwrap().succs.push((*ts_succ, auto_succ));
                 }
             }
         }
@@ -292,28 +295,30 @@ impl TransitionSystem {
         let tmatrix = SparseMatrix::from_list_of_entries(
             num_of_new_states,
             num_of_new_states,
-            &new_trans
+            &new_state_infos
                 .iter()
-                .map(|(inp, out)| {
-                    (
-                        new_state_infos.get(inp).unwrap().state_int,
-                        new_state_infos.get(out).unwrap().state_int,
-                        true,
-                    )
+                .flat_map(|(input, nsi)| {
+                    nsi.succs.clone().into_iter().map(|output|
+                        (
+                            new_state_infos.get(input).unwrap().state_int,
+                            new_state_infos.get(&output).unwrap().state_int,
+                            true,
+                        )).collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>(),
         );
         let reverse_tmatrix = SparseMatrix::from_list_of_entries(
             num_of_new_states,
             num_of_new_states,
-            &new_trans
+            &new_state_infos
                 .iter()
-                .map(|(inp, out)| {
-                    (
-                        new_state_infos.get(out).unwrap().state_int,
-                        new_state_infos.get(inp).unwrap().state_int,
-                        true,
-                    )
+                .flat_map(|(input, nsi)| {
+                    nsi.succs.clone().into_iter().map(|output|
+                        (
+                            new_state_infos.get(&output).unwrap().state_int,
+                            new_state_infos.get(input).unwrap().state_int,
+                            true,
+                        )).collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>(),
         );
