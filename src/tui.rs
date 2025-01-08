@@ -66,7 +66,7 @@ fn check_properties(ts: &TransitionSystem, props: &[Property<String>], options: 
         let post_checking_time = std::time::Instant::now();
         println!(
             "Done. Checking took {}s",
-            (pre_checking_time - post_checking_time).as_secs_f64()
+            (post_checking_time - pre_checking_time).as_secs_f64()
         );
         total_model_checking_time += post_checking_time - pre_checking_time;
         println!(
