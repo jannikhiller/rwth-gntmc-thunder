@@ -5,7 +5,7 @@ use bit_vec::BitVec;
 use log::{debug, trace};
 use std::collections::{HashMap, HashSet, VecDeque};
 use array_tool::vec::*;
-
+use itertools::Itertools;
 
 /// Represents a transition system with states, transitions, and labels.
 ///
@@ -182,7 +182,7 @@ impl TransitionSystem {
         #[derive(Debug)]
         struct NewStateInfo {
             state_int: usize, // the state represented as a single integer for use in the new TS
-            succs: Vec<(usize, usize)> // states where the state can go to via a transition
+            succs: Vec<(usize, usize)>, // states where the state can go to via a transition
         }
 
         debug!("Computing product of transition system with automaton");
@@ -191,7 +191,6 @@ impl TransitionSystem {
         // Used as a cache to improve performance
         let mut bitvecs_to_states: HashMap<BitVec, Vec<String>> = HashMap::new();
         let mut new_state_infos: HashMap<(usize, usize), NewStateInfo> = HashMap::new();
-        // let mut new_trans: Vec<((usize, usize), (usize, usize))> = vec![];
         let new_init_states: Vec<(usize, usize)>;
         let auto_aps: Option<Vec<String>> = auto.get_atomic_propositions();
 
@@ -292,36 +291,39 @@ impl TransitionSystem {
         trace!("Combining results into new transition system...");
         let num_of_new_states = new_state_infos.len();
 
-        let tmatrix = SparseMatrix::from_list_of_entries(
+        let tmatrix = SparseMatrix::from_sorted_list_of_entries(
             num_of_new_states,
             num_of_new_states,
             &new_state_infos
                 .iter()
+                .sorted_by_key(|&(input, _)| new_state_infos.get(input).unwrap().state_int)
                 .flat_map(|(input, nsi)| {
                     nsi.succs.clone().into_iter().map(|output|
                         (
                             new_state_infos.get(input).unwrap().state_int,
                             new_state_infos.get(&output).unwrap().state_int,
                             true,
-                        )).collect::<Vec<_>>()
+                        ))
+                        .sorted_by_key(|&(r, c, _)| (r, c))
+                        .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>(),
         );
-        let reverse_tmatrix = SparseMatrix::from_list_of_entries(
-            num_of_new_states,
-            num_of_new_states,
-            &new_state_infos
-                .iter()
-                .flat_map(|(input, nsi)| {
-                    nsi.succs.clone().into_iter().map(|output|
-                        (
-                            new_state_infos.get(&output).unwrap().state_int,
-                            new_state_infos.get(input).unwrap().state_int,
-                            true,
-                        )).collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>(),
-        );
+        let reverse_tmatrix = SparseMatrix::default(); //from_list_of_entries(
+        //     num_of_new_states,
+        //     num_of_new_states,
+        //     &new_state_infos
+        //         .iter()
+        //         .flat_map(|(input, nsi)| {
+        //             nsi.succs.clone().into_iter().map(|output|
+        //                 (
+        //                     new_state_infos.get(&output).unwrap().state_int,
+        //                     new_state_infos.get(input).unwrap().state_int,
+        //                     true,
+        //                 )).collect::<Vec<_>>()
+        //         })
+        //         .collect::<Vec<_>>(),
+        // );
         let mapped_new_init_states = new_init_states
             .iter()
             .map(|s| new_state_infos.get(s).unwrap().state_int)
