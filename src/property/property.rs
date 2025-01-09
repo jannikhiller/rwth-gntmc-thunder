@@ -392,7 +392,7 @@ pub enum FormulaTreeNodeType {
     //ltl-types
     Next,
     Until,
-    //ctl-types (only  enf operators)
+    //ctl-types (in ENF)
     Exists,
     Globally,
     #[default]

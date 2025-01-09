@@ -317,7 +317,7 @@ impl GntmcCtlStateFormula {
                 GntmcCtlStateFormula::Or(Box::from(GntmcCtlStateFormula::Not(left.clone())), right.clone())
                     .translate()
             }
-            //Exists are fine, as we transform the evantually to an Until,
+            // Exists are fine, as we transform the eventually to an Until,
             // always, next and globally are fine in ENF
             GntmcCtlStateFormula::Exists(ref path) => FormulaTreeNode::new(
                 Some(Box::from(path.translate())),
@@ -325,7 +325,7 @@ impl GntmcCtlStateFormula {
                 None,
                 FormulaTreeNodeType::Exists,
             ),
-            //No Foralls in ENF, they have 4 following types of PathFormulas, following
+            // No Foralls in ENF, they have 4 following types of PathFormulas, following
             GntmcCtlStateFormula::Forall(ref path) =>{
                 match &**path {
                     // Case ∀◯ Φ <=> ¬∃◯ ¬Φ
@@ -394,28 +394,28 @@ impl GntmcCtlPathFormula{
     fn translate(&self) -> FormulaTreeNode<String> {
         // until, next and globally are fine in ENF
         match self {
-            //∃◯
+            // ∃◯
             GntmcCtlPathFormula::Next(ref state) => FormulaTreeNode::new(
                 Some(Box::from(state.translate())),
                 None,
                 None,
                 FormulaTreeNodeType::Next,
             ),
-            //∃(true U Φ) is fine and can stay
+            // ∃(Ψ U Φ) is fine and can stay
             GntmcCtlPathFormula::Until(ref left, ref right) => FormulaTreeNode::new(
                 Some(Box::from(left.translate())),
                 Some(Box::from(right.translate())),
                 None,
                 FormulaTreeNodeType::Until,
             ),
-            //∃♦Φ ≡ ∃(true U Φ) finally gets broken down to an Until
+            // ∃♦Φ ≡ ∃(true U Φ) finally gets broken down to an Until
             GntmcCtlPathFormula::Finally(ref left) => FormulaTreeNode::new(
                 Some(Box::from(GntmcCtlStateFormula::True.translate())),
                 Some(Box::from(left.translate())),
                 None,
                 FormulaTreeNodeType::Until,
             ),
-            //∃□ is fine, so it can stay
+            // ∃□ is fine, so it can stay
             GntmcCtlPathFormula::Globally(ref left) => FormulaTreeNode::new(
                 Some(Box::from(left.translate())),
                 None,
