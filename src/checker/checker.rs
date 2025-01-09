@@ -40,6 +40,9 @@ pub fn check(
         PropertyType::Ltl(_) => {
             ltl_checking(transition_system, property, options)
         }
+        PropertyType::Ctl(_) => {
+            panic!("Not implemented yet")
+        }
     }
 }
 

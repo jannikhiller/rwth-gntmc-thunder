@@ -13,6 +13,7 @@ pub enum PropertyType<ValueType> {
     RegularSafety(FiniteAutomaton<ValueType>),
     OmegaRegular(FiniteAutomaton<ValueType>),
     Ltl(FormulaTreeNode<ValueType>),
+    Ctl(FormulaTreeNode<ValueType>),
 }
 
 /// A tree structure representing a property with logical expressions.
@@ -83,6 +84,9 @@ impl Property<String> {
             PropertyType::Ltl(_) => {
                 panic!("This is a ltl property, which is used to create a GNBA and not to evaluate")
             }
+            PropertyType::Ctl(_) => {
+                panic!("This is a ctl property, the evaluation, is not implemented yet")
+            }
         }
     }
 
@@ -97,6 +101,7 @@ impl Property<String> {
             PropertyType::Invariant(_)
             | PropertyType::Persistence(_)
             | PropertyType::OmegaRegular(_)
+            | PropertyType::Ctl(_)
             | PropertyType::RegularSafety(_) => {
                 panic!("Negation of a property is currently only allowed for LTL properties.")
             }
@@ -250,10 +255,16 @@ impl FormulaTreeNode<String> {
             }
             FormulaTreeNodeType::True => true,
             FormulaTreeNodeType::Until => {
-                panic!("This operator is only used for LTL. Thus, no evaluation.")
+                panic!("This operators evalutaion is not implemented yet for ctl")
             }
             FormulaTreeNodeType::Next => {
-                panic!("This operator is only used for LTL. Thus, no evaluation.")
+                panic!("This operators evalutaion is not implemented yet for ctl")
+            }
+            FormulaTreeNodeType::Globally =>{
+                panic!("This operators evalutaion is not implemented yet for ctl")
+            }
+            FormulaTreeNodeType::Exists =>{
+                panic!("This operators evalutaion is not implemented yet for ctl")
             }
         }
     }
@@ -341,6 +352,8 @@ impl FormulaTreeNode<String> {
             FormulaTreeNodeType::True => "TRUE",
             FormulaTreeNodeType::Until => "UNTIL",
             FormulaTreeNodeType::Next => "NEXT",
+            FormulaTreeNodeType::Exists => "EXISTS",
+            FormulaTreeNodeType::Globally => "GLOBALLY",
         };
 
         // write the current node's representation
@@ -379,6 +392,9 @@ pub enum FormulaTreeNodeType {
     //ltl-types
     Next,
     Until,
+    //ctl-types (only  enf operators)
+    Exists,
+    Globally,
     #[default]
     Atomic,
     True,
@@ -914,6 +930,7 @@ mod tests {
         match property.property_type {
             PropertyType::Invariant(_)
             | PropertyType::Persistence(_)
+            | PropertyType::Ctl(_)
             | PropertyType::OmegaRegular(_)
             | PropertyType::RegularSafety(_) => {
                 panic!("Invalid property type inside test. Really impressive!")
@@ -986,6 +1003,7 @@ mod tests {
 
         match property.property_type {
             PropertyType::Invariant(_)
+            | PropertyType::Ctl(_)
             | PropertyType::Persistence(_)
             | PropertyType::OmegaRegular(_)
             | PropertyType::RegularSafety(_) => {
@@ -1068,6 +1086,7 @@ mod tests {
 
         match property.property_type {
             PropertyType::Invariant(_)
+            | PropertyType::Ctl(_)
             | PropertyType::Persistence(_)
             | PropertyType::OmegaRegular(_)
             | PropertyType::RegularSafety(_) => {
@@ -1162,6 +1181,7 @@ mod tests {
 
         match property.property_type {
             PropertyType::Invariant(_)
+            | PropertyType::Ctl(_)
             | PropertyType::Persistence(_)
             | PropertyType::OmegaRegular(_)
             | PropertyType::RegularSafety(_) => {
@@ -1232,6 +1252,7 @@ mod tests {
 
         match property.property_type {
             PropertyType::Invariant(_)
+            | PropertyType::Ctl(_)
             | PropertyType::Persistence(_)
             | PropertyType::OmegaRegular(_)
             | PropertyType::RegularSafety(_) => {
