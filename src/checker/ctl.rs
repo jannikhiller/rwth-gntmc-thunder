@@ -3,6 +3,8 @@ use crate::common::transition_system::TransitionSystem;
 use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
 use bit_vec::BitVec;
 use std::collections::HashMap;
+use std::ops::Shl;
+use itertools::Itertools;
 use log::{debug, trace};
 
 pub fn ctl_checking(
@@ -78,30 +80,27 @@ fn compute_sat_set_atomic(
     formula: FormulaTreeNode<String>,
 ) -> BitVec {
     trace!("Computing satisfaction sets for ATOMIC...");
-    println!("{}", formula.label.clone().unwrap());
     let label_index = transition_system.get_ap().iter().position(|x| *x == formula.label.clone().unwrap());
-println!("{:?}", label_index);
-    let mut atom_label_as_bitvec = BitVec::from_elem(transition_system.get_ap().len(), false);
-    atom_label_as_bitvec.set(label_index.unwrap(), true);
-println!("{:?}", atom_label_as_bitvec);
 
-    let states_with_label = transition_system.get_states_with_label(&atom_label_as_bitvec);
-println!("{:?}", states_with_label);
+    let mut states_with_label = Vec::new();
+    (0 .. 2_usize.pow(transition_system.get_ap().len() as u32)).for_each(|label_subset| {
+        let mut label = BitVec::from_bytes(&label_subset.shl(usize::BITS - transition_system.get_ap().len() as u32).to_be_bytes());
+        label.truncate(transition_system.get_ap().len());
+
+        if label.get(label_index.unwrap()).unwrap() { // This might be optimized later using an
+        // elegant bit shift or something similar to make the iteration start at the appropriate bit
+            for state in transition_system.get_states_with_label(&label) {
+                states_with_label.push(*state);
+            };
+        }
+    });
 
     let res = BitVec::from_fn(transition_system.get_num_states(), |index| {
         states_with_label.contains(&index)
     });
     trace!("Finished satisfaction sets for ATOMIC");
-    println!("{:?}", res);
 
     res
-
-    // let mut set = BitVec::from_elem(transition_system.get_num_states(), false);
-    // for state in 0..transition_system.get_num_states() {
-    //     let label =
-    //         bit_vec_to_ap_strings(transition_system, transition_system.get_state_label(state));
-    //     set.set(state, formula.evaluate(&label));
-    // set
 }
 
 fn compute_sat_set_not(

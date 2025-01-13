@@ -114,7 +114,7 @@ impl TransitionSystem {
         if label.len() != self.ap.len() {
             panic!("{label:?} is not a valid label as the BitVec has a different size.");
         }
-    println!("{:?}", self.label_state_map);
+
         static EMPTY_VEC: Vec<usize> = vec![];
         self.label_state_map.get(label).unwrap_or(&EMPTY_VEC)
     }
