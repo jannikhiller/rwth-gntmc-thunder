@@ -523,7 +523,7 @@ pub fn comp_elementary_sets(
     let mut closure: Vec<ElementaryNode> = Vec::new();
 
     // Traverse the formula to capture all nodes and map them into the intermediate struct (`ElementaryNode`)
-    FormulaTreeNode::post_order_traversal(&formula, &mut |node: &FormulaTreeNode<String>| {
+    FormulaTreeNode::post_order_traversal(formula, &mut |node: &FormulaTreeNode<String>| {
         let is_atomic = node.node_type == FormulaTreeNodeType::True
             || node.node_type == FormulaTreeNodeType::Atomic
             || node.node_type == FormulaTreeNodeType::Next;
@@ -794,7 +794,7 @@ mod tests {
         );
 
         let labels = vec!["B".to_string()];
-        assert_eq!(false, property.evaluate(&labels), "Property should evaluate to false when labels do not satisfy the AND condition with NOT.");
+        assert!(!property.evaluate(&labels), "Property should evaluate to false when labels do not satisfy the AND condition with NOT.");
     }
 
     #[test]

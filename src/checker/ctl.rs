@@ -4,6 +4,7 @@ use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, 
 use bit_vec::BitVec;
 use std::collections::HashMap;
 
+#[allow(dead_code)]
 pub fn ctl_checking(
     transition_system: &TransitionSystem,
     property: &Property<String>,
@@ -26,6 +27,7 @@ pub fn ctl_checking(
     }
 }
 
+#[allow(dead_code)]
 fn compute_sat_set(
     transition_system: &TransitionSystem,
     formula: &FormulaTreeNode<String>,
@@ -60,10 +62,12 @@ fn compute_sat_set(
     res
 }
 
+#[allow(dead_code)]
 fn compute_sat_set_true(transition_system: &TransitionSystem) -> BitVec {
     BitVec::from_elem(transition_system.get_num_states(), true)
 }
 
+#[allow(dead_code)]
 fn compute_sat_set_atomic(
     transition_system: &TransitionSystem,
     formula: FormulaTreeNode<String>,
@@ -77,16 +81,18 @@ fn compute_sat_set_atomic(
     set
 }
 
+#[allow(dead_code)]
 fn compute_sat_set_not(
     transition_system: &TransitionSystem,
     formula: FormulaTreeNode<String>,
 ) -> BitVec {
     let child = formula.left.unwrap();
-    let mut set = compute_sat_set(transition_system, &*child);
+    let mut set = compute_sat_set(transition_system, &child);
     set.negate();
     set
 }
 
+#[allow(dead_code)]
 fn compute_sat_set_and(
     transition_system: &TransitionSystem,
     formula: FormulaTreeNode<String>,
@@ -94,13 +100,14 @@ fn compute_sat_set_and(
     let left = formula.left.unwrap();
     let right = formula.right.unwrap();
 
-    let mut set_left = compute_sat_set(transition_system, &*left);
-    let set_right = compute_sat_set(transition_system, &*right);
+    let mut set_left = compute_sat_set(transition_system, &left);
+    let set_right = compute_sat_set(transition_system, &right);
 
     set_left.and(&set_right);
     set_left
 }
 
+#[allow(dead_code)]
 fn compute_sat_set_of_exists_until(
     transition_system: &TransitionSystem,
     formula: FormulaTreeNode<String>,
@@ -108,9 +115,9 @@ fn compute_sat_set_of_exists_until(
     let left = formula.left.unwrap();
     let right = formula.right.unwrap();
 
-    let mut set_t = compute_sat_set(transition_system, &*right);
+    let mut set_t = compute_sat_set(transition_system, &right);
     let mut set_e = set_t.clone();
-    let sat_left = compute_sat_set(transition_system, &*left);
+    let sat_left = compute_sat_set(transition_system, &left);
 
     while !set_e.is_empty() {
         let mut s_prime = 0;
@@ -146,6 +153,7 @@ fn compute_sat_set_of_exists_until(
 ///
 /// # Returns
 /// The satisfaction set with respect to the given CTL-(sub)formula
+#[allow(dead_code)]
 fn compute_sat_set_of_exists_globally(
     transition_system: &TransitionSystem,
     formula: FormulaTreeNode<String>,

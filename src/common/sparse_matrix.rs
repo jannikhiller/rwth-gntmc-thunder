@@ -387,7 +387,7 @@ mod tests {
         assert_eq!(m[(0, 0)], 0);
         assert_eq!(m[(2, 1)], 100);
         let result = std::panic::catch_unwind(|| {
-            SparseMatrix::from_2d_vec(&vec![vec![1, 2, 3], vec![1]]);
+            SparseMatrix::from_2d_vec(&[vec![1, 2, 3], vec![1]]);
         });
         assert!(result.is_err());
 

@@ -187,7 +187,7 @@ impl TransitionSystem {
         // new state |-> new label, i.e., the state of the automaton
         let mut new_state_labels: HashMap<(usize, usize), usize> = HashMap::new();
         let mut new_trans: Vec<((usize, usize), (usize, usize))> = vec![];
-        let new_init_states: HashSet<(usize, usize)>;
+        
         let auto_aps: Option<Vec<String>> = auto.get_atomic_propositions();
 
         trace!("Computing init states...");
@@ -222,7 +222,7 @@ impl TransitionSystem {
             }
         }
 
-        new_init_states = new_states.clone();
+        let new_init_states: HashSet<(usize, usize)> = new_states.clone();
 
         let mut deque: VecDeque<(usize, usize)> = VecDeque::new();
         new_init_states.iter().for_each(|x| deque.push_back(*x));
@@ -356,10 +356,9 @@ impl TransitionSystem {
             if is_accepting_auto_state {
                 trace!("Found accepting state: {}", auto_state);
                 // set the bit in the BitVec label of the state
-                new_state_labels[mapped_state.clone()].set(
+                new_state_labels[*mapped_state].set(
                     auto_state_to_bv_index
-                        .get(auto_state)
-                        .map(|x| x.clone())
+                        .get(auto_state).copied()
                         .unwrap(),
                     true,
                 );
@@ -523,14 +522,12 @@ mod tests {
             (3, 3, true),
         ];
         let transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
-        let reverse_transitions = vec![
-            (1, 0, true),
+        let reverse_transitions = [(1, 0, true),
             (2, 0, true),
             (1, 2, true),
             (3, 1, true),
             (2, 3, true),
-            (3, 3, true),
-        ];
+            (3, 3, true)];
         let reverse_transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
         let mut state_labels = Vec::new();
         let ap = vec!["a".to_string(), "b".to_string()];
@@ -694,7 +691,7 @@ mod tests {
             .iter()
             .zip(result_ts.initial_states.iter())
             .for_each(|state| {
-                deque.push_back(state.clone());
+                deque.push_back(state);
             });
         // maps the states of the computed to the result
         let mut map = HashMap::new();

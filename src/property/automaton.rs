@@ -303,7 +303,7 @@ fn filter_successors_with_next(
     let (inverted, subformula_index) = index_of_subformula_of_next[&index_of_formula];
     if set[index_of_formula] {
         for successor_index in 0..successors.len() {
-            if !elementary_sets[successor_index][subformula_index] != inverted {
+            if elementary_sets[successor_index][subformula_index] == inverted {
                 successors.set(successor_index, false);
             }
         }
@@ -340,9 +340,9 @@ fn filter_successors_with_until(
     );
     if set[index_of_formula] {
         trace!("set contains until formula");
-        if !set[g_index] != g_inverted {
+        if set[g_index] == g_inverted {
             trace!("g is not in set");
-            if !set[f_index] != f_inverted {
+            if set[f_index] == f_inverted {
                 trace!("f is not in set");
                 successors.clear();
             } else {
@@ -605,12 +605,10 @@ mod tests {
         let transition_matrix = SparseMatrix::from_list_of_entries(
             4,
             4,
-            &vec![
-                (0, 1, vec![atomic_a]),
+            &[(0, 1, vec![atomic_a]),
                 (1, 2, vec![atomic_b]),
                 (2, 3, vec![atomic_c]),
-                (3, 0, vec![atomic_d]),
-            ],
+                (3, 0, vec![atomic_d])],
         );
 
         let mut initial_state = BitVec::from_elem(4, false);
@@ -689,12 +687,10 @@ mod tests {
         initial_state.set(2, true);
         assert_eq!(ltl_gnba.initial_state, initial_state);
 
-        let transition_matrix = SparseMatrix::from_2d_vec(&vec![
-            vec![true, true, false, false],
+        let transition_matrix = SparseMatrix::from_2d_vec(&[vec![true, true, false, false],
             vec![false, false, true, true],
             vec![true, true, false, false],
-            vec![false, false, true, true],
-        ]);
+            vec![false, false, true, true]]);
         assert_eq!(ltl_gnba.transition_matrix, transition_matrix);
         assert_eq!(ltl_gnba.accepting_states, vec![]);
         assert_eq!(
@@ -804,7 +800,7 @@ mod tests {
             ],
         ]);
 
-        let translation_to_index = vec![7, 8, 9, 10, 5, 6, 2, 3, 4, 0, 1];
+        let translation_to_index = [7, 8, 9, 10, 5, 6, 2, 3, 4, 0, 1];
 
         let mut matrix = vec![vec![false; 11]; 11];
         for row in 0..11 {
@@ -843,7 +839,7 @@ mod tests {
         assert_eq!(ltl_gnba.initial_state, initial_state);
         print!("{:?}", ltl_gnba.accepting_states);
 
-        let accepting_states_b_sets = vec![vec![0, 1, 4, 5, 6, 9, 10], vec![0, 2, 4, 6, 7, 9]];
+        let accepting_states_b_sets = [vec![0, 1, 4, 5, 6, 9, 10], vec![0, 2, 4, 6, 7, 9]];
         let mut accepting_states = vec![BitVec::from_elem(11, false); 2];
 
         for i in 0..2 {
@@ -867,11 +863,9 @@ mod tests {
         let mut gnba_accept2 = BitVec::from_elem(3, false);
         gnba_accept2.set(2, true);
         let gnba = LtlGnba {
-            transition_matrix: SparseMatrix::from_2d_vec(&vec![
-                vec![true, true, true],
+            transition_matrix: SparseMatrix::from_2d_vec(&[vec![true, true, true],
                 vec![true, false, false],
-                vec![true, false, false],
-            ]),
+                vec![true, false, false]]),
             aps_of_state: vec![
                 vec!["q0".to_string()],
                 vec!["q1".to_string()],
@@ -907,8 +901,7 @@ mod tests {
             Some("q2".to_string()),
             FormulaTreeNodeType::Atomic,
         );
-        let nba_transitions = SparseMatrix::from_2d_vec(&vec![
-            vec![
+        let nba_transitions = SparseMatrix::from_2d_vec(&[vec![
                 vec![q0_formula.clone()],
                 vec![q0_formula.clone()],
                 vec![q0_formula.clone()],
@@ -955,8 +948,7 @@ mod tests {
                 vec![],
                 vec![],
                 vec![],
-            ],
-        ]);
+            ]]);
         let nba = FiniteAutomaton {
             acceptance: AcceptanceType::Buchi,
             transition_matrix: nba_transitions,

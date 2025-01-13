@@ -48,6 +48,12 @@ pub struct Options {
     pub persistence_algorithm: PersistenceCheckingAlgorithm,
 }
 
+impl Default for Options {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Options {
     pub fn new() -> Self {
         // default algorithm is set here
