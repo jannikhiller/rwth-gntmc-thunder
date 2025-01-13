@@ -18,6 +18,10 @@ struct Cli {
 
     #[arg(short, long, default_value_t, value_enum)]
     persistence: PersistenceCheckingAlgorithm,
+
+    /// Visualize the transition system and specify the output file name
+    #[arg(long, value_name = "FILE")]
+    visualize_ts: Option<std::path::PathBuf>
 }
 
 fn initialize_logger(verbosity: u8) {
@@ -92,6 +96,10 @@ pub fn run() {
     let args = Cli::parse();
     initialize_logger(args.verbose);
     let (ts, props, parsing_time) = parse_model_and_properties(&args.gntmc_file);
+    if args.visualize_ts.is_some() {
+        ts.to_dot(args.visualize_ts.unwrap().to_str().unwrap()).expect("Unable to visualize transition system in file {}.", );
+        println!("Exported visualization of transition system")
+    }
 
     let persistence_algorithm = args.persistence;
     let mut options = Options::new();
