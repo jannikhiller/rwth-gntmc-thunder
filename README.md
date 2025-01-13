@@ -73,13 +73,21 @@ perf script -F +pid > test.perf
 ```
 4. Open the file in (https://profiler.firefox.com/).
 
-## Note
+#### Note
 The library is only intended to enable integration tests. Therefore, we do NOT guarantee a stable interface.
 
-## Custom Tests
+### Custom Tests
 `.gntmc`-files with/for custom tests can be found at `tests/res/`. \
 The included python code generates a `.gntmc`-file for a transition system of given size.
 A generated example is already included within the other `.gntmc`-files.
+
+### Visualization
+Currently, we support visualizing the parsed transition system by generating a `DOT`-file by adding the flag \
+```bash
+--visualize-ts <filename>
+```
+during model checking. Note that the produced `DOT`-file has to be converted to, for example, a `PNG`-file to be 
+human-readable.
 
 Contributers
 ------------

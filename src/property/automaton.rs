@@ -265,6 +265,51 @@ impl FiniteAutomaton<String> {
         new_state
     }
 
+    pub fn to_dot(&self, filename: &str) -> std::io::Result<()> {
+        use std::fs::File;
+        use std::io::Write;
+
+        let mut file = File::create(filename)?;
+
+        writeln!(file, "digraph FiniteAutomaton {{")?;
+        writeln!(file, "    rankdir=LR;")?; // Left-to-right layout
+        writeln!(file, "    node [shape=circle];")?;
+
+        // Initial state placeholder
+        writeln!(file, "    __start [shape=point];")?;
+        for (state, is_initial) in self.initial_state.iter().enumerate() {
+            if is_initial {
+                writeln!(file, "    __start -> {};", state)?;
+            }
+        }
+
+        // Nodes
+        for state in 0..=self.last_state {
+            let shape = if self.accepting_states.get(state).unwrap_or(false) {
+                "doublecircle" // Accepting states
+            } else {
+                "circle"
+            };
+            writeln!(file, "    {} [shape={}];", state, shape)?;
+        }
+
+        // Transitions
+        for row in 0..=self.last_state {
+            let row_iter = self.transition_matrix.get_row(row); // Directly get the row iterator
+            for SparseMatrixElement { col_index, value } in row_iter {
+                let label = value
+                    .iter()
+                    .map(|formula| formula.to_string()) // Assumes FormulaTreeNode implements Display
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                writeln!(file, "    {} -> {} [label=\"{}\"];", row, col_index, label)?;
+            }
+        }
+
+        writeln!(file, "}}")?;
+        Ok(())
+    }
+
     #[allow(dead_code)]
     pub fn get_initial_state(&self) -> &BitVec {
         &self.initial_state
