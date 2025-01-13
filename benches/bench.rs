@@ -34,7 +34,7 @@ fn invariant(bencher: divan::Bencher, path: &str) {
         .with_inputs(|| gntmc::parse_gntmc_file(path))
         .bench_values(|(ts, props, _)| {
             for prop in &props {
-                let _ = divan::black_box(invariant::bfs_invariant_checking(&ts, &prop));
+                let _ = divan::black_box(invariant::bfs_invariant_checking(&ts, prop));
             }
         })
 }

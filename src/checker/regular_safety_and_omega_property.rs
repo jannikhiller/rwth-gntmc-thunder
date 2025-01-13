@@ -76,96 +76,6 @@ pub fn regular_safety_and_omega_checking(
         bfs_invariant_checking(product_ts, &empty_property)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::common::sparse_matrix::SparseMatrix;
-
-    #[test]
-    fn test_regular_safety_check() {
-        let ts = create_test_transition_system_for_regular_expression();
-        let automaton: FiniteAutomaton<String> = create_test_automaton_for_regular_expression();
-        let reg_prop = Property::new("Test".to_string(), PropertyType::RegularSafety(automaton));
-        let mut options = Options::new();
-        options.set_persistence_algorithm(PersistenceCheckingAlgorithm::Scc);
-        match regular_safety_and_omega_checking(&ts, &reg_prop, &options) {
-            Ok(result) => println!("The invariant checking was successful: {}", result),
-            Err((error_details, indices)) => {
-                println!("Property does not hold");
-                println!("Further information: {:?}", error_details);
-                println!("Indices of the violation: {:?}", indices);
-            }
-        }
-        assert!(true);
-    }
-    #[test]
-    fn test_scc() {
-        let ts = create_test_transition_system_for_product();
-        let automaton = create_test_automaton_for_product();
-        let omega_prop = Property::new("Test".to_string(), PropertyType::OmegaRegular(automaton));
-        let mut options = Options::new();
-        options.set_persistence_algorithm(PersistenceCheckingAlgorithm::Scc);
-        match regular_safety_and_omega_checking(&ts, &omega_prop, &options) {
-            Ok(result) => println!("The invariant checking was successful: {}", result),
-            Err((error_details, indices)) => {
-                println!("Property does not hold");
-                println!("Further information: {:?}", error_details);
-                println!("Indices of the violation: {:?}", indices);
-            }
-        }
-        assert!(true);
-    }
-
-    fn create_test_transition_system_for_product() -> TransitionSystem {
-        let transitions = vec![
-            (0, 1, true),
-            (0, 2, true),
-            (2, 1, true),
-            (1, 3, true),
-            (3, 2, true),
-            (3, 3, true),
-        ];
-        let transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
-        let reverse_transitions = vec![
-            (1, 0, true),
-            (2, 0, true),
-            (1, 2, true),
-            (3, 1, true),
-            (2, 3, true),
-            (3, 3, true),
-        ];
-        let reverse_transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
-        let mut state_labels = Vec::new();
-        let ap = vec!["a".to_string(), "b".to_string()];
-        let mut label0 = BitVec::from_elem(2, false);
-        label0.set(0, true);
-        label0.set(1, true);
-        state_labels.push(label0.clone());
-        let label1 = BitVec::from_elem(2, false);
-        state_labels.push(label1.clone());
-        let mut label2 = BitVec::from_elem(2, false);
-        label2.set(0, true);
-        state_labels.push(label2.clone());
-        let mut label3 = BitVec::from_elem(2, false);
-        label3.set(1, true);
-        state_labels.push(label3.clone());
-        let mut label_state_map = HashMap::new();
-        label_state_map.insert(label0, vec![0]);
-        label_state_map.insert(label1, vec![1]);
-        label_state_map.insert(label2, vec![2]);
-        label_state_map.insert(label3, vec![3]);
-        TransitionSystem::new(
-            transition_matrix,
-            reverse_transition_matrix,
-            3,       // last_state
-            vec![0], // initial_states
-            state_labels,
-            label_state_map,
-            ap,
-        )
-    }
-}
 fn create_test_automaton_for_product() -> FiniteAutomaton<String> {
     let a_node = FormulaTreeNode::new(
         None,
@@ -303,4 +213,92 @@ fn create_test_automaton_for_regular_expression() -> FiniteAutomaton<String> {
     accepting_states.set(1, true);
 
     FiniteAutomaton::new(Nfa, transition_matrix, 1, init_states, accepting_states)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::common::sparse_matrix::SparseMatrix;
+
+    #[test]
+    fn test_regular_safety_check() {
+        let ts = create_test_transition_system_for_regular_expression();
+        let automaton: FiniteAutomaton<String> = create_test_automaton_for_regular_expression();
+        let reg_prop = Property::new("Test".to_string(), PropertyType::RegularSafety(automaton));
+        let mut options = Options::new();
+        options.set_persistence_algorithm(PersistenceCheckingAlgorithm::Scc);
+        match regular_safety_and_omega_checking(&ts, &reg_prop, &options) {
+            Ok(result) => println!("The invariant checking was successful: {}", result),
+            Err((error_details, indices)) => {
+                println!("Property does not hold");
+                println!("Further information: {:?}", error_details);
+                println!("Indices of the violation: {:?}", indices);
+            }
+        }
+        assert!(true);
+    }
+    #[test]
+    fn test_scc() {
+        let ts = create_test_transition_system_for_product();
+        let automaton = create_test_automaton_for_product();
+        let omega_prop = Property::new("Test".to_string(), PropertyType::OmegaRegular(automaton));
+        let mut options = Options::new();
+        options.set_persistence_algorithm(PersistenceCheckingAlgorithm::Scc);
+        match regular_safety_and_omega_checking(&ts, &omega_prop, &options) {
+            Ok(result) => println!("The invariant checking was successful: {}", result),
+            Err((error_details, indices)) => {
+                println!("Property does not hold");
+                println!("Further information: {:?}", error_details);
+                println!("Indices of the violation: {:?}", indices);
+            }
+        }
+        assert!(true);
+    }
+
+    fn create_test_transition_system_for_product() -> TransitionSystem {
+        let transitions = vec![
+            (0, 1, true),
+            (0, 2, true),
+            (2, 1, true),
+            (1, 3, true),
+            (3, 2, true),
+            (3, 3, true),
+        ];
+        let transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
+        let reverse_transitions = [(1, 0, true),
+            (2, 0, true),
+            (1, 2, true),
+            (3, 1, true),
+            (2, 3, true),
+            (3, 3, true)];
+        let reverse_transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
+        let mut state_labels = Vec::new();
+        let ap = vec!["a".to_string(), "b".to_string()];
+        let mut label0 = BitVec::from_elem(2, false);
+        label0.set(0, true);
+        label0.set(1, true);
+        state_labels.push(label0.clone());
+        let label1 = BitVec::from_elem(2, false);
+        state_labels.push(label1.clone());
+        let mut label2 = BitVec::from_elem(2, false);
+        label2.set(0, true);
+        state_labels.push(label2.clone());
+        let mut label3 = BitVec::from_elem(2, false);
+        label3.set(1, true);
+        state_labels.push(label3.clone());
+        let mut label_state_map = HashMap::new();
+        label_state_map.insert(label0, vec![0]);
+        label_state_map.insert(label1, vec![1]);
+        label_state_map.insert(label2, vec![2]);
+        label_state_map.insert(label3, vec![3]);
+        TransitionSystem::new(
+            transition_matrix,
+            reverse_transition_matrix,
+            3,       // last_state
+            vec![0], // initial_states
+            state_labels,
+            label_state_map,
+            ap,
+        )
+    }
 }
