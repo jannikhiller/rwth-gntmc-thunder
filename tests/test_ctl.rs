@@ -33,9 +33,4 @@ mod tests {
     use thunder::parser::gntmc;
     use thunder::property::property::PropertyType;
     generate_res_test!(test_ctl_1, test_ctl_2);
-
-    //#[test]
-    //fn test_peterson_ctl() {
-    //    check_file!("./tests/peterson_ctl/peterson.2.gntmc");
-    //}
 }

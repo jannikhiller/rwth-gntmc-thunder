@@ -61,6 +61,21 @@
           }
         }
       },
+    {
+      "name": "exists finally exists globally c",
+      "is_true": true,
+      "ctl": {
+        "exists": {
+          "finally": {
+            "exists": {
+              "globally": {
+                "atom": "c"
+              }
+            }
+          }
+        }
+      }
+    },
       {
         "name": "forall globally forall finally a",
         "is_true": false,

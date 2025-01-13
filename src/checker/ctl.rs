@@ -256,3 +256,208 @@ fn compute_sat_set_of_exists_next(
 
     result_set
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use bit_vec::BitVec;
+    use crate::checker::ctl::*;
+    use crate::common::sparse_matrix::SparseMatrix;
+    use crate::common::transition_system::TransitionSystem;
+    use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType};
+
+    fn build_test_ts() -> TransitionSystem {
+        let transitions = vec![
+            (0, 1, true),
+            (0, 3, true),
+            (1, 2, true),
+            (2, 2, true),
+            (2, 3, true),
+            (3, 0, true),
+        ];
+        let transition_matrix = SparseMatrix::from_list_of_entries(6, 6, &transitions);
+        let reverse_transitions = vec![
+            (1, 0, true),
+            (3, 0, true),
+            (1, 2, true),
+            (2, 2, true),
+            (3, 2, true),
+            (0, 3, true),
+        ];
+        let reverse_transition_matrix = SparseMatrix::from_list_of_entries(6, 6, &reverse_transitions);
+
+        let mut state_labels = Vec::new();
+        let ap = vec!["a".to_string(), "b".to_string(), "c".to_string(), "d".to_string(), "e".to_string()];
+
+        let mut label0 = BitVec::from_elem(5, false);
+        label0.set(0, true);
+        label0.set(4, true);
+        state_labels.push(label0.clone());
+        let mut label1 = BitVec::from_elem(5, false);
+        label1.set(1, true);
+        state_labels.push(label1.clone());
+        let mut label2 = BitVec::from_elem(5, false);
+        label2.set(2, true);
+        state_labels.push(label2.clone());
+        let mut label3 = BitVec::from_elem(5, false);
+        label3.set(3, true);
+        state_labels.push(label3.clone());
+        let mut label_state_map = HashMap::new();
+        label_state_map.insert(label0, vec![0]);
+        label_state_map.insert(label1, vec![1]);
+        label_state_map.insert(label2, vec![2]);
+        label_state_map.insert(label3, vec![3]);
+        TransitionSystem::new(
+            transition_matrix,
+            reverse_transition_matrix,
+            3,       // last_state
+            vec![0], // initial_states
+            state_labels,
+            label_state_map,
+            ap,
+        )
+    }
+
+    #[test]
+    fn test_true() {
+        let ts = build_test_ts();
+        let sat_set = compute_sat_set_true(&ts);
+
+        assert_eq!(sat_set, BitVec::from_elem(ts.get_num_states(), true));
+    }
+    
+    #[test]
+    fn test_atomic() {
+        let ts = build_test_ts();
+        let formula_a = FormulaTreeNode::new(
+            None, None, Some("a".to_string()), FormulaTreeNodeType::Atomic
+        );
+        let mut res_a = BitVec::from_elem(ts.get_num_states(), false);
+        res_a.set(0, true);
+        let formula_e = FormulaTreeNode::new(
+            None, None, Some("e".to_string()), FormulaTreeNodeType::Atomic
+        );
+        let mut res_e = BitVec::from_elem(ts.get_num_states(), false);
+        res_e.set(0, true);
+        let formula_b = FormulaTreeNode::new(
+            None, None, Some("b".to_string()), FormulaTreeNodeType::Atomic
+        );
+        let mut res_b = BitVec::from_elem(ts.get_num_states(), false);
+        res_b.set(1, true);
+        
+        assert_eq!(compute_sat_set_atomic(&ts, formula_a), res_a);
+        assert_eq!(compute_sat_set_atomic(&ts, formula_e), res_e);
+        assert_eq!(compute_sat_set_atomic(&ts, formula_b), res_b);
+    }
+    
+    #[test]
+    fn test_not() {
+        let ts = build_test_ts();
+        let formula_a = FormulaTreeNode::new(
+            None, None, Some("a".to_string()), FormulaTreeNodeType::Atomic
+        );
+        let not = FormulaTreeNode::new(
+            Some(Box::from(formula_a)), None, None, FormulaTreeNodeType::Not
+        );
+        let mut res_a = BitVec::from_elem(ts.get_num_states(), true);
+        res_a.set(0, false);
+        
+        assert_eq!(compute_sat_set_not(&ts, not), res_a);
+    }
+
+    #[test]
+    fn test_and() {
+        let ts = build_test_ts();
+        let formula_a = FormulaTreeNode::new(
+            None, None, Some("a".to_string()), FormulaTreeNodeType::Atomic
+        );
+        let formula_e = FormulaTreeNode::new(
+            None, None, Some("e".to_string()), FormulaTreeNodeType::Atomic
+        );
+        let formula_b = FormulaTreeNode::new(
+            None, None, Some("b".to_string()), FormulaTreeNodeType::Atomic
+        );
+        let a_and_e = FormulaTreeNode::new(
+            Some(Box::from(formula_a.clone())), Some(Box::from(formula_e.clone())), None, FormulaTreeNodeType::And
+        );
+        let b_and_e = FormulaTreeNode::new(
+            Some(Box::from(formula_b.clone())), Some(Box::from(formula_e.clone())), None, FormulaTreeNodeType::And
+        );
+        let a_and_b = FormulaTreeNode::new(
+            Some(Box::from(formula_a.clone())), Some(Box::from(formula_b.clone())), None, FormulaTreeNodeType::And
+        );
+        let mut res_a_and_e = BitVec::from_elem(ts.get_num_states(), false);
+        res_a_and_e.set(0, true);
+        let mut res_b_and_e = BitVec::from_elem(ts.get_num_states(), false);
+        let mut res_a_and_b = BitVec::from_elem(ts.get_num_states(), false);
+
+        assert_eq!(compute_sat_set_and(&ts, a_and_e), res_a_and_e);
+        assert_eq!(compute_sat_set_and(&ts, b_and_e), res_b_and_e);
+        assert_eq!(compute_sat_set_and(&ts, a_and_b), res_a_and_b);
+    }
+
+    #[test]
+    fn test_exists_until() {
+        let ts = build_test_ts();
+        let formula_a = FormulaTreeNode::new(
+            None, None, Some("a".to_string()), FormulaTreeNodeType::Atomic
+        );
+        let formula_b = FormulaTreeNode::new(
+            None, None, Some("b".to_string()), FormulaTreeNodeType::Atomic
+        );
+        let until = FormulaTreeNode::new(
+            Some(Box::from(formula_a)), Some(Box::from(formula_b)), None, FormulaTreeNodeType::Until
+        );
+        let mut res = BitVec::from_elem(ts.get_num_states(), false);
+        res.set(0, true);
+        res.set(1, true);
+        
+        assert_eq!(compute_sat_set_of_exists_until(&ts, until), res);
+    }
+
+    #[test]
+    fn test_exists_globally() {
+        let ts = build_test_ts();
+        let formula_a = FormulaTreeNode::new(
+            None, None, Some("a".to_string()), FormulaTreeNodeType::Atomic
+        );
+        let formula_c = FormulaTreeNode::new(
+            None, None, Some("c".to_string()), FormulaTreeNodeType::Atomic
+        );
+        let globally_a = FormulaTreeNode::new(
+            Some(Box::from(formula_a)), None, None, FormulaTreeNodeType::Globally
+        );
+        let globally_c = FormulaTreeNode::new(
+            Some(Box::from(formula_c)), None, None, FormulaTreeNodeType::Globally
+        );
+        let res = BitVec::from_elem(ts.get_num_states(), false);
+
+        assert_eq!(compute_sat_set_of_exists_globally(&ts, globally_a), res);
+        assert_eq!(compute_sat_set_of_exists_globally(&ts, globally_c), res);
+    }
+    
+    #[test]
+    fn test_exists_next() {
+        let ts = build_test_ts();
+        let formula_a = FormulaTreeNode::new(
+            None, None, Some("a".to_string()), FormulaTreeNodeType::Atomic
+        );
+        let formula_b = FormulaTreeNode::new(
+            None, None, Some("b".to_string()), FormulaTreeNodeType::Atomic
+        );
+        let next_a = FormulaTreeNode::new(
+            Some(Box::from(formula_a)), None, None, FormulaTreeNodeType::Next
+        );
+        let next_b = FormulaTreeNode::new(
+            Some(Box::from(formula_b)), None, None, FormulaTreeNodeType::Next
+        );
+        let mut res_a = BitVec::from_elem(ts.get_num_states(), false);
+        res_a.set(3, true);
+        let mut res_b = BitVec::from_elem(ts.get_num_states(), false);
+        res_b.set(0, true);
+
+        assert_eq!(compute_sat_set_of_exists_next(&ts, next_a), res_a);
+        assert_eq!(compute_sat_set_of_exists_next(&ts, next_b), res_b);
+    }
+}
+
