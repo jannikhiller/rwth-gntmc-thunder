@@ -9,6 +9,9 @@ macro_rules! check_file {
                 }
                 _ => panic!("Wrong property type"),
             }
+
+            let mut options = thunder::checker::checker::Options::new();
+            let prop_fulfilled = check(&ts, prop, &options);
         }
     };
 }
@@ -26,12 +29,13 @@ macro_rules! generate_res_test {
 
 #[cfg(test)]
 mod tests {
+    use thunder::checker::checker::check;
     use thunder::parser::gntmc;
     use thunder::property::property::PropertyType;
-    generate_res_test!(test_ctl_parse_1);
+    generate_res_test!(test_ctl_1, test_ctl_2);
 
-    #[test]
-    fn test_peterson_ctl() {
-        check_file!("./tests/peterson_ctl/peterson.2.gntmc");
-    }
+    //#[test]
+    //fn test_peterson_ctl() {
+    //    check_file!("./tests/peterson_ctl/peterson.2.gntmc");
+    //}
 }

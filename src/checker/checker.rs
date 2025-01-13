@@ -1,3 +1,4 @@
+use crate::checker::ctl::ctl_checking;
 use crate::checker::invariant::bfs_invariant_checking;
 use crate::checker::ltl::ltl_checking;
 use crate::checker::nested_dfs::persistence_checking_with_nested_dfs;
@@ -39,7 +40,7 @@ pub fn check(
         }
         PropertyType::Ltl(_) => ltl_checking(transition_system, property, options),
         PropertyType::Ctl(_) => {
-            panic!("Not implemented yet")
+            ctl_checking(transition_system, property)
         }
     }
 }

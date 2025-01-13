@@ -111,9 +111,10 @@ impl TransitionSystem {
     ///  if the label length does not match the expected length.
     #[allow(dead_code)]
     pub fn get_states_with_label(&self, label: &BitVec) -> &Vec<usize> {
-        if label.len() != self.state_labels.len() {
-            panic!("{label:?} is not a valid label as the BitVec as a different size.");
+        if label.len() != self.ap.len() {
+            panic!("{label:?} is not a valid label as the BitVec has a different size.");
         }
+    println!("{:?}", self.label_state_map);
         static EMPTY_VEC: Vec<usize> = vec![];
         self.label_state_map.get(label).unwrap_or(&EMPTY_VEC)
     }

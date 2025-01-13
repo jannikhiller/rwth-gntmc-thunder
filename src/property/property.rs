@@ -288,10 +288,7 @@ impl FormulaTreeNode<String> {
 
     /// Recursively removes all double negations from this formula tree. We assume that the current
     /// node is not a `NOT` node.
-    ///
-    /// # Returns
-    /// - A `bool` representing the result of the evaluation.
-    fn remove_double_negations(&mut self) {
+    pub fn remove_double_negations(&mut self) {
         if let FormulaTreeNodeType::Atomic = self.node_type {
             // reached a leaf node, return
             return;

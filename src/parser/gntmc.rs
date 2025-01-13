@@ -545,7 +545,9 @@ fn build_ts(input: GntmcTransitionSystem) -> TransitionSystem {
 
     trace!("Built state labels.");
     let label_states = HashMap::from_iter((0..atomic_props.len() + 1).map(|label_subset| {
-        let label = BitVec::from_bytes(&label_subset.to_ne_bytes());
+        let mut label = BitVec::from_bytes(&label_subset.to_ne_bytes());
+        label.shrink_to_fit();
+        label.extend();
 
         let states = (0..num_states)
             .filter(|state| state_labels[*state] == label)
@@ -588,7 +590,12 @@ fn build_properties(props: Vec<GntmcProperty>) -> (Vec<Property<String>>, Vec<Op
                             PropertyType::OmegaRegular(automaton.translate())
                         }
                         GntmcPropertyKind::Ltl(formula) => PropertyType::Ltl(formula.translate()),
-                        GntmcPropertyKind::Ctl(formula) => PropertyType::Ctl(formula.translate()),
+                        GntmcPropertyKind::Ctl(formula) => {
+                            let mut formula = formula.translate();
+                            formula.remove_double_negations();
+                            PropertyType::Ctl(formula)
+                        }
+
                     },
                 ),
                 p.is_true,
