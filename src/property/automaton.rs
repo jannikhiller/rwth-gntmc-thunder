@@ -1,9 +1,11 @@
-use std::collections::HashMap;
+use crate::common::sparse_matrix::{SparseMatrix, SparseMatrixElement};
+use crate::property::property::{
+    comp_elementary_sets, FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType,
+};
+use array_tool::vec::*;
 use bit_vec::BitVec;
 use log::{debug, trace};
-use array_tool::vec::*;
-use crate::common::sparse_matrix::{SparseMatrix, SparseMatrixElement};
-use crate::property::property::{comp_elementary_sets, FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+use std::collections::HashMap;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AcceptanceType {
@@ -55,7 +57,7 @@ impl FiniteAutomaton<String> {
         last_state: usize,
         initial_state: BitVec,
         accepting_states: BitVec,
-        atomic_propositions: Option<Vec<String>>
+        atomic_propositions: Option<Vec<String>>,
     ) -> Self {
         FiniteAutomaton {
             acceptance,
@@ -86,7 +88,9 @@ impl FiniteAutomaton<String> {
                         Some(aps[0].to_string()),
                         FormulaTreeNodeType::Atomic,
                     ))),
-                    Some(Box::from(create_formula_from_state_aps(aps[1..].to_owned()))),
+                    Some(Box::from(create_formula_from_state_aps(
+                        aps[1..].to_owned(),
+                    ))),
                     None,
                     FormulaTreeNodeType::And,
                 )
@@ -94,14 +98,14 @@ impl FiniteAutomaton<String> {
             trace!("Formula: {}", res);
             res
         }
-        
+
         // If the gnba does not contain any accepting sets, the property does not specify any
         // infinite behavior, i.e., it does not contain any until. Thus, all states (= all
         // behavior) is acceptable.
-        if gnba.accepting_states.is_empty() { 
+        if gnba.accepting_states.is_empty() {
             gnba.accepting_states = vec![BitVec::from_elem(gnba.last_state + 1, true)];
         }
-        
+
         let num_accepting_sets = gnba.accepting_states.len();
         let num_of_gnba_states = gnba.last_state + 1;
         let nba_last_state = (num_of_gnba_states * num_accepting_sets) - 1; // - 1 because 0 is the first state
@@ -119,14 +123,21 @@ impl FiniteAutomaton<String> {
         debug!("Number of initial states: {}", initial_state.count_ones());
         debug!("Last state: {}", nba_last_state);
 
-        for current_accepting_set in 0 .. num_accepting_sets {
-            trace!("Current accepting set, i.e., copy of the gnba: {}", current_accepting_set);
-            for gnba_state in 0 .. num_of_gnba_states {
+        for current_accepting_set in 0..num_accepting_sets {
+            trace!(
+                "Current accepting set, i.e., copy of the gnba: {}",
+                current_accepting_set
+            );
+            for gnba_state in 0..num_of_gnba_states {
                 let state_copy_offset = current_accepting_set * num_of_gnba_states;
                 let nba_state = gnba_state + state_copy_offset;
 
-                trace!("Current NBA state {:?} equals GNBA state {:?} in copy {:?}", nba_state,
-                    gnba_state, current_accepting_set);
+                trace!(
+                    "Current NBA state {:?} equals GNBA state {:?} in copy {:?}",
+                    nba_state,
+                    gnba_state,
+                    current_accepting_set
+                );
 
                 // we need this to construct our transition matrix
                 let formula = create_formula_from_state_aps(gnba.aps_of_state[gnba_state].clone());
@@ -144,31 +155,58 @@ impl FiniteAutomaton<String> {
                     gstate_bv.set(gnba_state, true);
 
                     let target_states = gnba.step(gstate_bv, &gnba.aps_of_state[gnba_state]);
-                    target_states.iter().enumerate().for_each(|(gnba_successor_state, is_reachable)| {
-                        if is_reachable {
-                            // gnba_successor_state + state_copy_offset => corresponding state in the current copy/partition
-                            // + num_of_gnba_states => switch to corresponding state in next partition
-                            trace!("({} + {} + {}) % ({} * {}) = {}", gnba_successor_state, state_copy_offset, num_of_gnba_states, num_accepting_sets, num_of_gnba_states, (gnba_successor_state + state_copy_offset + num_of_gnba_states) % (num_accepting_sets * num_of_gnba_states));
-                            let next_nba_state = (gnba_successor_state + state_copy_offset + num_of_gnba_states) % (num_accepting_sets * num_of_gnba_states);
-                            list_of_entries.push((nba_state, next_nba_state, vec![formula.clone()]));
-                        }
-                    })
+                    target_states.iter().enumerate().for_each(
+                        |(gnba_successor_state, is_reachable)| {
+                            if is_reachable {
+                                // gnba_successor_state + state_copy_offset => corresponding state in the current copy/partition
+                                // + num_of_gnba_states => switch to corresponding state in next partition
+                                trace!(
+                                    "({} + {} + {}) % ({} * {}) = {}",
+                                    gnba_successor_state,
+                                    state_copy_offset,
+                                    num_of_gnba_states,
+                                    num_accepting_sets,
+                                    num_of_gnba_states,
+                                    (gnba_successor_state + state_copy_offset + num_of_gnba_states)
+                                        % (num_accepting_sets * num_of_gnba_states)
+                                );
+                                let next_nba_state =
+                                    (gnba_successor_state + state_copy_offset + num_of_gnba_states)
+                                        % (num_accepting_sets * num_of_gnba_states);
+                                list_of_entries.push((
+                                    nba_state,
+                                    next_nba_state,
+                                    vec![formula.clone()],
+                                ));
+                            }
+                        },
+                    )
                 } else {
                     let mut gstate_bv = BitVec::from_elem(gnba.last_state + 1, false);
                     gstate_bv.set(gnba_state, true);
 
                     let target_states = gnba.step(gstate_bv, &gnba.aps_of_state[gnba_state]);
-                    target_states.iter().enumerate().for_each(|(gnba_successor_state, is_reachable)| {
-                        if is_reachable {
-                            let next_nba_state = gnba_successor_state + state_copy_offset;
-                            list_of_entries.push((nba_state, next_nba_state, vec![formula.clone()]));
-                        }
-                    })
+                    target_states.iter().enumerate().for_each(
+                        |(gnba_successor_state, is_reachable)| {
+                            if is_reachable {
+                                let next_nba_state = gnba_successor_state + state_copy_offset;
+                                list_of_entries.push((
+                                    nba_state,
+                                    next_nba_state,
+                                    vec![formula.clone()],
+                                ));
+                            }
+                        },
+                    )
                 }
             }
         }
 
-        let transition_matrix = SparseMatrix::from_list_of_entries(nba_last_state + 1, nba_last_state + 1, &list_of_entries);
+        let transition_matrix = SparseMatrix::from_list_of_entries(
+            nba_last_state + 1,
+            nba_last_state + 1,
+            &list_of_entries,
+        );
 
         Self {
             acceptance,
@@ -176,7 +214,11 @@ impl FiniteAutomaton<String> {
             last_state: nba_last_state,
             initial_state,
             accepting_states,
-            atomic_propositions: Some(gnba.aps_of_state.iter().fold(Vec::new(), |acc, val| acc.union(val.clone())))
+            atomic_propositions: Some(
+                gnba.aps_of_state
+                    .iter()
+                    .fold(Vec::new(), |acc, val| acc.union(val.clone())),
+            ),
         }
     }
 
@@ -195,11 +237,11 @@ impl FiniteAutomaton<String> {
     pub fn step(&mut self, state: BitVec, label: &Vec<String>) -> BitVec {
         trace!("State {} with label {:?}", state, label);
         let get_successors_of_index = |index: usize| {
-            self.transition_matrix
-                .get_row(index)
-                .flat_map(|SparseMatrixElement { col_index, value }| {
+            self.transition_matrix.get_row(index).flat_map(
+                |SparseMatrixElement { col_index, value }| {
                     value.iter().map(move |tree| (tree, col_index))
-                })
+                },
+            )
         };
 
         let state_successors = state
@@ -528,10 +570,10 @@ impl LtlGnba {
 
 #[cfg(test)]
 mod tests {
-    use bit_vec::BitVec;
     use crate::common::sparse_matrix::SparseMatrix;
     use crate::property::automaton::{AcceptanceType, FiniteAutomaton, LtlGnba};
     use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+    use bit_vec::BitVec;
 
     #[test]
     fn test_finite_automaton() {
@@ -830,7 +872,11 @@ mod tests {
                 vec![true, false, false],
                 vec![true, false, false],
             ]),
-            aps_of_state: vec![vec!["q0".to_string()], vec!["q1".to_string()], vec!["q2".to_string()]],
+            aps_of_state: vec![
+                vec!["q0".to_string()],
+                vec!["q1".to_string()],
+                vec!["q2".to_string()],
+            ],
             initial_state: gnba_initial,
             accepting_states: vec![gnba_accept1, gnba_accept2],
             last_state: 2,
@@ -862,12 +908,54 @@ mod tests {
             FormulaTreeNodeType::Atomic,
         );
         let nba_transitions = SparseMatrix::from_2d_vec(&vec![
-            vec![vec![q0_formula.clone()], vec![q0_formula.clone()], vec![q0_formula.clone()], vec![], vec![], vec![]],
-            vec![vec![], vec![], vec![], vec![q1_formula.clone()], vec![], vec![]],
-            vec![vec![q2_formula.clone()], vec![], vec![], vec![], vec![], vec![]],
-            vec![vec![], vec![], vec![], vec![q0_formula.clone()], vec![q0_formula.clone()], vec![q0_formula.clone()]],
-            vec![vec![], vec![], vec![], vec![q1_formula.clone()], vec![], vec![]],
-            vec![vec![q2_formula.clone()], vec![], vec![], vec![], vec![], vec![]],
+            vec![
+                vec![q0_formula.clone()],
+                vec![q0_formula.clone()],
+                vec![q0_formula.clone()],
+                vec![],
+                vec![],
+                vec![],
+            ],
+            vec![
+                vec![],
+                vec![],
+                vec![],
+                vec![q1_formula.clone()],
+                vec![],
+                vec![],
+            ],
+            vec![
+                vec![q2_formula.clone()],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+            ],
+            vec![
+                vec![],
+                vec![],
+                vec![],
+                vec![q0_formula.clone()],
+                vec![q0_formula.clone()],
+                vec![q0_formula.clone()],
+            ],
+            vec![
+                vec![],
+                vec![],
+                vec![],
+                vec![q1_formula.clone()],
+                vec![],
+                vec![],
+            ],
+            vec![
+                vec![q2_formula.clone()],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+            ],
         ]);
         let nba = FiniteAutomaton {
             acceptance: AcceptanceType::Buchi,

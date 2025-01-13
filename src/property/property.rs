@@ -1,6 +1,6 @@
 use bit_vec::BitVec;
 use log::*;
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
 
@@ -260,10 +260,10 @@ impl FormulaTreeNode<String> {
             FormulaTreeNodeType::Next => {
                 panic!("This operators evalutaion is not implemented yet for ctl")
             }
-            FormulaTreeNodeType::Globally =>{
+            FormulaTreeNodeType::Globally => {
                 panic!("This operators evalutaion is not implemented yet for ctl")
             }
-            FormulaTreeNodeType::Exists =>{
+            FormulaTreeNodeType::Exists => {
                 panic!("This operators evalutaion is not implemented yet for ctl")
             }
         }
@@ -445,9 +445,7 @@ impl ElementaryNode {
     /// - `index`: The index that represents this node. I.e., the index to which the result shall be written.
     fn derive(self, mut state: BitVec, index: usize) -> Vec<BitVec> {
         let err_msg = "Index out of bounds during elementary subset computation";
-        let value_of = |sub_form: usize| -> bool {
-            state.get(sub_form).expect(err_msg)
-        };
+        let value_of = |sub_form: usize| -> bool { state.get(sub_form).expect(err_msg) };
 
         match self.operator {
             FormulaTreeNodeType::True => {
@@ -547,12 +545,16 @@ pub fn comp_elementary_sets(
             let left_child = if is_atomic {
                 0
             } else {
-                *closure_formula_indices.get(&node.clone().left.unwrap().to_string()).unwrap()
+                *closure_formula_indices
+                    .get(&node.clone().left.unwrap().to_string())
+                    .unwrap()
             };
             let right_child = if is_atomic || node.right.is_none() {
                 0
             } else {
-                *closure_formula_indices.get(&node.clone().right.unwrap().to_string()).unwrap()
+                *closure_formula_indices
+                    .get(&node.clone().right.unwrap().to_string())
+                    .unwrap()
             };
 
             closure.push(ElementaryNode::new(
@@ -620,7 +622,6 @@ pub fn comp_elementary_sets(
 
     (indices_to_formula, res)
 }
-
 
 #[cfg(test)]
 mod tests {

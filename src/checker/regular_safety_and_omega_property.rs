@@ -5,12 +5,12 @@ use crate::checker::scc::persistence_checking_with_scc;
 use crate::common::sparse_matrix::SparseMatrix;
 use crate::common::transition_system::TransitionSystem;
 use crate::property::automaton::AcceptanceType::Nfa;
+use crate::property::automaton::FiniteAutomaton;
 use crate::property::property::FormulaTreeNode;
 use crate::property::property::PropertyType;
 use crate::property::property::{FormulaTreeNodeType, Property};
 use bit_vec::BitVec;
 use std::collections::HashMap;
-use crate::property::automaton::FiniteAutomaton;
 
 /// Checks if the given transition system satisfies the given property. It accepts regular safety
 /// properties and omega regular properties. For regular safety properties it builds the sync.

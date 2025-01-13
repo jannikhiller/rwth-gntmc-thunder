@@ -273,27 +273,27 @@ pub enum GntmcCtlStateFormula {
     True,
 }
 
-
 impl GntmcCtlStateFormula {
     fn translate(&self) -> FormulaTreeNode<String> {
         match self {
             GntmcCtlStateFormula::Atom(ref f) => {
                 FormulaTreeNode::new(None, None, Some(f.to_string()), FormulaTreeNodeType::Atomic)
             }
-            GntmcCtlStateFormula::Not(ref f) =>{
-                match &**f{
+            GntmcCtlStateFormula::Not(ref f) => {
+                match &**f {
                     //Case ¬¬Φ ≡ Φ
                     GntmcCtlStateFormula::Not(inner_f) => {
                         //If double negation, just translate inner formula (ignore double)
                         inner_f.translate()
-                    },
-                _ => FormulaTreeNode::new(
-                Some(Box::from(f.translate())),
-                None,
-                None,
-                FormulaTreeNodeType::Not,
-                )}
-            },
+                    }
+                    _ => FormulaTreeNode::new(
+                        Some(Box::from(f.translate())),
+                        None,
+                        None,
+                        FormulaTreeNodeType::Not,
+                    ),
+                }
+            }
             GntmcCtlStateFormula::And(ref left, ref right) => FormulaTreeNode::new(
                 Some(Box::from(left.translate())),
                 Some(Box::from(right.translate())),
@@ -306,17 +306,19 @@ impl GntmcCtlStateFormula {
                     GntmcCtlStateFormula::And(
                         Box::from(GntmcCtlStateFormula::Not(left.clone())),
                         Box::from(GntmcCtlStateFormula::Not(right.clone())),
-                    ).translate(),
+                    )
+                    .translate(),
                 )),
                 None,
                 None,
                 FormulaTreeNodeType::Not,
             ),
             // A => B <=> not A or B
-            GntmcCtlStateFormula::Implies(ref left, ref right) => {
-                GntmcCtlStateFormula::Or(Box::from(GntmcCtlStateFormula::Not(left.clone())), right.clone())
-                    .translate()
-            }
+            GntmcCtlStateFormula::Implies(ref left, ref right) => GntmcCtlStateFormula::Or(
+                Box::from(GntmcCtlStateFormula::Not(left.clone())),
+                right.clone(),
+            )
+            .translate(),
             // Exists are fine, as we transform the eventually to an Until,
             // always, next and globally are fine in ENF
             GntmcCtlStateFormula::Exists(ref path) => FormulaTreeNode::new(
@@ -326,52 +328,61 @@ impl GntmcCtlStateFormula {
                 FormulaTreeNodeType::Exists,
             ),
             // No Foralls in ENF, they have 4 following types of PathFormulas, following
-            GntmcCtlStateFormula::Forall(ref path) =>{
+            GntmcCtlStateFormula::Forall(ref path) => {
                 match &**path {
                     // Case ∀◯ Φ <=> ¬∃◯ ¬Φ
-                    GntmcCtlPathFormula::Next(inner_path) => {
-                        GntmcCtlStateFormula::Not(
-                            Box::new(GntmcCtlStateFormula::Exists(
-                                Box::new(GntmcCtlPathFormula::Next(
-                                    Box::new(GntmcCtlStateFormula::Not(inner_path.clone())),
-                                ))
-                            ))
-                        ).translate()
-                    }
+                    GntmcCtlPathFormula::Next(inner_path) => GntmcCtlStateFormula::Not(Box::new(
+                        GntmcCtlStateFormula::Exists(Box::new(GntmcCtlPathFormula::Next(
+                            Box::new(GntmcCtlStateFormula::Not(inner_path.clone())),
+                        ))),
+                    ))
+                    .translate(),
                     // Case ∀(Φ U Ψ) = ¬∃(¬Ψ U (¬Φ ∧ ¬Ψ)) ∧ ¬∃□¬Ψ
                     GntmcCtlPathFormula::Until(left_inner_path, right_inner_path) => {
                         GntmcCtlStateFormula::And(
-                            Box::from(GntmcCtlStateFormula::Not(
-                                Box::from(GntmcCtlStateFormula::Exists(
-                                    Box::from(GntmcCtlPathFormula::Until(
-                                        Box::from(GntmcCtlStateFormula::Not(right_inner_path.clone())),
+                            Box::from(GntmcCtlStateFormula::Not(Box::from(
+                                GntmcCtlStateFormula::Exists(Box::from(
+                                    GntmcCtlPathFormula::Until(
+                                        Box::from(GntmcCtlStateFormula::Not(
+                                            right_inner_path.clone(),
+                                        )),
                                         Box::from(GntmcCtlStateFormula::And(
-                                            Box::from(GntmcCtlStateFormula::Not(left_inner_path.clone())),
-                                            Box::from(GntmcCtlStateFormula::Not(right_inner_path.clone())),
-                                        ))
-                                    ))
-                                ))
-                            )),
-                            Box::from(GntmcCtlStateFormula::Not(
-                                Box::from(GntmcCtlStateFormula::Exists(
-                                    Box::from(GntmcCtlPathFormula::Globally(
-                                        Box::from(GntmcCtlStateFormula::Not(right_inner_path.clone())),
-                                    ))
-                                ))
-                            ))
-                        ).translate()
+                                            Box::from(GntmcCtlStateFormula::Not(
+                                                left_inner_path.clone(),
+                                            )),
+                                            Box::from(GntmcCtlStateFormula::Not(
+                                                right_inner_path.clone(),
+                                            )),
+                                        )),
+                                    ),
+                                )),
+                            ))),
+                            Box::from(GntmcCtlStateFormula::Not(Box::from(
+                                GntmcCtlStateFormula::Exists(Box::from(
+                                    GntmcCtlPathFormula::Globally(Box::from(
+                                        GntmcCtlStateFormula::Not(right_inner_path.clone()),
+                                    )),
+                                )),
+                            ))),
+                        )
+                        .translate()
                     }
                     // Case ∀♦Φ ≡ ∀(true U Φ)
                     GntmcCtlPathFormula::Finally(inner_path) => {
-                        GntmcCtlStateFormula::Forall(Box::from(GntmcCtlPathFormula::Until(Box::from(GntmcCtlStateFormula::True),
-                                                                                         inner_path.clone()))).translate()}
+                        GntmcCtlStateFormula::Forall(Box::from(GntmcCtlPathFormula::Until(
+                            Box::from(GntmcCtlStateFormula::True),
+                            inner_path.clone(),
+                        )))
+                        .translate()
+                    }
                     // Case ∀□Φ ≡ ¬∃♦¬Φ
                     GntmcCtlPathFormula::Globally(inner_path) => {
-                        GntmcCtlStateFormula::Not(Box::from(
-                            GntmcCtlStateFormula::Exists(Box::from(
-                                GntmcCtlPathFormula::Finally(Box::from(
-                                    GntmcCtlStateFormula::Not(inner_path.clone()),
-                                )))))).translate()
+                        GntmcCtlStateFormula::Not(Box::from(GntmcCtlStateFormula::Exists(
+                            Box::from(GntmcCtlPathFormula::Finally(Box::from(
+                                GntmcCtlStateFormula::Not(inner_path.clone()),
+                            ))),
+                        )))
+                        .translate()
                     }
                 }
             }
@@ -390,7 +401,7 @@ pub enum GntmcCtlPathFormula {
     Finally(Box<GntmcCtlStateFormula>),
     Globally(Box<GntmcCtlStateFormula>),
 }
-impl GntmcCtlPathFormula{
+impl GntmcCtlPathFormula {
     fn translate(&self) -> FormulaTreeNode<String> {
         // until, next and globally are fine in ENF
         match self {
@@ -425,7 +436,6 @@ impl GntmcCtlPathFormula{
         }
     }
 }
-
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]

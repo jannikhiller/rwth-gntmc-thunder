@@ -1,11 +1,10 @@
 use crate::checker::helper::bit_vec_to_ap_strings;
 use crate::common::sparse_matrix::*;
 use crate::property::automaton::FiniteAutomaton;
+use array_tool::vec::*;
 use bit_vec::BitVec;
 use log::{debug, trace};
 use std::collections::{HashMap, HashSet, VecDeque};
-use array_tool::vec::*;
-
 
 /// Represents a transition system with states, transitions, and labels.
 ///
@@ -195,20 +194,23 @@ impl TransitionSystem {
         for state in orig_init_states {
             trace!("TS state: {:?}", state);
             let bv_label = self.get_state_label(state);
-            let labels = bitvecs_to_states
-                .get(bv_label)
-                .cloned()
-                .unwrap_or_else(|| {
-                    let label = bit_vec_to_ap_strings(self, bv_label);
-                    let filtered_label = if auto_aps.is_some() {
-                        label.intersect(auto_aps.clone().unwrap())
-                    } else { label };
-                    bitvecs_to_states.insert(bv_label.clone(), filtered_label.clone());
-                    filtered_label
-                });
+            let labels = bitvecs_to_states.get(bv_label).cloned().unwrap_or_else(|| {
+                let label = bit_vec_to_ap_strings(self, bv_label);
+                let filtered_label = if auto_aps.is_some() {
+                    label.intersect(auto_aps.clone().unwrap())
+                } else {
+                    label
+                };
+                bitvecs_to_states.insert(bv_label.clone(), filtered_label.clone());
+                filtered_label
+            });
 
             let auto_states = auto.step(auto.get_initial_state().clone(), &labels);
-            trace!("Label: {:?}\nSuccessor states in automaton: {:?}", labels, auto_states);
+            trace!(
+                "Label: {:?}\nSuccessor states in automaton: {:?}",
+                labels,
+                auto_states
+            );
             for (auto_state, is_set) in auto_states.iter().enumerate() {
                 if !is_set {
                     continue;
@@ -248,7 +250,9 @@ impl TransitionSystem {
                         let label = bit_vec_to_ap_strings(self, ts_succ_label);
                         let filtered_label = if auto_aps.is_some() {
                             label.intersect(auto_aps.clone().unwrap())
-                        } else { label };
+                        } else {
+                            label
+                        };
                         bitvecs_to_states.insert(ts_succ_label.clone(), filtered_label.clone());
                         filtered_label
                     });

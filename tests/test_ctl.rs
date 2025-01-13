@@ -4,8 +4,10 @@ macro_rules! check_file {
 
         for prop in props.iter() {
             match &prop.property_type {
-                PropertyType::Ctl(inner_node) =>{println!("{}", inner_node)}
-                _ => panic!("Wrong property type")
+                PropertyType::Ctl(inner_node) => {
+                    println!("{}", inner_node)
+                }
+                _ => panic!("Wrong property type"),
             }
         }
     };
@@ -24,8 +26,8 @@ macro_rules! generate_res_test {
 
 #[cfg(test)]
 mod tests {
-   use thunder::parser::gntmc;
-    use thunder::property::property::{PropertyType};
+    use thunder::parser::gntmc;
+    use thunder::property::property::PropertyType;
     generate_res_test!(test_ctl_parse_1);
 
     #[test]
