@@ -3,12 +3,13 @@ Thunder Model Checker
 
 This is a university project implementing different model checking algorithms in rust. 
 
-Currently the following algorithms are implemented:
+Currently, the following algorithms are implemented:
 - Invariant checking using breadth first search
 - Persistence checking
 - Checking of regular properties (given as NFA)
 - Checking of omega-regular properties (given as NBA)
 - Checking of LTL-formulae
+- Checking of CTL-formulae
 
 Requirements
 ------------

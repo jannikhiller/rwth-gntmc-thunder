@@ -134,11 +134,11 @@ fn compute_sat_set_of_exists_until(
     let right = formula.right.unwrap();
 
     trace!("Computing satisfaction set of right subformula.");
-    let mut set_t = compute_sat_set(transition_system, &*right, cache);
+    let mut set_t = compute_sat_set(transition_system, &right, cache);
     trace!("Finished satisfaction set of right subformula.");
     let mut set_e = set_t.clone();
     trace!("Computing satisfaction set of left subformula.");
-    let sat_left = compute_sat_set(transition_system, &*left, cache);
+    let sat_left = compute_sat_set(transition_system, &left, cache);
     trace!("Finished satisfaction set of left subformula.");
 
     while set_e.any() {

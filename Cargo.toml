@@ -2,7 +2,7 @@
 name = "thunder"
 description = "A simple model checker."
 repository = "https://git.rwth-aachen.de/gntmc24/students/group1/thunder/"
-version = "0.3.0"
+version = "0.4.0"
 authors = [
   "Jannik Hiller <jannik.hiller@rwth-aachen.de>",
   "Andreas Gerhards <andreas.gerhards@rwth-aachen.de>",
