@@ -216,9 +216,9 @@ mod tests {
     use crate::checker::scc::persistence_checking_with_scc;
     use crate::common::sparse_matrix::SparseMatrix;
     use crate::common::transition_system::TransitionSystem;
+    use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
     use bit_vec::BitVec;
     use std::collections::HashMap;
-    use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
 
     #[test]
     fn test_scc_true() {

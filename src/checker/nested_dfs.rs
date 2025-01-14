@@ -115,7 +115,7 @@ fn cycle_check(
         if successor_states_of_current_state.contains(&state) {
             xi.push_back(state);
             return true;
-        } else if !successor_states_of_current_state.is_subset(&set_v) {
+        } else if !successor_states_of_current_state.is_subset(set_v) {
             let &s_pprime = successor_states_of_current_state.iter().next().unwrap();
             trace!("Chose {} for s''", s_pprime);
             set_v.insert(s_pprime);

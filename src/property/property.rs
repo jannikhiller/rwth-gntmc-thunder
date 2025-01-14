@@ -1,6 +1,6 @@
 use bit_vec::BitVec;
 use log::*;
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
 
@@ -203,7 +203,7 @@ impl FormulaTreeNode<String> {
     /// # Panics
     /// - If nodes required for the evaluation are missing in the tree.
     pub fn evaluate(&self, labels: &Vec<String>) -> bool {
-        trace!("Evaluating subformula of type {:?}", self.node_type);
+        // trace!("Evaluating subformula of type {:?}", self.node_type);
         match self.node_type {
             FormulaTreeNodeType::And => {
                 if self.left.as_ref().is_none() {
@@ -260,10 +260,10 @@ impl FormulaTreeNode<String> {
             FormulaTreeNodeType::Next => {
                 panic!("This operators evalutaion is not implemented yet for ctl")
             }
-            FormulaTreeNodeType::Globally =>{
+            FormulaTreeNodeType::Globally => {
                 panic!("This operators evalutaion is not implemented yet for ctl")
             }
-            FormulaTreeNodeType::Exists =>{
+            FormulaTreeNodeType::Exists => {
                 panic!("This operators evalutaion is not implemented yet for ctl")
             }
         }
@@ -288,10 +288,7 @@ impl FormulaTreeNode<String> {
 
     /// Recursively removes all double negations from this formula tree. We assume that the current
     /// node is not a `NOT` node.
-    ///
-    /// # Returns
-    /// - A `bool` representing the result of the evaluation.
-    fn remove_double_negations(&mut self) {
+    pub fn remove_double_negations(&mut self) {
         if let FormulaTreeNodeType::Atomic = self.node_type {
             // reached a leaf node, return
             return;
@@ -392,7 +389,7 @@ pub enum FormulaTreeNodeType {
     //ltl-types
     Next,
     Until,
-    //ctl-types (only  enf operators)
+    //ctl-types (in ENF)
     Exists,
     Globally,
     #[default]
@@ -445,9 +442,7 @@ impl ElementaryNode {
     /// - `index`: The index that represents this node. I.e., the index to which the result shall be written.
     fn derive(self, mut state: BitVec, index: usize) -> Vec<BitVec> {
         let err_msg = "Index out of bounds during elementary subset computation";
-        let value_of = |sub_form: usize| -> bool {
-            state.get(sub_form).expect(err_msg)
-        };
+        let value_of = |sub_form: usize| -> bool { state.get(sub_form).expect(err_msg) };
 
         match self.operator {
             FormulaTreeNodeType::True => {
@@ -525,7 +520,7 @@ pub fn comp_elementary_sets(
     let mut closure: Vec<ElementaryNode> = Vec::new();
 
     // Traverse the formula to capture all nodes and map them into the intermediate struct (`ElementaryNode`)
-    FormulaTreeNode::post_order_traversal(&formula, &mut |node: &FormulaTreeNode<String>| {
+    FormulaTreeNode::post_order_traversal(formula, &mut |node: &FormulaTreeNode<String>| {
         let is_atomic = node.node_type == FormulaTreeNodeType::True
             || node.node_type == FormulaTreeNodeType::Atomic
             || node.node_type == FormulaTreeNodeType::Next;
@@ -547,12 +542,16 @@ pub fn comp_elementary_sets(
             let left_child = if is_atomic {
                 0
             } else {
-                *closure_formula_indices.get(&node.clone().left.unwrap().to_string()).unwrap()
+                *closure_formula_indices
+                    .get(&node.clone().left.unwrap().to_string())
+                    .unwrap()
             };
             let right_child = if is_atomic || node.right.is_none() {
                 0
             } else {
-                *closure_formula_indices.get(&node.clone().right.unwrap().to_string()).unwrap()
+                *closure_formula_indices
+                    .get(&node.clone().right.unwrap().to_string())
+                    .unwrap()
             };
 
             closure.push(ElementaryNode::new(
@@ -620,7 +619,6 @@ pub fn comp_elementary_sets(
 
     (indices_to_formula, res)
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -793,7 +791,7 @@ mod tests {
         );
 
         let labels = vec!["B".to_string()];
-        assert_eq!(false, property.evaluate(&labels), "Property should evaluate to false when labels do not satisfy the AND condition with NOT.");
+        assert!(!property.evaluate(&labels), "Property should evaluate to false when labels do not satisfy the AND condition with NOT.");
     }
 
     #[test]
