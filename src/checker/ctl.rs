@@ -11,11 +11,13 @@ pub fn ctl_checking(
     transition_system: &TransitionSystem,
     property: &Property<String>,
 ) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
+    let mut cache: HashMap<String, BitVec> = HashMap::new();
+
     match &property.property_type {
         PropertyType::Ctl(formula) => {
             debug!("Checking CTL-formula: \n{}", formula);
             // check if all initial states are in the sat set of the given formula
-            let sat_set = compute_sat_set(transition_system, &formula.clone());
+            let sat_set = compute_sat_set(transition_system, &formula.clone(), &mut cache);
             // trace!("Obtained satisfaction set as bitvector: {}", sat_set);
             for init_state in transition_system.get_initial_states() {
                 if !sat_set.get(*init_state).unwrap() {
@@ -34,29 +36,29 @@ pub fn ctl_checking(
 fn compute_sat_set(
     transition_system: &TransitionSystem,
     formula: &FormulaTreeNode<String>,
+    cache: &mut HashMap<String, BitVec>
 ) -> BitVec {
-    trace!("Computing satisfaction set...");
-    let mut cache: HashMap<String, BitVec> = HashMap::new();
+    debug!("Computing satisfaction set for formula \n{}", formula.to_string());
 
     if cache.contains_key(&formula.to_string()) {
-        trace!("Found satisfaction set in cache.");
+        debug!("Found satisfaction set in cache for formula: \n{}", formula.to_string());
         return cache.get(&formula.to_string()).unwrap().clone();
     }
 
     let res = match formula.node_type {
         FormulaTreeNodeType::True => compute_sat_set_true(transition_system),
         FormulaTreeNodeType::Atomic => compute_sat_set_atomic(transition_system, formula.clone()),
-        FormulaTreeNodeType::Not => compute_sat_set_not(transition_system, formula.clone()),
-        FormulaTreeNodeType::And => compute_sat_set_and(transition_system, formula.clone()),
+        FormulaTreeNodeType::Not => compute_sat_set_not(transition_system, formula.clone(), cache),
+        FormulaTreeNodeType::And => compute_sat_set_and(transition_system, formula.clone(), cache),
         FormulaTreeNodeType::Exists => {
             let left_node = formula
                 .clone()
                 .left
                 .expect("Left child of exists nodes must be set.");
             match left_node.node_type {
-                FormulaTreeNodeType::Next => compute_sat_set_of_exists_next(transition_system, *formula.left.clone().unwrap()),
-                FormulaTreeNodeType::Until => compute_sat_set_of_exists_until(transition_system, *formula.left.clone().unwrap()),
-                FormulaTreeNodeType::Globally => compute_sat_set_of_exists_globally(transition_system, *formula.left.clone().unwrap()),
+                FormulaTreeNodeType::Next => compute_sat_set_of_exists_next(transition_system, *formula.left.clone().unwrap(), cache),
+                FormulaTreeNodeType::Until => compute_sat_set_of_exists_until(transition_system, *formula.left.clone().unwrap(), cache),
+                FormulaTreeNodeType::Globally => compute_sat_set_of_exists_globally(transition_system, *formula.left.clone().unwrap(), cache),
                 _ => panic!("Invalid property: Exists may not be followed by something other than NEXT, UNTIL, or GLOBALLY."),
             }
         }
@@ -80,36 +82,23 @@ fn compute_sat_set_atomic(
     formula: FormulaTreeNode<String>,
 ) -> BitVec {
     trace!("Computing satisfaction sets for ATOMIC...");
-    let label_index = transition_system.get_ap().iter().position(|x| *x == formula.label.clone().unwrap());
-
-    let mut states_with_label = Vec::new();
-    (0 .. 2_usize.pow(transition_system.get_ap().len() as u32)).for_each(|label_subset| {
-        let mut label = BitVec::from_bytes(&label_subset.shl(usize::BITS - transition_system.get_ap().len() as u32).to_be_bytes());
-        label.truncate(transition_system.get_ap().len());
-
-        if label.get(label_index.unwrap()).unwrap() { // This might be optimized later using an
-        // elegant bit shift or something similar to make the iteration start at the appropriate bit
-            for state in transition_system.get_states_with_label(&label) {
-                states_with_label.push(*state);
-            };
-        }
-    });
-
-    let res = BitVec::from_fn(transition_system.get_num_states(), |index| {
-        states_with_label.contains(&index)
-    });
-    trace!("Finished satisfaction sets for ATOMIC");
-
-    res
+    let mut set = BitVec::from_elem(transition_system.get_num_states(), false);
+    for state in 0..transition_system.get_num_states() {
+        let label =
+            bit_vec_to_ap_strings(transition_system, transition_system.get_state_label(state));
+        set.set(state, formula.evaluate(&label));
+    }
+    set
 }
 
 fn compute_sat_set_not(
     transition_system: &TransitionSystem,
     formula: FormulaTreeNode<String>,
+    cache: &mut HashMap<String, BitVec>
 ) -> BitVec {
     trace!("Computing satisfaction sets for NOT...");
     let child = formula.left.unwrap();
-    let mut set = compute_sat_set(transition_system, &*child);
+    let mut set = compute_sat_set(transition_system, &*child, cache);
     set.negate();
     trace!("Finished satisfaction sets for NOT");
     set
@@ -118,15 +107,16 @@ fn compute_sat_set_not(
 fn compute_sat_set_and(
     transition_system: &TransitionSystem,
     formula: FormulaTreeNode<String>,
+    cache: &mut HashMap<String, BitVec>
 ) -> BitVec {
     trace!("Computing satisfaction sets for AND...");
     let left = formula.left.unwrap();
     let right = formula.right.unwrap();
 
     trace!("Computing left satisfaction set...");
-    let mut set_left = compute_sat_set(transition_system, &*left);
+    let mut set_left = compute_sat_set(transition_system, &*left, cache);
     trace!("Finished left satisfaction sets.\nStarting righ...");
-    let set_right = compute_sat_set(transition_system, &*right);
+    let set_right = compute_sat_set(transition_system, &*right, cache);
     trace!("Finished right satisfaction set.");
 
     set_left.and(&set_right);
@@ -137,17 +127,18 @@ fn compute_sat_set_and(
 fn compute_sat_set_of_exists_until(
     transition_system: &TransitionSystem,
     formula: FormulaTreeNode<String>,
+    cache: &mut HashMap<String, BitVec>
 ) -> BitVec {
     trace!("Computing satisfaction sets for EXISTS UNTIL...");
     let left = formula.left.unwrap();
     let right = formula.right.unwrap();
 
     trace!("Computing satisfaction set of right subformula.");
-    let mut set_t = compute_sat_set(transition_system, &*right);
+    let mut set_t = compute_sat_set(transition_system, &*right, cache);
     trace!("Finished satisfaction set of right subformula.");
     let mut set_e = set_t.clone();
     trace!("Computing satisfaction set of left subformula.");
-    let sat_left = compute_sat_set(transition_system, &*left);
+    let sat_left = compute_sat_set(transition_system, &*left, cache);
     trace!("Finished satisfaction set of left subformula.");
 
     while set_e.any() {
@@ -189,9 +180,10 @@ fn compute_sat_set_of_exists_until(
 fn compute_sat_set_of_exists_globally(
     transition_system: &TransitionSystem,
     formula: FormulaTreeNode<String>,
+    cache: &mut HashMap<String, BitVec>
 ) -> BitVec {
     trace!("Computing satisfaction sets for EXISTS GLOBALLY...");
-    let mut set_t = compute_sat_set(transition_system, &formula.left.unwrap());
+    let mut set_t = compute_sat_set(transition_system, &formula.left.unwrap(), cache);
     let mut set_e = set_t.clone();
     set_e.negate();
 
@@ -238,9 +230,10 @@ fn compute_sat_set_of_exists_globally(
 fn compute_sat_set_of_exists_next(
     transition_system: &TransitionSystem,
     formula: FormulaTreeNode<String>,
+    cache: &mut HashMap<String, BitVec>
 ) -> BitVec {
     trace!("Computing satisfaction sets for EXISTS NEXT...");
-    let sat_set = compute_sat_set(transition_system, &formula.left.unwrap());
+    let sat_set = compute_sat_set(transition_system, &formula.left.unwrap(), cache);
     let mut result_set = BitVec::from_elem(transition_system.get_num_states(), false);
 
     for state in 0..transition_system.get_num_states() {
@@ -352,6 +345,7 @@ mod tests {
     
     #[test]
     fn test_not() {
+        let mut cache: HashMap<String, BitVec> = HashMap::new();
         let ts = build_test_ts();
         let formula_a = FormulaTreeNode::new(
             None, None, Some("a".to_string()), FormulaTreeNodeType::Atomic
@@ -362,11 +356,12 @@ mod tests {
         let mut res_a = BitVec::from_elem(ts.get_num_states(), true);
         res_a.set(0, false);
         
-        assert_eq!(compute_sat_set_not(&ts, not), res_a);
+        assert_eq!(compute_sat_set_not(&ts, not, &mut cache), res_a);
     }
 
     #[test]
     fn test_and() {
+        let mut cache: HashMap<String, BitVec> = HashMap::new();
         let ts = build_test_ts();
         let formula_a = FormulaTreeNode::new(
             None, None, Some("a".to_string()), FormulaTreeNodeType::Atomic
@@ -391,13 +386,14 @@ mod tests {
         let mut res_b_and_e = BitVec::from_elem(ts.get_num_states(), false);
         let mut res_a_and_b = BitVec::from_elem(ts.get_num_states(), false);
 
-        assert_eq!(compute_sat_set_and(&ts, a_and_e), res_a_and_e);
-        assert_eq!(compute_sat_set_and(&ts, b_and_e), res_b_and_e);
-        assert_eq!(compute_sat_set_and(&ts, a_and_b), res_a_and_b);
+        assert_eq!(compute_sat_set_and(&ts, a_and_e, &mut cache), res_a_and_e);
+        assert_eq!(compute_sat_set_and(&ts, b_and_e, &mut cache), res_b_and_e);
+        assert_eq!(compute_sat_set_and(&ts, a_and_b, &mut cache), res_a_and_b);
     }
 
     #[test]
     fn test_exists_until() {
+        let mut cache: HashMap<String, BitVec> = HashMap::new();
         let ts = build_test_ts();
         let formula_a = FormulaTreeNode::new(
             None, None, Some("a".to_string()), FormulaTreeNodeType::Atomic
@@ -412,11 +408,12 @@ mod tests {
         res.set(0, true);
         res.set(1, true);
         
-        assert_eq!(compute_sat_set_of_exists_until(&ts, until), res);
+        assert_eq!(compute_sat_set_of_exists_until(&ts, until, &mut cache), res);
     }
 
     #[test]
     fn test_exists_globally() {
+        let mut cache: HashMap<String, BitVec> = HashMap::new();
         let ts = build_test_ts();
         let formula_a = FormulaTreeNode::new(
             None, None, Some("a".to_string()), FormulaTreeNodeType::Atomic
@@ -432,12 +429,13 @@ mod tests {
         );
         let res = BitVec::from_elem(ts.get_num_states(), false);
 
-        assert_eq!(compute_sat_set_of_exists_globally(&ts, globally_a), res);
-        assert_eq!(compute_sat_set_of_exists_globally(&ts, globally_c), res);
+        assert_eq!(compute_sat_set_of_exists_globally(&ts, globally_a, &mut cache), res);
+        assert_eq!(compute_sat_set_of_exists_globally(&ts, globally_c, &mut cache), res);
     }
     
     #[test]
     fn test_exists_next() {
+        let mut cache: HashMap<String, BitVec> = HashMap::new();
         let ts = build_test_ts();
         let formula_a = FormulaTreeNode::new(
             None, None, Some("a".to_string()), FormulaTreeNodeType::Atomic
@@ -456,8 +454,8 @@ mod tests {
         let mut res_b = BitVec::from_elem(ts.get_num_states(), false);
         res_b.set(0, true);
 
-        assert_eq!(compute_sat_set_of_exists_next(&ts, next_a), res_a);
-        assert_eq!(compute_sat_set_of_exists_next(&ts, next_b), res_b);
+        assert_eq!(compute_sat_set_of_exists_next(&ts, next_a, &mut cache), res_a);
+        assert_eq!(compute_sat_set_of_exists_next(&ts, next_b, &mut cache), res_b);
     }
 }
 

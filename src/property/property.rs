@@ -203,7 +203,7 @@ impl FormulaTreeNode<String> {
     /// # Panics
     /// - If nodes required for the evaluation are missing in the tree.
     pub fn evaluate(&self, labels: &Vec<String>) -> bool {
-        trace!("Evaluating subformula of type {:?}", self.node_type);
+        // trace!("Evaluating subformula of type {:?}", self.node_type);
         match self.node_type {
             FormulaTreeNodeType::And => {
                 if self.left.as_ref().is_none() {
