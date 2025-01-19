@@ -3,6 +3,7 @@ macro_rules! check_file {
         let (ts, props, is_trues) = gntmc::parse_gntmc_file($file);
 
         for prop in props.iter() {
+           println!("-----------------------------");
             match &prop.property_type {
                 PropertyType::Ctl(inner_node) => {
                     println!("{}", inner_node)
