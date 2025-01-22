@@ -19,6 +19,7 @@ struct Partition<T> {
 }
 
 impl<T: Hash + Eq + Clone + Debug> Partition<T> {
+    ///! Create a partition from a list of vectors
     pub fn from_vecs(vecs: &[Vec<T>]) -> Self {
         let mut elements = Vec::new();
         let mut blocks = IndexList::new();
@@ -39,6 +40,7 @@ impl<T: Hash + Eq + Clone + Debug> Partition<T> {
         }
     }
 
+    ///! Return the partition as an iterator over it's sets
     pub fn to_slices(&self) -> impl Iterator<Item = &[T]> {
         self.blocks
             .iter()
@@ -47,6 +49,8 @@ impl<T: Hash + Eq + Clone + Debug> Partition<T> {
 
     fn find_in_block(&self, block_index: ListIndex, item: &T) -> usize {
         let block = self.blocks.get(block_index).unwrap();
+        // this is a linear search, if it becomes a bottleneck, we can consider
+        // keeping each block sorted
         self.elements[block.start..block.end]
             .iter()
             .position(|e| e == item)
@@ -56,21 +60,16 @@ impl<T: Hash + Eq + Clone + Debug> Partition<T> {
 
     fn move_item_to_next_block(&mut self, block_index: ListIndex, item: &T) {
         let next_block_index = self.blocks.next_index(block_index);
-        let block = self.blocks.get_mut(block_index).unwrap();
-        let block_end = block.end;
-
+        let block_end = self.blocks.get_mut(block_index).unwrap().end;
         let item_index = self.find_in_block(block_index, item);
         self.elements.swap(item_index, block_end - 1);
-
-        let block = self.blocks.get_mut(block_index).unwrap(); // needed to avoid having two
-                                                               // mutable borrows of self above
-        block.end -= 1;
-        let next_block = self.blocks.get_mut(next_block_index).unwrap();
-        next_block.start -= 1;
-
+        self.blocks.get_mut(block_index).unwrap().end -= 1;
+        self.blocks.get_mut(next_block_index).unwrap().start -= 1;
         self.block_map.insert(item.clone(), next_block_index);
     }
 
+    ///! Refine the partition wrt a set `splitter`
+    ///! Returns `true` if the partition has changed
     pub fn refine(&mut self, splitter: &[T]) -> bool {
         let mut changed_blocks = HashSet::new();
 
