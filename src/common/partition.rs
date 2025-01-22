@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use index_list::{IndexList, ListIndex};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
