@@ -5,7 +5,6 @@ use bit_vec::BitVec;
 use itertools::Itertools;
 use log::{debug, trace};
 use std::collections::HashMap;
-use std::ops::Shl;
 
 pub fn ctl_checking(
     transition_system: &TransitionSystem,
@@ -104,7 +103,7 @@ fn compute_sat_set_not(
 ) -> BitVec {
     trace!("Computing satisfaction sets for NOT...");
     let child = formula.left.unwrap();
-    let mut set = compute_sat_set(transition_system, &*child, cache);
+    let mut set = compute_sat_set(transition_system, &child, cache);
     set.negate();
     trace!("Finished satisfaction sets for NOT");
     set
@@ -120,9 +119,9 @@ fn compute_sat_set_and(
     let right = formula.right.unwrap();
 
     trace!("Computing left satisfaction set...");
-    let mut set_left = compute_sat_set(transition_system, &*left, cache);
+    let mut set_left = compute_sat_set(transition_system, &left, cache);
     trace!("Finished left satisfaction sets.\nStarting righ...");
-    let set_right = compute_sat_set(transition_system, &*right, cache);
+    let set_right = compute_sat_set(transition_system, &right, cache);
     trace!("Finished right satisfaction set.");
 
     set_left.and(&set_right);

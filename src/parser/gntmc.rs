@@ -1,11 +1,10 @@
 use bit_vec::BitVec;
-use itertools::{repeat_n, Itertools};
+use itertools::Itertools;
 use log::*;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::BufReader;
-use std::ops::Shl;
 
 use crate::common::sparse_matrix::SparseMatrix;
 use crate::common::transition_system::*;
