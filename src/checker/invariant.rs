@@ -205,9 +205,7 @@ mod tests {
             FormulaTreeNodeType::Atomic,
         );
         let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant(root));
-        assert!(
-            bfs_invariant_checking(&ts, &property).err().is_some()
-        );
+        assert!(bfs_invariant_checking(&ts, &property).err().is_some());
 
         //for printing the counter example
         //println!("{:?}", bfs_invariant_checking(ts, property).err());

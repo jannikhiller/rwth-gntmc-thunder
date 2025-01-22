@@ -39,9 +39,7 @@ pub fn check(
             regular_safety_and_omega_checking(transition_system, property, options)
         }
         PropertyType::Ltl(_) => ltl_checking(transition_system, property, options),
-        PropertyType::Ctl(_) => {
-            ctl_checking(transition_system, property)
-        }
+        PropertyType::Ctl(_) => ctl_checking(transition_system, property),
     }
 }
 

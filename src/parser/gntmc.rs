@@ -1,11 +1,11 @@
 use bit_vec::BitVec;
 use itertools::{repeat_n, Itertools};
+use log::*;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::BufReader;
 use std::ops::Shl;
-use log::*;
 
 use crate::common::sparse_matrix::SparseMatrix;
 use crate::common::transition_system::*;
@@ -545,16 +545,16 @@ fn build_ts(input: GntmcTransitionSystem) -> TransitionSystem {
 
     trace!("Built state labels.");
     let label_states = HashMap::new(); // from_iter((0 .. 2_usize.pow(atomic_props.len() as u32)).map(|label_subset| {
-        // The shifting pushes the labels, i.e., the bits that might be set, into the area that is not truncated in the following
-    //     let mut label = BitVec::from_bytes(&label_subset.shl(usize::BITS - atomic_props.len() as u32).to_be_bytes());
-    //     label.truncate(atomic_props.len());
-    // 
-    //     let states = (0..num_states)
-    //         .filter(|state| state_labels[*state] == label)
-    //         .collect::<Vec<_>>();
-    // 
-    //     (label, states)
-    // }));
+                                       // The shifting pushes the labels, i.e., the bits that might be set, into the area that is not truncated in the following
+                                       //     let mut label = BitVec::from_bytes(&label_subset.shl(usize::BITS - atomic_props.len() as u32).to_be_bytes());
+                                       //     label.truncate(atomic_props.len());
+                                       //
+                                       //     let states = (0..num_states)
+                                       //         .filter(|state| state_labels[*state] == label)
+                                       //         .collect::<Vec<_>>();
+                                       //
+                                       //     (label, states)
+                                       // }));
     trace!("Built reverse state label info.");
 
     TransitionSystem::new(
@@ -595,7 +595,6 @@ fn build_properties(props: Vec<GntmcProperty>) -> (Vec<Property<String>>, Vec<Op
                             formula.remove_double_negations();
                             PropertyType::Ctl(formula)
                         }
-
                     },
                 ),
                 p.is_true,

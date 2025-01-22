@@ -265,12 +265,14 @@ mod tests {
             (3, 3, true),
         ];
         let transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
-        let reverse_transitions = [(1, 0, true),
+        let reverse_transitions = [
+            (1, 0, true),
             (2, 0, true),
             (1, 2, true),
             (3, 1, true),
             (2, 3, true),
-            (3, 3, true)];
+            (3, 3, true),
+        ];
         let reverse_transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
         let mut state_labels = Vec::new();
         let ap = vec!["a".to_string(), "b".to_string()];

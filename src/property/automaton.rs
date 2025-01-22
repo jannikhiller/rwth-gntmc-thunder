@@ -605,10 +605,12 @@ mod tests {
         let transition_matrix = SparseMatrix::from_list_of_entries(
             4,
             4,
-            &[(0, 1, vec![atomic_a]),
+            &[
+                (0, 1, vec![atomic_a]),
                 (1, 2, vec![atomic_b]),
                 (2, 3, vec![atomic_c]),
-                (3, 0, vec![atomic_d])],
+                (3, 0, vec![atomic_d]),
+            ],
         );
 
         let mut initial_state = BitVec::from_elem(4, false);
@@ -687,10 +689,12 @@ mod tests {
         initial_state.set(2, true);
         assert_eq!(ltl_gnba.initial_state, initial_state);
 
-        let transition_matrix = SparseMatrix::from_2d_vec(&[vec![true, true, false, false],
+        let transition_matrix = SparseMatrix::from_2d_vec(&[
+            vec![true, true, false, false],
             vec![false, false, true, true],
             vec![true, true, false, false],
-            vec![false, false, true, true]]);
+            vec![false, false, true, true],
+        ]);
         assert_eq!(ltl_gnba.transition_matrix, transition_matrix);
         assert_eq!(ltl_gnba.accepting_states, vec![]);
         assert_eq!(
@@ -863,9 +867,11 @@ mod tests {
         let mut gnba_accept2 = BitVec::from_elem(3, false);
         gnba_accept2.set(2, true);
         let gnba = LtlGnba {
-            transition_matrix: SparseMatrix::from_2d_vec(&[vec![true, true, true],
+            transition_matrix: SparseMatrix::from_2d_vec(&[
+                vec![true, true, true],
                 vec![true, false, false],
-                vec![true, false, false]]),
+                vec![true, false, false],
+            ]),
             aps_of_state: vec![
                 vec!["q0".to_string()],
                 vec!["q1".to_string()],
@@ -901,7 +907,8 @@ mod tests {
             Some("q2".to_string()),
             FormulaTreeNodeType::Atomic,
         );
-        let nba_transitions = SparseMatrix::from_2d_vec(&[vec![
+        let nba_transitions = SparseMatrix::from_2d_vec(&[
+            vec![
                 vec![q0_formula.clone()],
                 vec![q0_formula.clone()],
                 vec![q0_formula.clone()],
@@ -948,7 +955,8 @@ mod tests {
                 vec![],
                 vec![],
                 vec![],
-            ]]);
+            ],
+        ]);
         let nba = FiniteAutomaton {
             acceptance: AcceptanceType::Buchi,
             transition_matrix: nba_transitions,
