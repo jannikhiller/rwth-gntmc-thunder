@@ -12,10 +12,22 @@ use bit_vec::BitVec;
 /// nested DFS algorithm as proposed by Stefan Schwoon and Javier Esparza in their
 /// paper `A Note on On-The-Fly Verification Algorithms`. <br />
 /// Note that we reimplemented their algorithm into an iterative version to deal with the
-/// limitations of the stack size.
+/// limitations of the stack size. <br />
+/// While the basic of the is outlined here, we refer to the corresponding paper for a
+/// more thorough explanation. <br />
+/// 
+/// ## Idea of the algorithm
+/// The main idea of the algorithm is the same as for a traditional nested dfs but each
+/// state is annotated with more information. Each state is in one of the following categories:
+/// - Visited by neither the outer nor an inner dfs.
+/// - Visited by the outer dfs, but it is not yet finished.
+/// - The outer dfs on a state is finished. The state has not yet been visited in an inner dfs.
+/// - The state has been visited in the outer and an inner dfs.
+/// 
+/// Each information is represented by a different color represented using 2 bits.
+/// For (memory-) efficient representation we use two `BitVec`s for this representation.
 ///
 /// # Parameters
-///
 /// - `transition_system`: The given transition system which gets checked.
 /// - `property`: The property to be checked on the given transition system.
 ///
@@ -45,6 +57,20 @@ pub fn persistence_checking_with_nested_dfs(
     Ok(true)
 }
 
+/// Performs the outer dfs used to find states that violate the given property. <br />
+/// A state is annotated `Cyan` once it is considered in the outer dfs once. <br />
+/// For each state each successor is considered: <br/>
+/// If the successor is annotated `Cyan` its outer dfs is not yet finished.
+/// If the current state or that successor violates the property,
+/// an invalid cycle is found and can be reported.
+/// If the successor has not yet been visited by the outer dfs, i.e., it is annotated `White`,
+/// that successor is now visited.
+/// If the outer dfs on the successor is already finished, or it was even considered in an inner dfs,
+/// it does not need to be considered any further. <br />
+/// Once a state is fully expanded and it violates the given property,
+/// an inner dfs is started on this state. Afterward, the state is annotated `Red` to indicate that
+/// an inner dfs was already performed on this state. If the state satisfies the property, it is
+/// annotated `Blue` to indicate that the outer dfs has been finished on this state.
 fn outer_dfs(
     transition_system: &TransitionSystem,
     property: &Property<String>,
@@ -93,6 +119,13 @@ fn outer_dfs(
     Ok(true)
 }
 
+/// Performs the inner dfs used to find cycles. <br />
+/// It visits each successor of the given state.
+/// If the successor is annotated `Cyan`, its outer dfs is not yet finished. Thus, a cycle that
+/// violates the property has been found and can be reported.
+/// If it is annotated `Blue`, its outer dfs is finished. Thus, it can be annotated `Red`
+/// (since it has now been visited by an inner dfs) and used as the starting point for the next
+/// iteration of the inner dfs. 
 fn inner_dfs(
     init_state: usize,
     bv_one: &mut BitVec,
@@ -135,8 +168,8 @@ fn check_property_on_state(
 }
 
 fn reconstruct_path(
-    pi: &mut Vec<usize>,
-    xi: &mut Vec<usize>,
+    outer_stack: &mut Vec<usize>,
+    inner_stack: &mut Vec<usize>,
     transition_system: &TransitionSystem,
 ) -> (Vec<Vec<String>>, Vec<usize>) {
     debug!("Constructing counterexample...");
@@ -144,12 +177,12 @@ fn reconstruct_path(
     let mut trace = Vec::new();
     let mut path = VecDeque::new();
 
-    while let Some(state) = pi.pop() {
+    while let Some(state) = outer_stack.pop() {
         path.push_front(state);
     }
 
     trace!("Looping part of counterexample:");
-    while let Some(state) = xi.pop() {
+    while let Some(state) = inner_stack.pop() {
         trace!("{}, ", state);
         path.push_front(state);
     }
@@ -166,6 +199,13 @@ fn reconstruct_path(
     (trace, Vec::from(path))
 }
 
+
+/// The algorithm uses colors to encode certain information about each state.
+/// The available colors are listed in this enum.
+/// - `White`: The initial color of each state. The state has not yet been visited by any dfs.
+/// - `Cyan`: A state whose outer dfs has not yet terminated.
+/// - `Blue`: A state whose outer dfs has terminated but was not yet reached in an inner dfs.
+/// - `Red`: A state that has been considered in an outer and an inner dfs.
 #[derive(PartialEq, Debug)]
 enum Color {
     White,
@@ -174,6 +214,8 @@ enum Color {
     Red,
 }
 
+/// Sets the color of the given `state` to the given value in the given `BitVec`s <br />
+/// Note that `bv_two` is the highest-order bit.
 fn set_color(state: usize, color: Color, bv_one: &mut BitVec, bv_two: &mut BitVec) {
     match color {
         Color::White => {
@@ -195,6 +237,8 @@ fn set_color(state: usize, color: Color, bv_one: &mut BitVec, bv_two: &mut BitVe
     }
 }
 
+/// Returns the color of the given `state` as stored in the given `BitVec`s <br />
+/// Note that `bv_two` is the highest-order bit.
 fn get_color(state: usize, bv_one: &BitVec, bv_two: &BitVec) -> Color {
     let bit_one = bv_one.get(state).unwrap();
     let bit_two = bv_two.get(state).unwrap();
