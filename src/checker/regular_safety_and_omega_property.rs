@@ -1,6 +1,6 @@
 use crate::checker::checker::{Options, PersistenceCheckingAlgorithm};
 use crate::checker::invariant::bfs_invariant_checking;
-use crate::checker::nested_dfs;
+use crate::checker::{nested_dfs, scc_couvreur};
 use crate::checker::new_nested_dfs;
 use crate::checker::scc::persistence_checking_with_scc;
 use crate::common::sparse_matrix::SparseMatrix;
@@ -71,6 +71,9 @@ pub fn regular_safety_and_omega_checking(
             }
             PersistenceCheckingAlgorithm::NewNestedDfs => {
                 new_nested_dfs::persistence_checking_with_nested_dfs(product_ts, &empty_property)
+            }
+            PersistenceCheckingAlgorithm::SccCouvreur => {
+                scc_couvreur::persistence_checking_with_couvreur_scc(transition_system, &empty_property)
             }
         }
     } else {

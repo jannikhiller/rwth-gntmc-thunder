@@ -6,3 +6,4 @@ mod regular_safety_and_omega_property;
 mod scc;
 mod ltl;
 mod new_nested_dfs;
+mod scc_couvreur;
