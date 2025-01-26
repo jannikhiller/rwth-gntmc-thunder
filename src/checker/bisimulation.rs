@@ -28,14 +28,65 @@ pub fn reduce_ts(ts: &TransitionSystem) -> TransitionSystem {
     todo!()
 }
 
-/*
- * init: 0
- *
- * 0a -> 1b
- * 1b -> 2c
- * 2c -> 0a
- * 3a -> 1b
- */
-
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+
+    fn sorted_partition(mut partition: Vec<Vec<(usize, usize)>>) -> Vec<Vec<(usize, usize)>> {
+        partition.iter_mut().for_each(|class| class.sort());
+        partition.sort();
+        partition
+    }
+
+    fn aps(str: &str) -> Vec<String> {
+        str.chars().map(String::from).collect()
+    }
+
+    #[test]
+    fn test_get_initial_partition() {
+        let ts = "init: 0 3
+        0a -> 1b
+        1b -> 2c
+        2c -> 0a
+        3a -> 1b"
+            .parse()
+            .unwrap();
+
+        let partition = get_initial_partition(&ts, &aps("ab"));
+        assert_eq!(
+            sorted_partition(partition),
+            vec![
+                vec![(0, 0), (0, 3), (3, 0), (3, 3)],
+                vec![(1, 1)],
+                vec![(2, 2)]
+            ]
+        );
+
+        let ts = "init: 0 3
+        0ac -> 1a
+        1a -> 2ad
+        2ad -> 3b
+        3b -> 4bz"
+            .parse()
+            .unwrap();
+
+        let partition = get_initial_partition(&ts, &aps("ab"));
+        assert_eq!(
+            sorted_partition(partition),
+            vec![
+                vec![
+                    (0, 0),
+                    (0, 1),
+                    (0, 2),
+                    (1, 0),
+                    (1, 1),
+                    (1, 2),
+                    (2, 0),
+                    (2, 1),
+                    (2, 2)
+                ],
+                vec![(3, 3), (3, 4), (4, 3), (4, 4)],
+            ]
+        );
+    }
+}
