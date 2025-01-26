@@ -10,7 +10,7 @@ macro_rules! check_file {
                 _ => panic!("Wrong property type"),
             }
 
-            let mut options = thunder::checker::checker::Options::new();
+            let options = thunder::checker::checker::Options::new();
             let prop_fulfilled = check(&ts, prop, &options);
         }
     };

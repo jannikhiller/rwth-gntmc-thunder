@@ -434,8 +434,8 @@ mod tests {
         );
         let mut res_a_and_e = BitVec::from_elem(ts.get_num_states(), false);
         res_a_and_e.set(0, true);
-        let mut res_b_and_e = BitVec::from_elem(ts.get_num_states(), false);
-        let mut res_a_and_b = BitVec::from_elem(ts.get_num_states(), false);
+        let res_b_and_e = BitVec::from_elem(ts.get_num_states(), false);
+        let res_a_and_b = BitVec::from_elem(ts.get_num_states(), false);
 
         assert_eq!(compute_sat_set_and(&ts, a_and_e, &mut cache), res_a_and_e);
         assert_eq!(compute_sat_set_and(&ts, b_and_e, &mut cache), res_b_and_e);
