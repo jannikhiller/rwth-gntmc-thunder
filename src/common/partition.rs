@@ -19,7 +19,7 @@ struct Partition<T> {
 }
 
 impl<T: Hash + Eq + Clone + Debug> Partition<T> {
-    ///! Create a partition from a list of vectors
+    /// Create a partition from a list of vectors
     pub fn from_vecs(vecs: &[Vec<T>]) -> Self {
         let mut elements = Vec::new();
         let mut blocks = IndexList::new();
@@ -40,7 +40,7 @@ impl<T: Hash + Eq + Clone + Debug> Partition<T> {
         }
     }
 
-    ///! Return the partition as an iterator over it's sets
+    /// Return the partition as an iterator over it's sets
     pub fn to_slices(&self) -> impl Iterator<Item = &[T]> {
         self.blocks
             .iter()
@@ -68,8 +68,8 @@ impl<T: Hash + Eq + Clone + Debug> Partition<T> {
         self.block_map.insert(item.clone(), next_block_index);
     }
 
-    ///! Refine the partition wrt a set `splitter`
-    ///! Returns `true` if the partition has changed
+    /// Refine the partition wrt a set `splitter`
+    /// Returns `true` if the partition has changed
     pub fn refine(&mut self, splitter: &[T]) -> bool {
         let mut changed_blocks = HashSet::new();
 
