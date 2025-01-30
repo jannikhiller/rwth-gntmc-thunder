@@ -1,30 +1,59 @@
-use itertools::iproduct;
+#![allow(dead_code)]
+
+use itertools::kmerge;
 use itertools::Itertools;
 
+use crate::common::partition::Partition;
 use crate::common::transition_system::TransitionSystem;
 
-fn get_initial_partition(ts: &TransitionSystem, aps: &[String]) -> Vec<Vec<(usize, usize)>> {
+fn get_initial_partition(ts: &TransitionSystem, aps: &[String]) -> Vec<Vec<usize>> {
     let ap_bitmask = ts.get_label_from_aps(aps);
-    let label_classes = ts.get_states().into_group_map_by(|&state| {
-        let mut label = ts.get_state_label(state).clone();
-        label.and(&ap_bitmask);
-        label
-    });
-    label_classes
-        .into_values()
-        .map(|class| {
-            iproduct!(class.iter(), class.iter())
-                .map(|(&a, &b)| (a, b))
-                .collect()
+    ts.get_states()
+        .into_group_map_by(|&state| {
+            let mut label = ts.get_state_label(state).clone();
+            label.and(&ap_bitmask);
+            label
         })
+        .into_values()
         .collect()
 }
 
-fn simple_selection_strategy(ts: &TransitionSystem, aps: &[String]) -> Vec<Vec<(usize, usize)>> {
-    todo!()
+fn get_predecessors(ts: &TransitionSystem, states: &[usize], buffer: &mut Vec<usize>) {
+    buffer.clear();
+    buffer.extend(
+        kmerge(
+            states
+                .iter()
+                .map(|&state| ts.get_predecessor_states(state).iter()),
+        )
+        .dedup(),
+    );
 }
 
-pub fn reduce_ts(ts: &TransitionSystem) -> TransitionSystem {
+fn simple_selection_strategy(ts: &TransitionSystem, aps: &[String]) -> Vec<Vec<usize>> {
+    let mut pi = Partition::from_vecs(&get_initial_partition(ts, aps));
+    let mut splitter_buffer = Vec::with_capacity(ts.get_num_states());
+
+    'outer: loop {
+        // we have to make a copy here, because we mutate pi in the loop. to avoid this, we could
+        // check if p_i is a splitter and give up the reference to pi if it is, but i think that
+        // the overhead of this check would be bigger than the overhead of copying
+        let parts = pi.to_vecs();
+        for p_i in &parts {
+            get_predecessors(ts, p_i, &mut splitter_buffer);
+            let changed = pi.refine(&splitter_buffer);
+            if changed {
+                continue 'outer;
+            }
+        }
+        break;
+    }
+
+    pi.to_vecs()
+}
+
+pub fn reduce_ts(_ts: &TransitionSystem) -> TransitionSystem {
+    Partition::<usize>::from_vecs(&Vec::new()).ternary_refine(&[], &[]);
     todo!()
 }
 
@@ -32,7 +61,7 @@ pub fn reduce_ts(ts: &TransitionSystem) -> TransitionSystem {
 mod tests {
     use super::*;
 
-    fn sorted_partition(mut partition: Vec<Vec<(usize, usize)>>) -> Vec<Vec<(usize, usize)>> {
+    fn sorted_partition(mut partition: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
         partition.iter_mut().for_each(|class| class.sort());
         partition.sort();
         partition
@@ -40,6 +69,49 @@ mod tests {
 
     fn aps(str: &str) -> Vec<String> {
         str.chars().map(String::from).collect()
+    }
+
+    fn test_partitioning(partitioning_method: fn(&TransitionSystem, &[String]) -> Vec<Vec<usize>>) {
+        // taken from model checking 2023 exercise 9
+        let ts = "init: 0 1 6 9
+        0a -> 2b
+        1a -> 2b
+        1a -> 3b
+        2b -> 4b
+        2b -> 5b
+        3b -> 1a
+        3b -> 5b
+        4b -> 2b
+        4b -> 5b
+
+        6a -> 7b
+        6a -> 8b
+        7b -> 10b
+        8b -> 6a
+        8b -> 11b
+        9a -> 8b
+        9a -> 11b
+        10b -> 10b
+        10b -> 11b
+        "
+        .parse()
+        .unwrap();
+        let partition = partitioning_method(&ts, &aps("ab"));
+        let expected_partition = vec![
+            vec![0],
+            vec![1],
+            vec![6],
+            vec![9],
+            vec![3],
+            vec![8],
+            vec![2, 4, 10],
+            vec![7],
+            vec![5, 11],
+        ];
+        assert_eq!(
+            sorted_partition(partition),
+            sorted_partition(expected_partition)
+        );
     }
 
     #[test]
@@ -55,11 +127,7 @@ mod tests {
         let partition = get_initial_partition(&ts, &aps("ab"));
         assert_eq!(
             sorted_partition(partition),
-            vec![
-                vec![(0, 0), (0, 3), (3, 0), (3, 3)],
-                vec![(1, 1)],
-                vec![(2, 2)]
-            ]
+            vec![vec![0, 3], vec![1], vec![2]]
         );
 
         let ts = "init: 0 3
@@ -73,20 +141,12 @@ mod tests {
         let partition = get_initial_partition(&ts, &aps("ab"));
         assert_eq!(
             sorted_partition(partition),
-            vec![
-                vec![
-                    (0, 0),
-                    (0, 1),
-                    (0, 2),
-                    (1, 0),
-                    (1, 1),
-                    (1, 2),
-                    (2, 0),
-                    (2, 1),
-                    (2, 2)
-                ],
-                vec![(3, 3), (3, 4), (4, 3), (4, 4)],
-            ]
+            vec![vec![0, 1, 2,], vec![3, 4],]
         );
+    }
+
+    #[test]
+    fn test_simple_selection_strategy() {
+        test_partitioning(simple_selection_strategy);
     }
 }

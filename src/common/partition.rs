@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use index_list::{IndexList, ListIndex};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
@@ -12,7 +10,7 @@ struct PartitionBlock {
 }
 
 #[derive(Debug)]
-struct Partition<T> {
+pub struct Partition<T> {
     elements: Vec<T>,
     blocks: IndexList<PartitionBlock>,
     block_map: HashMap<T, ListIndex>,
@@ -45,6 +43,10 @@ impl<T: Hash + Eq + Clone + Debug> Partition<T> {
         self.blocks
             .iter()
             .map(|block| &self.elements[block.start..block.end])
+    }
+
+    pub fn to_vecs(&self) -> Vec<Vec<T>> {
+        self.to_slices().map(|slice| slice.to_vec()).collect()
     }
 
     fn find_in_block(&self, block_index: ListIndex, item: &T) -> usize {
@@ -99,7 +101,7 @@ impl<T: Hash + Eq + Clone + Debug> Partition<T> {
         !changed_blocks.is_empty()
     }
 
-    fn ternary_refine(&mut self, splitter_a: &[T], splitter_b: &[T]) -> bool {
+    pub fn ternary_refine(&mut self, _splitter_a: &[T], _splitter_b: &[T]) -> bool {
         todo!()
     }
 }

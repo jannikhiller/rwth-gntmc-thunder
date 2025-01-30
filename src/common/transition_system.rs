@@ -140,7 +140,7 @@ impl TransitionSystem {
     ///
     /// # Panics
     ///  if the label length does not match the expected length.
-    #[allow(dead_code)]
+    ///
     pub fn get_states_with_label(&self, label: &BitVec) -> &Vec<usize> {
         if label.len() != self.ap.len() {
             panic!("{label:?} is not a valid label as the BitVec has a different size.");
@@ -188,7 +188,6 @@ impl TransitionSystem {
     ///
     /// # Returns
     /// An iterator over state indices that can reach the given state.
-    #[allow(dead_code)]
     pub fn get_predecessor_states(&self, state: usize) -> &[usize] {
         self.reverse_transition_matrix.get_col_indexes_in_row(state)
     }
@@ -439,6 +438,7 @@ impl std::fmt::Display for TransitionSystem {
 
 #[derive(Debug)]
 pub struct ParseError {
+    #[allow(dead_code)]
     invalid_line: String,
 }
 
