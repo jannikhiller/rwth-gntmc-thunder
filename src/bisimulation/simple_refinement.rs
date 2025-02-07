@@ -17,7 +17,7 @@ fn get_predecessors(ts: &TransitionSystem, states: &[usize], buffer: &mut Vec<us
 }
 
 
-fn simple_selection_strategy(ts: &TransitionSystem, aps: Option<&Vec<String>>) -> Vec<Vec<usize>> {
+fn simple_selection_strategy(ts: &TransitionSystem, aps: Option<&Vec<String>>) -> Partition<usize> {
     let mut pi = Partition::from_state_space_by_aps(ts, aps);
     let mut splitter_buffer = Vec::with_capacity(ts.get_num_states());
 
@@ -37,11 +37,12 @@ fn simple_selection_strategy(ts: &TransitionSystem, aps: Option<&Vec<String>>) -
         break;
     }
 
-    pi.to_vecs()
+    pi
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::bisimulation::partition::Partition;
     use crate::bisimulation::simple_refinement::simple_selection_strategy;
     use crate::common::transition_system::TransitionSystem;
 
@@ -51,7 +52,7 @@ mod tests {
         partition
     }
 
-    fn test_partitioning(partitioning_method: fn(&TransitionSystem, Option<&Vec<String>>) -> Vec<Vec<usize>>) {
+    fn test_partitioning(partitioning_method: fn(&TransitionSystem, Option<&Vec<String>>) -> Partition<usize>) {
         // taken from model checking 2023 exercise 9
         let ts = "init: 0 1 6 9
         0a -> 2b
@@ -89,7 +90,7 @@ mod tests {
             vec![5, 11],
         ];
         assert_eq!(
-            sorted_partition(partition),
+            sorted_partition(partition.to_vecs()),
             sorted_partition(expected_partition)
         );
     }

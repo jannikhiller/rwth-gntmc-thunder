@@ -7,11 +7,10 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use bit_vec::BitVec;
 use itertools::Itertools;
-use array_tool::vec::*;
 use crate::common::transition_system::TransitionSystem;
 
 #[derive(Debug, Copy, Clone)]
-struct PartitionBlock {
+pub struct PartitionBlock {
     start: usize,
     /// exclusive
     end: usize,
@@ -25,7 +24,6 @@ pub struct Partition<T> {
 }
 
 impl Partition<usize> {
-
     pub fn from_state_space_by_aps(transition_system: &TransitionSystem, filter_aps: Option<&Vec<String>>) -> Self {
         let ap_bitmask = if filter_aps.is_some() {
             transition_system.get_label_from_aps(filter_aps.unwrap())
@@ -151,6 +149,10 @@ impl<T: Hash + Eq + Clone + Debug> Partition<T> {
 
     pub fn get_blocks(&self) -> &IndexList<PartitionBlock> {
         &self.blocks
+    }
+
+    pub fn get_block_of_state(&self, state: &T) -> Option<&ListIndex> {
+        self.block_map.get(state)
     }
 
     /// Return the partition as an iterator over its sets
