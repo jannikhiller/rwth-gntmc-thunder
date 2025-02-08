@@ -6,10 +6,12 @@ use std::fmt;
 use std::fmt::Debug;
 use std::hash::Hash;
 use bit_vec::BitVec;
-use itertools::Itertools;
+use array_tool::vec::*;
+use itertools::{kmerge, Itertools};
 use crate::common::transition_system::TransitionSystem;
 
 #[derive(Debug, Copy, Clone)]
+#[derive(PartialEq)]
 pub struct PartitionBlock {
     start: usize,
     /// exclusive
@@ -42,6 +44,19 @@ impl Partition<usize> {
 
         Self::from_vecs(&states_grouped_by_label)
     }
+
+    pub fn get_predecessor_states_of_block(&self, ts: &TransitionSystem, block: PartitionBlock) -> Vec<usize> {
+        let start_index = block.start;
+        let end_index = block.end;
+        let mut predecessors = Vec::new();
+
+        for current_state_idx in start_index .. end_index {
+            let predecessors_of_current_state = ts.get_predecessor_states(self.elements[current_state_idx]);
+            predecessors.append(predecessors_of_current_state.to_vec().as_mut());
+        }
+
+        predecessors
+    }
 }
 
 impl<T: Hash + Eq + Clone + Debug> Partition<T> {
@@ -66,7 +81,7 @@ impl<T: Hash + Eq + Clone + Debug> Partition<T> {
         }
     }
 
-    fn find_in_block(&self, block_index: ListIndex, item: &T) -> usize {
+    pub fn find_in_block(&self, block_index: ListIndex, item: &T) -> usize {
         // TODO: panics here if element is not in block
         let block = self.blocks.get(block_index).unwrap();
         // this is a linear search, if it becomes a bottleneck, we can consider
@@ -78,24 +93,11 @@ impl<T: Hash + Eq + Clone + Debug> Partition<T> {
             + block.start
     }
 
-    pub fn get_predecessor_states_of_block(&self, ts: &TransitionSystem, block: PartitionBlock) -> Vec<usize> {
-        let start_index = block.start;
-        let end_index = block.end;
-        let mut predecessors = Vec::new();
-
-        for current_state in start_index .. end_index {
-            let predecessors_of_current_state = ts.get_predecessor_states(current_state);
-            predecessors.append(predecessors_of_current_state.to_vec().as_mut());
-        }
-
-        predecessors
-    }
-
-
     fn move_item_to_next_block(&mut self, block_index: ListIndex, item: &T) {
         let next_block_index = self.blocks.next_index(block_index);
         let block_end = self.blocks.get_mut(block_index).unwrap().end;
         let item_index = self.find_in_block(block_index, item);
+
         self.elements.swap(item_index, block_end - 1);
         self.blocks.get_mut(block_index).unwrap().end -= 1;
         self.blocks.get_mut(next_block_index).unwrap().start -= 1;
@@ -143,8 +145,51 @@ impl<T: Hash + Eq + Clone + Debug> Partition<T> {
     ///                 we choose C as the smallest element of the corresponding first tuple element
     ///                 if the size of Refine(B, C, C'\C) == 1 then nothing changed for this block => do not include in return vec
     ///                                                                                            => thus we can ignore the |C| <= |C'|/2 constraint in the algorithm on the level above
-    pub fn ternary_refine(&mut self, splitter_a: &[T], splitter_b: &[T]) -> Option<Vec<(Vec<&PartitionBlock>, &PartitionBlock)>> {
-        todo!()
+    pub fn ternary_refine(&mut self, pre_c: &Vec<T>, pre_c_prime: &Vec<T>, pre_c_prime_diff_c: &Vec<T>) -> Option<Vec<(Vec<&PartitionBlock>, &PartitionBlock)>> {
+        let mut new_blocks = IndexList::new();
+        
+        for block in self.blocks.iter() {
+            let states_of_b = self.get_states_of_block(*block).to_vec();
+
+            let b1 = states_of_b.intersect(pre_c.clone()).intersect(pre_c_prime_diff_c.clone()); // B \cap Pre(C) \cap Pre(C' \setminus C)
+            let b2 = (states_of_b.intersect(pre_c.clone())).uniq(pre_c_prime_diff_c.clone()); // (B \cap Pre(C)) \setminus Pre(C' \setminus C)
+            let b3 = (states_of_b.intersect(pre_c_prime_diff_c.clone())).uniq(pre_c.clone()); // (B \cap Pre(C' \setminus C)) \setminus Pre(C)
+            let b4 = states_of_b.intersect(pre_c_prime.clone()); // B \setminus Pre(C')
+
+
+            let mut offset = block.start;
+            let mut marker = block.start;
+            let mut iteration_number = 0;
+
+            let split_blocks = [b1, b2, b3, b4];
+            for b_i in split_blocks {
+                if b_i.len() == 0 {
+                    iteration_number += 1;
+                    continue;
+                }
+
+                let new_block = PartitionBlock {
+                    start: marker,
+                    end: marker + b_i.len()
+                };
+
+                let new_list_index: ListIndex = new_blocks.insert_last(new_block);
+
+                while marker < b_i.len() + offset {
+                    // editing
+                    // TODO: update state to block mapping -> needs ListIndex of new block
+
+                    marker += 1;
+                }
+
+                offset += b_i.len();
+                iteration_number += 1;
+            }
+        }
+
+        self.blocks = new_blocks;
+
+        None
     }
 
     pub fn get_blocks(&self) -> &IndexList<PartitionBlock> {
@@ -153,6 +198,10 @@ impl<T: Hash + Eq + Clone + Debug> Partition<T> {
 
     pub fn get_block_of_state(&self, state: &T) -> Option<&ListIndex> {
         self.block_map.get(state)
+    }
+
+    pub fn get_states_of_block(&self, block: PartitionBlock) -> &[T] {
+        &self.elements[block.start..block.end]
     }
 
     /// Return the partition as an iterator over its sets
@@ -180,6 +229,18 @@ impl fmt::Display for Partition<usize> {
 
         Ok(())
     }
+}
+
+pub fn get_predecessors(ts: &TransitionSystem, states: &[usize], result_buffer: &mut Vec<usize>) {
+    result_buffer.clear();
+    result_buffer.extend(
+        kmerge(
+            states
+                .iter()
+                .map(|&state| ts.get_predecessor_states(state).iter()),
+        )
+            .dedup(),
+    );
 }
 
 #[cfg(test)]
