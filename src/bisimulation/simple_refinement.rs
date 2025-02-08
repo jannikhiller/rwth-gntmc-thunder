@@ -1,23 +1,10 @@
-use itertools::kmerge;
 use itertools::Itertools;
 
 use crate::common::transition_system::TransitionSystem;
 use crate::bisimulation::partition::*;
 
-fn get_predecessors(ts: &TransitionSystem, states: &[usize], buffer: &mut Vec<usize>) {
-    buffer.clear();
-    buffer.extend(
-        kmerge(
-            states
-                .iter()
-                .map(|&state| ts.get_predecessor_states(state).iter()),
-        )
-            .dedup(),
-    );
-}
 
-
-fn simple_selection_strategy(ts: &TransitionSystem, aps: Option<&Vec<String>>) -> Partition<usize> {
+pub fn simple_selection_strategy(ts: &TransitionSystem, aps: Option<&Vec<String>>) -> Partition<usize> {
     let mut pi = Partition::from_state_space_by_aps(ts, aps);
     let mut splitter_buffer = Vec::with_capacity(ts.get_num_states());
 

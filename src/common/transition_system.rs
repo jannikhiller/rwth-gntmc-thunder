@@ -100,7 +100,7 @@ impl TransitionSystem {
         self.last_state + 1
     }
 
-    /// Returns a Vec containing the names of all states of the transition system.
+    /// Returns a Range containing the names of all states of the transition system.
     pub fn get_states(&self) -> std::ops::Range<usize> {
         0..self.get_num_states()
     }
