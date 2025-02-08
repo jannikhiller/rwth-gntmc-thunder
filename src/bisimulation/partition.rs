@@ -70,7 +70,7 @@ impl Partition<usize> {
     }
 }
 
-impl<T: Hash + Eq + Clone + Debug> Partition<T> {
+impl<T: Hash + Eq + Clone + Debug + std::cmp::Ord> Partition<T> {
     /// Create a partition from a list of vectors
     pub fn from_vecs(vecs: &Vec<Vec<T>>) -> Self {
         let mut elements = Vec::new();
@@ -165,20 +165,20 @@ impl<T: Hash + Eq + Clone + Debug> Partition<T> {
             let b1 = states_of_b.intersect(pre_c.clone()).intersect(pre_c_prime_diff_c.clone()); // B \cap Pre(C) \cap Pre(C' \setminus C)
             let b2 = (states_of_b.intersect(pre_c.clone())).uniq(pre_c_prime_diff_c.clone()); // (B \cap Pre(C)) \setminus Pre(C' \setminus C)
             let b3 = (states_of_b.intersect(pre_c_prime_diff_c.clone())).uniq(pre_c.clone()); // (B \cap Pre(C' \setminus C)) \setminus Pre(C)
-            let b4 = states_of_b.intersect(pre_c_prime.clone()); // B \setminus Pre(C')
+            let b4 = states_of_b.uniq(pre_c_prime.clone()); // B \setminus Pre(C')
 
 
             let mut offset = block.start;
             let mut marker = block.start;
-            let mut iteration_number = 0;
 
             let split_blocks = [b1, b2, b3, b4];
-            for b_i in split_blocks {
-                if b_i.len() == 0 {
-                    iteration_number += 1;
-                    continue;
+            'inner: for b_i in split_blocks {
+                if b_i.is_empty() {
+                    continue 'inner;
                 }
 
+
+                let mut b_i_marker = 0;
                 let new_block = PartitionBlock {
                     start: marker,
                     end: marker + b_i.len()
@@ -187,17 +187,16 @@ impl<T: Hash + Eq + Clone + Debug> Partition<T> {
                 let new_list_index: ListIndex = new_blocks.insert_last(new_block);
 
                 while marker < b_i.len() + offset {
-                    // editing
-                    // TODO: update state to block mapping -> needs ListIndex of new block
-
+                    self.elements[marker] = b_i[b_i_marker].clone();
+                    self.block_map.insert(self.elements[marker].clone(), new_list_index);
                     marker += 1;
+                    b_i_marker += 1;
                 }
 
                 offset += b_i.len();
-                iteration_number += 1;
             }
         }
-
+        
         self.blocks = new_blocks;
 
         None
@@ -226,6 +225,14 @@ impl<T: Hash + Eq + Clone + Debug> Partition<T> {
             .map(|block| &self.elements[block.start..block.end])
     }
 
+    pub fn to_sorted_vecs(&self) -> Vec<Vec<T>> {
+        self.to_slices().map(|slice| {
+            let mut res = slice.to_vec();
+            res.sort();
+            res
+        }).collect()
+    }
+
     pub fn to_vecs(&self) -> Vec<Vec<T>> {
         self.to_slices().map(|slice| slice.to_vec()).collect()
     }
@@ -237,12 +244,24 @@ impl fmt::Display for Partition<usize> {
             writeln!(f, "Block starting at {} to {}:", block.start, block.end);
             write!(f, "[");
             for state in block.start .. block.end {
-                write!(f, "{}", self.elements[state]);
+                write!(f, "{}, ", self.elements[state]);
             }
             writeln!(f, "]");
         }
 
         Ok(())
+    }
+}
+
+impl PartialEq for Partition<usize> {
+    fn eq(&self, other: &Self) -> bool {
+        let mut self_vecs = self.to_sorted_vecs();
+        let mut other_vecs = other.to_sorted_vecs();
+
+        self_vecs.sort();
+        other_vecs.sort();
+
+        self_vecs == other_vecs
     }
 }
 

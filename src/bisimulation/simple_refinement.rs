@@ -1,20 +1,8 @@
-use itertools::kmerge;
 use itertools::Itertools;
 
 use crate::common::transition_system::TransitionSystem;
 use crate::bisimulation::partition::*;
 
-fn get_predecessors(ts: &TransitionSystem, states: &[usize], buffer: &mut Vec<usize>) {
-    buffer.clear();
-    buffer.extend(
-        kmerge(
-            states
-                .iter()
-                .map(|&state| ts.get_predecessor_states(state).iter()),
-        )
-            .dedup(),
-    );
-}
 
 
 pub(crate) fn simple_selection_strategy(ts: &TransitionSystem, aps: Option<&Vec<String>>) -> Partition<usize> {
