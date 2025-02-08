@@ -57,6 +57,17 @@ impl Partition<usize> {
 
         predecessors
     }
+
+    pub fn get_successor_states_of_block(&self, ts: &TransitionSystem, block: &[usize]) -> Vec<usize> {
+        let mut successors = Vec::new();
+
+        for current_state_idx in block {
+            let successors_of_current_state = ts.get_successor_states(*current_state_idx);
+            successors.append(successors_of_current_state.to_vec().as_mut());
+        }
+
+        successors
+    }
 }
 
 impl<T: Hash + Eq + Clone + Debug> Partition<T> {
@@ -192,12 +203,16 @@ impl<T: Hash + Eq + Clone + Debug> Partition<T> {
         None
     }
 
-    pub fn get_blocks(&self) -> &IndexList<PartitionBlock> {
-        &self.blocks
-    }
+    pub fn get_block_of_state(&self, state: &T) -> Option<&[T]> {
+        let list_index = self.block_map.get(state);
 
-    pub fn get_block_of_state(&self, state: &T) -> Option<&ListIndex> {
-        self.block_map.get(state)
+        list_index?;
+
+        let block = &self.blocks.get(*list_index.unwrap());
+
+        list_index?;
+
+        Some(&self.elements[block.unwrap().start..block.unwrap().end])
     }
 
     pub fn get_states_of_block(&self, block: PartitionBlock) -> &[T] {
@@ -238,6 +253,17 @@ pub fn get_predecessors(ts: &TransitionSystem, states: &[usize], result_buffer: 
             states
                 .iter()
                 .map(|&state| ts.get_predecessor_states(state).iter()),
+        )
+            .dedup(),
+    );
+}
+pub fn get_successors(ts: &TransitionSystem, states: &[usize], result_buffer: &mut Vec<usize>) {
+    result_buffer.clear();
+    result_buffer.extend(
+        kmerge(
+            states
+                .iter()
+                .map(|&state| ts.get_successor_states(state).iter()),
         )
             .dedup(),
     );

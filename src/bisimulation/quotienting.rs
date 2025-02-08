@@ -1,2 +1,148 @@
 // The quotienting is our interface to be called, needs an Option struct to determine whether the
 // simple or advanced refinement should be used.
+use std::collections::HashMap;
+use bit_vec::{BitVec};
+use crate ::common::sparse_matrix::SparseMatrix;
+use crate::common::transition_system::TransitionSystem;
+use crate::bisimulation::simple_refinement::simple_selection_strategy;
+
+pub fn quotienting(transition_system: &TransitionSystem) -> TransitionSystem{
+    let mut eq_classes =  simple_selection_strategy(transition_system, None);
+    //this is new state space
+    //get new transitions for every block
+    let mut new_relations: Vec<(usize, usize)> = Vec::new();
+    let mut new_reverse_relations: Vec<(usize, usize)> = Vec::new();
+    let mut slice_to_index: HashMap< &[usize], usize> = HashMap::new();
+    let mut new_lable_state_map: HashMap<BitVec, Vec<usize>> = HashMap::new();
+    let mut new_state_labels: Vec<BitVec> = Vec::new();
+    let mut last_state: usize= 0;
+    //initialise Hashmap for new states
+    //initialise Hashmap for new_lable_state_map
+    for (k, slice) in eq_classes.to_slices().enumerate(){
+        //get label of slice
+        let labels = transition_system.
+            get_state_label(slice[0]).clone();
+        //add label to new state labels
+        new_state_labels.push(labels.clone());
+
+        //add new index
+        slice_to_index.insert(slice, k);
+        //init new_lable_state_map
+        if let Some(vector) = new_lable_state_map.get_mut(&labels) {
+            vector.push(k);
+        } else {
+            new_lable_state_map.insert(labels.clone(), vec![k]);
+        }
+
+
+
+        last_state = k;
+    }
+
+
+    for (new_state,slice) in eq_classes.to_slices().enumerate() {
+        let succs = eq_classes.get_successor_states_of_block(transition_system, slice);
+
+        for succ in succs {
+            if let Some(val) = eq_classes.get_block_of_state(&succ){
+                if let Some(new_succ) = slice_to_index.get(val) {
+                    let value = (new_state, *new_succ);
+                    if !new_relations.contains(&value){
+                        new_relations.push(value);
+                        new_reverse_relations.push((*new_succ, new_state));
+                    } }
+            }
+        }
+
+    }
+
+    let transformed = new_relations.clone()
+        .iter()
+        .map(|(s1,  s2)| (*s1 , *s2, true))
+        .collect::<Vec<_>>();
+
+    let reverse_transformed = new_reverse_relations.clone()
+        .iter()
+        .map(|(s1,  s2)| (*s1 , *s2, true))
+        .collect::<Vec<_>>();
+
+    let new_tmatrix = SparseMatrix::from_list_of_entries(
+        new_relations.len(),
+        new_relations.len(),
+        &transformed,
+    );
+
+    let new_reverse_matrix = SparseMatrix::from_list_of_entries(
+        new_reverse_relations.len(),
+        new_reverse_relations.len(),
+        &reverse_transformed,
+    );
+
+    //build new initial states new indexes
+    let mut new_init_states: Vec<usize> = vec![];
+    for init_state in transition_system.get_initial_states(){
+        if let Some(slice) = eq_classes.get_block_of_state(&init_state){
+            if let Some(new_index) = slice_to_index.get(slice) {
+                if !new_init_states.contains(&new_index){
+                    new_init_states.push(*new_index);
+                }
+            }
+        }
+    }
+    let aps = transition_system.get_ap().clone();
+    TransitionSystem::new(new_tmatrix,
+                          new_reverse_matrix,
+                          last_state,
+                          new_init_states,
+                          new_state_labels,
+                          new_lable_state_map,
+                          aps)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::bisimulation::quotienting::quotienting;
+
+    fn sorted_partition(mut partition: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
+        partition.iter_mut().for_each(|class| class.sort());
+        partition.sort();
+        partition
+    }
+
+    fn test_partitioning() {
+        // taken from model checking 2023 exercise 9
+        let ts = "init: 0 1 6 9
+        0a -> 2b
+        1a -> 2b
+        1a -> 3b
+        2b -> 4b
+        2b -> 5b
+        3b -> 1a
+        3b -> 5b
+        4b -> 2b
+        4b -> 5b
+
+        6a -> 7b
+        6a -> 8b
+        7b -> 10b
+        8b -> 6a
+        8b -> 11b
+        9a -> 8b
+        9a -> 11b
+        10b -> 10b
+        10b -> 11b
+        "
+            .parse()
+            .unwrap();
+        println!("{:?}", quotienting(&ts));
+    }
+
+    fn aps(str: &str) -> Vec<String> {
+        str.chars().map(String::from).collect()
+    }
+
+    #[test]
+    fn test_simple_selection_strategy() {
+        test_partitioning();
+    }
+}
