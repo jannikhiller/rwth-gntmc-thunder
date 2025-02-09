@@ -146,14 +146,14 @@ fn compute_sat_set_of_exists_until(
         }
     }
 
+    let mut sat_left_minus_set_t = sat_left.clone();
+    sat_left_minus_set_t.difference(&set_t);
     while let Some(s_prime) = queue.pop_front() {
         for state in transition_system.get_predecessor_states(s_prime) {
             trace!("Checking predecessor state {}", state);
-            let mut sat_left_minus_set_t = sat_left.clone();
-            sat_left_minus_set_t.difference(&set_t);
-
             if sat_left_minus_set_t.get(*state).unwrap() {
                 set_t.set(*state, true);
+                sat_left_minus_set_t.set(*state, false);
                 queue.push_back(*state);
             }
         }
