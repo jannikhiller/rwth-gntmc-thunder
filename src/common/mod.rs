@@ -1,3 +1,3 @@
 pub mod sparse_matrix;
 pub mod transition_system;
-pub mod VecHelper;
+pub mod vec_helper;

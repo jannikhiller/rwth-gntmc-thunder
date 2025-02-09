@@ -9,7 +9,7 @@ use bit_vec::BitVec;
 use array_tool::vec::*;
 use itertools::{kmerge, Itertools};
 use crate::common::transition_system::TransitionSystem;
-use crate::common::VecHelper::{intersect, setminus};
+use crate::common::vec_helper::{intersect, setminus};
 
 #[derive(Debug, Copy, Clone)]
 #[derive(PartialEq)]

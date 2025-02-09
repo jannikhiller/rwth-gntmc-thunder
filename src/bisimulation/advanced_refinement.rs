@@ -2,7 +2,7 @@ use std::collections::{VecDeque};
 use array_tool::vec::*;
 use crate::common::transition_system::TransitionSystem;
 use crate::bisimulation::partition::{Partition};
-use crate::common::VecHelper::setminus;
+use crate::common::vec_helper::setminus;
 
 fn get_predecessor_states_of_block(transition_system: &TransitionSystem, block: &Vec<usize>) -> Vec<usize> {
     let mut result = Vec::new();
