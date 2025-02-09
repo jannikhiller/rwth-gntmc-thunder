@@ -6,7 +6,6 @@ use std::fmt;
 use std::fmt::Debug;
 use std::hash::Hash;
 use bit_vec::BitVec;
-use array_tool::vec::*;
 use itertools::{kmerge, Itertools};
 use crate::common::transition_system::TransitionSystem;
 use crate::common::vec_helper::{intersect, setminus};
@@ -147,16 +146,6 @@ impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
         !changed_blocks.is_empty()
     }
 
-    ///
-    /// # Returns
-    /// Some containing a tuple. The first element is a vector containing all newly generated blocks
-    /// The second element is the block from which the newly generated blocks have been split up. <br />
-    /// None if no new blocks were generated.
-    ///
-    /// Note for later: we choose C' from the second element of an arbitrary entry of the outer vector of tuples
-    ///                 we choose C as the smallest element of the corresponding first tuple element
-    ///                 if the size of Refine(B, C, C'\C) == 1 then nothing changed for this block => do not include in return vec
-    ///                                                                                            => thus we can ignore the |C| <= |C'|/2 constraint in the algorithm on the level above
     pub fn ternary_refine(&mut self, pre_c: &Vec<T>, pre_c_prime: &Vec<T>, pre_c_prime_diff_c: &Vec<T>) {
         let mut new_blocks = IndexList::new();
 

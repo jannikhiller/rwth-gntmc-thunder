@@ -5,7 +5,7 @@ use crate::bisimulation::partition::*;
 
 
 
-pub(crate) fn simple_selection_strategy(ts: &TransitionSystem, aps: Option<&Vec<String>>) -> Partition<usize> {
+pub fn simple_selection_strategy(ts: &TransitionSystem, aps: Option<&Vec<String>>) -> Partition<usize> {
     let mut pi = Partition::from_state_space_by_aps(ts, aps);
     let mut splitter_buffer = Vec::with_capacity(ts.get_num_states());
 

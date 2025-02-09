@@ -1,35 +1,27 @@
 use std::collections::{VecDeque};
-use array_tool::vec::*;
 use crate::common::transition_system::TransitionSystem;
-use crate::bisimulation::partition::{Partition};
+use crate::bisimulation::partition::{get_predecessors, Partition};
 use crate::common::vec_helper::setminus;
-
-fn get_predecessor_states_of_block(transition_system: &TransitionSystem, block: &Vec<usize>) -> Vec<usize> {
-    let mut result = Vec::new();
-
-    for state in block {
-        for pred in transition_system.get_predecessor_states(*state) {
-            result.push(*pred);
-        }
-    }
-
-    result.unique()
-}
 
 pub fn advanced_refinement(transition_system: &TransitionSystem, aps: Option<&Vec<String>>) -> Partition<usize> {
     let mut queue = VecDeque::new();
+
     let mut c_prime = transition_system.get_states().collect::<Vec<_>>();
     let mut current_partition = Partition::from_state_space_by_aps(transition_system, aps);
     current_partition.refine(&c_prime);
 
-    let mut iteration_counter = 0;
+    let mut pre_c = Vec::with_capacity(transition_system.get_num_states());
+    let mut pre_c_prime = Vec::with_capacity(transition_system.get_num_states());
+    let mut pre_c_prime_diff_c = Vec::with_capacity(transition_system.get_num_states());
+
     loop {
         while c_prime.len() < 2 {
             queue.push_back(c_prime);
             c_prime = queue.pop_front().unwrap();
         }
 
-        let mut c = vec![];
+        let mut c = Vec::new();
+
         let mut found_suitable_candidate = false;
         for c_candidate in current_partition.to_slices() {
             if c_candidate.len() > c_prime.len() / 2 {
@@ -42,27 +34,21 @@ pub fn advanced_refinement(transition_system: &TransitionSystem, aps: Option<&Ve
                 break;
             }
         }
-        
+
         if !found_suitable_candidate {
             queue.push_back(c_prime);
             c_prime = queue.pop_front().unwrap();
             continue;
         }
 
-        println!("###################################################");
-        println!("c' {:?}", c_prime);
-        println!("---------------------------------------------------");
-        println!("c {:?}", c);
-        println!("---------------------------------------------------");
-        
-
         let c_prime_diff_c = setminus(&c_prime, &c);
 
-        let pre_c = get_predecessor_states_of_block(transition_system, &c);
-        let pre_c_prime = get_predecessor_states_of_block(transition_system, &c_prime);
-        let pre_c_prime_diff_c = get_predecessor_states_of_block(transition_system, &c_prime_diff_c);
+        get_predecessors(transition_system, &c, &mut pre_c);
+        get_predecessors(transition_system, &c_prime, &mut pre_c_prime);
+        get_predecessors(transition_system, &c_prime_diff_c, &mut pre_c_prime_diff_c);
 
         current_partition.ternary_refine(&pre_c, &pre_c_prime, &pre_c_prime_diff_c);
+
 
         if !c.is_empty() {
             queue.push_back(c);
@@ -71,19 +57,10 @@ pub fn advanced_refinement(transition_system: &TransitionSystem, aps: Option<&Ve
                 queue.push_back(c_prime_diff_c);
         }
 
-        println!("queue = pi_old: {:?}", queue);
-        println!("---------------------------------------------------");
-        println!("partition: {}", current_partition);
-        println!("###################################################");
-
         if current_partition.num_blocks() == queue.len() {
-            println!("states TS {}", transition_system.get_num_states());
-            println!("size partition {}", current_partition.num_blocks());
-            println!("number of iterations {}", iteration_counter);
             break;
         } else { 
             c_prime = queue.pop_front().unwrap();
-            iteration_counter += 1;
         }
     }
 
