@@ -9,7 +9,7 @@ use crate::bisimulation::advanced_refinement::advanced_refinement;
 use crate::bisimulation::partition::Partition;
 use crate::checker::checker::{Options, QuotientingAlgorithm};
 
-pub fn quotienting(transition_system: &TransitionSystem, options: &Options, ap: Option<&Vec<String>>) -> TransitionSystem{
+pub fn quotienting(transition_system: &TransitionSystem, options: &Options, ap: Option<&Vec<String>>) -> TransitionSystem {
     let eq_classes: Partition<usize>;
     match options.quotienting_algorithm{
         QuotientingAlgorithm::AdvancedRefinement => {
@@ -19,7 +19,7 @@ pub fn quotienting(transition_system: &TransitionSystem, options: &Options, ap: 
             eq_classes =  simple_selection_strategy(transition_system, ap);
         }
         QuotientingAlgorithm::Without => {
-            panic!("We cant ne here, if flag was set on without")
+            panic!("We cannot be here, if flag was set to `without`");
         }
     }
     //this is new state space
@@ -30,8 +30,8 @@ pub fn quotienting(transition_system: &TransitionSystem, options: &Options, ap: 
     let mut new_lable_state_map: HashMap<BitVec, Vec<usize>> = HashMap::new();
     let mut new_state_labels: Vec<BitVec> = Vec::new();
     let mut last_state: usize= 0;
-    //initialise Hashmap for new states
-    //initialise Hashmap for new_lable_state_map
+    //initialize Hashmap for new states
+    //initialize Hashmap for new_lable_state_map
     for (k, slice) in eq_classes.to_slices().enumerate(){
         //get label of slice
         let labels = transition_system.
