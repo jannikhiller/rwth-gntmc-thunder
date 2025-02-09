@@ -22,8 +22,15 @@ pub fn advanced_refinement(transition_system: &TransitionSystem, aps: Option<&Ve
     let mut current_partition = Partition::from_state_space_by_aps(transition_system, aps);
     current_partition.refine(&c_prime);
 
+    let mut iteration_counter = 0;
     loop {
+        while c_prime.len() < 2 {
+            queue.push_back(c_prime);
+            c_prime = queue.pop_front().unwrap();
+        }
+
         let mut c = vec![];
+        let mut found_suitable_candidate = false;
         for c_candidate in current_partition.to_slices() {
             if c_candidate.len() > c_prime.len() / 2 {
                 continue;
@@ -31,12 +38,25 @@ pub fn advanced_refinement(transition_system: &TransitionSystem, aps: Option<&Ve
 
             if c_candidate.iter().all(|elem| c_prime.contains(elem)) {
                 c = c_candidate.to_vec();
+                found_suitable_candidate = true;
                 break;
             }
         }
+        
+        if !found_suitable_candidate {
+            queue.push_back(c_prime);
+            c_prime = queue.pop_front().unwrap();
+            continue;
+        }
+
+        println!("###################################################");
+        println!("c' {:?}", c_prime);
+        println!("---------------------------------------------------");
+        println!("c {:?}", c);
+        println!("---------------------------------------------------");
+        
 
         let c_prime_diff_c = setminus(&c_prime, &c);
-
 
         let pre_c = get_predecessor_states_of_block(transition_system, &c);
         let pre_c_prime = get_predecessor_states_of_block(transition_system, &c_prime);
@@ -48,13 +68,22 @@ pub fn advanced_refinement(transition_system: &TransitionSystem, aps: Option<&Ve
             queue.push_back(c);
         }
         if !c_prime_diff_c.is_empty() {
-            queue.push_back(c_prime_diff_c);
+                queue.push_back(c_prime_diff_c);
         }
 
+        println!("queue = pi_old: {:?}", queue);
+        println!("---------------------------------------------------");
+        println!("partition: {}", current_partition);
+        println!("###################################################");
+
         if current_partition.num_blocks() == queue.len() {
+            println!("states TS {}", transition_system.get_num_states());
+            println!("size partition {}", current_partition.num_blocks());
+            println!("number of iterations {}", iteration_counter);
             break;
         } else { 
             c_prime = queue.pop_front().unwrap();
+            iteration_counter += 1;
         }
     }
 
