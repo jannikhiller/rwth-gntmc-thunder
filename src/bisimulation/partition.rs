@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use index_list::{IndexList, ListIndex};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, BTreeSet, HashSet};
 use std::fmt;
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -156,18 +156,18 @@ impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
     ///                 we choose C as the smallest element of the corresponding first tuple element
     ///                 if the size of Refine(B, C, C'\C) == 1 then nothing changed for this block => do not include in return vec
     ///                                                                                            => thus we can ignore the |C| <= |C'|/2 constraint in the algorithm on the level above
-    pub fn ternary_refine(&mut self, pre_c: &HashSet<T>, pre_c_prime: &HashSet<T>, pre_c_prime_diff_c: &HashSet<T>) {
+    pub fn ternary_refine(&mut self, pre_c: &BTreeSet<T>, pre_c_prime: &BTreeSet<T>, pre_c_prime_diff_c: &BTreeSet<T>) {
         let mut new_blocks = IndexList::new();
         
         for block in self.blocks.iter() {
-            let states_of_b: HashSet<T> = HashSet::from_iter(self.get_states_of_block(*block).iter().cloned());
+            let states_of_b = BTreeSet::from_iter(self.get_states_of_block(*block).iter().cloned());
 
             // B \cap Pre(C) \cap Pre(C' \setminus C)
-            let b1 = states_of_b.intersection(pre_c).cloned().collect::<HashSet<_>>().intersection(pre_c_prime_diff_c).cloned().collect::<Vec<_>>();
+            let b1 = states_of_b.intersection(pre_c).cloned().collect::<BTreeSet<_>>().intersection(pre_c_prime_diff_c).cloned().collect::<Vec<_>>();
             // (B \cap Pre(C)) \setminus Pre(C' \setminus C)
-            let b2 = states_of_b.intersection(pre_c).cloned().collect::<HashSet<_>>().difference(pre_c_prime_diff_c).cloned().collect::<Vec<_>>();
+            let b2 = states_of_b.intersection(pre_c).cloned().collect::<BTreeSet<_>>().difference(pre_c_prime_diff_c).cloned().collect::<Vec<_>>();
             // (B \cap Pre(C' \setminus C)) \setminus Pre(C)
-            let b3 = states_of_b.intersection(pre_c_prime_diff_c).cloned().collect::<HashSet<_>>().difference(pre_c).cloned().collect::<Vec<_>>();
+            let b3 = states_of_b.intersection(pre_c_prime_diff_c).cloned().collect::<BTreeSet<_>>().difference(pre_c).cloned().collect::<Vec<_>>();
             // B \setminus Pre(C')
             let b4 = states_of_b.difference(pre_c_prime).cloned().collect();
 

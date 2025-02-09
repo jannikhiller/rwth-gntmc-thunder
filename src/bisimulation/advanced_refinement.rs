@@ -1,9 +1,9 @@
-use std::collections::{BinaryHeap, HashSet, VecDeque};
+use std::collections::{BTreeSet, VecDeque};
 use crate::common::transition_system::TransitionSystem;
 use crate::bisimulation::partition::{Partition};
 
-fn get_predecessor_states_of_block(transition_system: &TransitionSystem, block: &HashSet<usize>) -> HashSet<usize> {
-    let mut result = HashSet::new();
+fn get_predecessor_states_of_block(transition_system: &TransitionSystem, block: &BTreeSet<usize>) -> BTreeSet<usize> {
+    let mut result = BTreeSet::new();
 
     for state in block {
         for pred in transition_system.get_predecessor_states(*state) {
@@ -17,12 +17,12 @@ fn get_predecessor_states_of_block(transition_system: &TransitionSystem, block: 
 pub fn advanced_refinement(transition_system: &TransitionSystem, aps: Option<&Vec<String>>) -> Partition<usize> {
     let all_ts_states: Vec<usize> = transition_system.get_states().collect();
     let mut queue = VecDeque::new();
-    let mut c_prime = HashSet::from_iter(all_ts_states.iter().cloned());
+    let mut c_prime = BTreeSet::from_iter(all_ts_states.iter().cloned());
     let mut current_partition = Partition::from_state_space_by_aps(transition_system, aps);
     current_partition.refine(&all_ts_states);
     
     loop {
-        let mut c = HashSet::new();
+        let mut c = BTreeSet::new();
         for c_candidate in current_partition.to_slices() {
             if c_candidate.len() > c_prime.len() / 2 {
                 continue;
