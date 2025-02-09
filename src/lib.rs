@@ -3,3 +3,4 @@ pub mod common;
 pub mod parser;
 pub mod property;
 pub mod tui;
+pub mod bisimulation;
