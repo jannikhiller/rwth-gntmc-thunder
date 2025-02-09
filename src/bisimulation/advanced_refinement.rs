@@ -1,39 +1,41 @@
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::{VecDeque};
+use array_tool::vec::*;
 use crate::common::transition_system::TransitionSystem;
 use crate::bisimulation::partition::{Partition};
+use crate::common::VecHelper::setminus;
 
-fn get_predecessor_states_of_block(transition_system: &TransitionSystem, block: &BTreeSet<usize>) -> BTreeSet<usize> {
-    let mut result = BTreeSet::new();
+fn get_predecessor_states_of_block(transition_system: &TransitionSystem, block: &Vec<usize>) -> Vec<usize> {
+    let mut result = Vec::new();
 
     for state in block {
         for pred in transition_system.get_predecessor_states(*state) {
-            result.insert(*pred);
+            result.push(*pred);
         }
     }
 
-    result
+    result.unique()
 }
 
 pub fn advanced_refinement(transition_system: &TransitionSystem, aps: Option<&Vec<String>>) -> Partition<usize> {
-    let all_ts_states: Vec<usize> = transition_system.get_states().collect();
     let mut queue = VecDeque::new();
-    let mut c_prime = BTreeSet::from_iter(all_ts_states.iter().cloned());
+    let mut c_prime = transition_system.get_states().collect::<Vec<_>>();
     let mut current_partition = Partition::from_state_space_by_aps(transition_system, aps);
-    current_partition.refine(&all_ts_states);
-    
+    current_partition.refine(&c_prime);
+
     loop {
-        let mut c = BTreeSet::new();
+        let mut c = vec![];
         for c_candidate in current_partition.to_slices() {
             if c_candidate.len() > c_prime.len() / 2 {
                 continue;
             }
 
             if c_candidate.iter().all(|elem| c_prime.contains(elem)) {
-                c.extend(c_candidate);
+                c = c_candidate.to_vec();
                 break;
             }
         }
-        let c_prime_diff_c = c_prime.difference(&c).cloned().collect();
+
+        let c_prime_diff_c = setminus(&c_prime, &c);
 
 
         let pre_c = get_predecessor_states_of_block(transition_system, &c);

@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use index_list::{IndexList, ListIndex};
-use std::collections::{HashMap, BTreeSet, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -9,6 +9,7 @@ use bit_vec::BitVec;
 use array_tool::vec::*;
 use itertools::{kmerge, Itertools};
 use crate::common::transition_system::TransitionSystem;
+use crate::common::VecHelper::{intersect, setminus};
 
 #[derive(Debug, Copy, Clone)]
 #[derive(PartialEq)]
@@ -156,26 +157,22 @@ impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
     ///                 we choose C as the smallest element of the corresponding first tuple element
     ///                 if the size of Refine(B, C, C'\C) == 1 then nothing changed for this block => do not include in return vec
     ///                                                                                            => thus we can ignore the |C| <= |C'|/2 constraint in the algorithm on the level above
-    pub fn ternary_refine(&mut self, pre_c: &BTreeSet<T>, pre_c_prime: &BTreeSet<T>, pre_c_prime_diff_c: &BTreeSet<T>) {
+    pub fn ternary_refine(&mut self, pre_c: &Vec<T>, pre_c_prime: &Vec<T>, pre_c_prime_diff_c: &Vec<T>) {
         let mut new_blocks = IndexList::new();
-        
-        for block in self.blocks.iter() {
-            let states_of_b = BTreeSet::from_iter(self.get_states_of_block(*block).iter().cloned());
 
-            // B \cap Pre(C) \cap Pre(C' \setminus C)
-            let b1 = states_of_b.intersection(pre_c).cloned().collect::<BTreeSet<_>>().intersection(pre_c_prime_diff_c).cloned().collect::<Vec<_>>();
-            // (B \cap Pre(C)) \setminus Pre(C' \setminus C)
-            let b2 = states_of_b.intersection(pre_c).cloned().collect::<BTreeSet<_>>().difference(pre_c_prime_diff_c).cloned().collect::<Vec<_>>();
-            // (B \cap Pre(C' \setminus C)) \setminus Pre(C)
-            let b3 = states_of_b.intersection(pre_c_prime_diff_c).cloned().collect::<BTreeSet<_>>().difference(pre_c).cloned().collect::<Vec<_>>();
-            // B \setminus Pre(C')
-            let b4 = states_of_b.difference(pre_c_prime).cloned().collect();
+        for block in self.blocks.iter() {
+            let states_of_b = self.get_states_of_block(*block).to_vec();
+
+            let b1 = intersect(intersect(states_of_b.as_ref(), pre_c).as_ref(), pre_c_prime_diff_c); // B \cap Pre(C) \cap Pre(C' \setminus C)
+            let b2 = setminus(intersect(states_of_b.as_ref(), pre_c).as_ref(), pre_c_prime_diff_c); // (B \cap Pre(C)) \setminus Pre(C' \setminus C)
+            let b3 = setminus(intersect(states_of_b.as_ref(), pre_c_prime_diff_c).as_ref(), pre_c); // (B \cap Pre(C' \setminus C)) \setminus Pre(C)
+            let b4 = setminus(states_of_b.as_ref(), pre_c_prime); // B \setminus Pre(C')
 
 
             let mut offset = block.start;
             let mut marker = block.start;
 
-            let split_blocks = [b1, b2, b3, b4];
+            let split_blocks = [&b1, &b2, &b3, &b4];
             'inner: for b_i in split_blocks {
                 if b_i.is_empty() {
                     continue 'inner;
@@ -200,7 +197,7 @@ impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
                 offset += b_i.len();
             }
         }
-        
+
         self.blocks = new_blocks;
     }
 
@@ -278,17 +275,6 @@ pub fn get_predecessors(ts: &TransitionSystem, states: &[usize], result_buffer: 
             states
                 .iter()
                 .map(|&state| ts.get_predecessor_states(state).iter()),
-        )
-            .dedup(),
-    );
-}
-pub fn get_successors(ts: &TransitionSystem, states: &[usize], result_buffer: &mut Vec<usize>) {
-    result_buffer.clear();
-    result_buffer.extend(
-        kmerge(
-            states
-                .iter()
-                .map(|&state| ts.get_successor_states(state).iter()),
         )
             .dedup(),
     );
