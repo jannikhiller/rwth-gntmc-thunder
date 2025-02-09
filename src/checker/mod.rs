@@ -1,4 +1,3 @@
-mod bisimulation;
 pub mod checker;
 mod ctl;
 pub mod helper;

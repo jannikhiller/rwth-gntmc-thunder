@@ -70,7 +70,7 @@ impl Partition<usize> {
     }
 }
 
-impl<T: Hash + Eq + Clone + Debug + std::cmp::Ord> Partition<T> {
+impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
     /// Create a partition from a list of vectors
     pub fn from_vecs(vecs: &Vec<Vec<T>>) -> Self {
         let mut elements = Vec::new();
@@ -156,16 +156,20 @@ impl<T: Hash + Eq + Clone + Debug + std::cmp::Ord> Partition<T> {
     ///                 we choose C as the smallest element of the corresponding first tuple element
     ///                 if the size of Refine(B, C, C'\C) == 1 then nothing changed for this block => do not include in return vec
     ///                                                                                            => thus we can ignore the |C| <= |C'|/2 constraint in the algorithm on the level above
-    pub fn ternary_refine(&mut self, pre_c: &Vec<T>, pre_c_prime: &Vec<T>, pre_c_prime_diff_c: &Vec<T>) -> Option<Vec<(Vec<&PartitionBlock>, &PartitionBlock)>> {
+    pub fn ternary_refine(&mut self, pre_c: &HashSet<T>, pre_c_prime: &HashSet<T>, pre_c_prime_diff_c: &HashSet<T>) {
         let mut new_blocks = IndexList::new();
         
         for block in self.blocks.iter() {
-            let states_of_b = self.get_states_of_block(*block).to_vec();
+            let states_of_b: HashSet<T> = HashSet::from_iter(self.get_states_of_block(*block).iter().cloned());
 
-            let b1 = states_of_b.intersect(pre_c.clone()).intersect(pre_c_prime_diff_c.clone()); // B \cap Pre(C) \cap Pre(C' \setminus C)
-            let b2 = (states_of_b.intersect(pre_c.clone())).uniq(pre_c_prime_diff_c.clone()); // (B \cap Pre(C)) \setminus Pre(C' \setminus C)
-            let b3 = (states_of_b.intersect(pre_c_prime_diff_c.clone())).uniq(pre_c.clone()); // (B \cap Pre(C' \setminus C)) \setminus Pre(C)
-            let b4 = states_of_b.uniq(pre_c_prime.clone()); // B \setminus Pre(C')
+            // B \cap Pre(C) \cap Pre(C' \setminus C)
+            let b1 = states_of_b.intersection(pre_c).cloned().collect::<HashSet<_>>().intersection(pre_c_prime_diff_c).cloned().collect::<Vec<_>>();
+            // (B \cap Pre(C)) \setminus Pre(C' \setminus C)
+            let b2 = states_of_b.intersection(pre_c).cloned().collect::<HashSet<_>>().difference(pre_c_prime_diff_c).cloned().collect::<Vec<_>>();
+            // (B \cap Pre(C' \setminus C)) \setminus Pre(C)
+            let b3 = states_of_b.intersection(pre_c_prime_diff_c).cloned().collect::<HashSet<_>>().difference(pre_c).cloned().collect::<Vec<_>>();
+            // B \setminus Pre(C')
+            let b4 = states_of_b.difference(pre_c_prime).cloned().collect();
 
 
             let mut offset = block.start;
@@ -198,8 +202,6 @@ impl<T: Hash + Eq + Clone + Debug + std::cmp::Ord> Partition<T> {
         }
         
         self.blocks = new_blocks;
-
-        None
     }
 
     pub fn get_block_of_state(&self, state: &T) -> Option<&[T]> {
@@ -235,6 +237,10 @@ impl<T: Hash + Eq + Clone + Debug + std::cmp::Ord> Partition<T> {
 
     pub fn to_vecs(&self) -> Vec<Vec<T>> {
         self.to_slices().map(|slice| slice.to_vec()).collect()
+    }
+    
+    pub fn num_blocks(&self) -> usize {
+        self.blocks.len()
     }
 }
 

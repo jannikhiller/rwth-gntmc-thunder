@@ -1,57 +1,58 @@
-use std::cmp::PartialEq;
+use std::collections::{BinaryHeap, HashSet, VecDeque};
 use crate::common::transition_system::TransitionSystem;
-use crate::bisimulation::partition::{get_predecessors, Partition};
-use array_tool::vec::*;
+use crate::bisimulation::partition::{Partition};
 
-
-fn get_predecessor_states_of_block(transition_system: &TransitionSystem, block: &Vec<usize>) -> Vec<usize> {
-    let mut result = Vec::new();
+fn get_predecessor_states_of_block(transition_system: &TransitionSystem, block: &HashSet<usize>) -> HashSet<usize> {
+    let mut result = HashSet::new();
 
     for state in block {
         for pred in transition_system.get_predecessor_states(*state) {
-            result.push(*pred);
+            result.insert(*pred);
         }
     }
 
-    result.unique()
+    result
 }
 
 pub fn advanced_refinement(transition_system: &TransitionSystem, aps: Option<&Vec<String>>) -> Partition<usize> {
     let all_ts_states: Vec<usize> = transition_system.get_states().collect();
-    let mut old_partition = Partition::from_vecs(&vec![all_ts_states.clone()]); // can probably be deleted
+    let mut queue = VecDeque::new();
+    let mut c_prime = HashSet::from_iter(all_ts_states.iter().cloned());
     let mut current_partition = Partition::from_state_space_by_aps(transition_system, aps);
     current_partition.refine(&all_ts_states);
     
     loop {
-        let rust_ist_kacke = old_partition.to_vecs().uniq(current_partition.to_vecs());
-        let c_prime = rust_ist_kacke.get(0).unwrap(); // C'
-        let mut c = vec![];
-        'outer: for c_candidate in current_partition.to_vecs() {
+        let mut c = HashSet::new();
+        for c_candidate in current_partition.to_slices() {
             if c_candidate.len() > c_prime.len() / 2 {
-                continue 'outer;
+                continue;
             }
 
-            for elem in c_candidate.iter() {
-                if !c_prime.contains(elem) {
-                    continue 'outer;
-                }
+            if c_candidate.iter().all(|elem| c_prime.contains(elem)) {
+                c.extend(c_candidate);
+                break;
             }
-
-            c = c_candidate;
-            break;
         }
+        let c_prime_diff_c = c_prime.difference(&c).cloned().collect();
 
 
-        let pre_c = get_predecessor_states_of_block(transition_system, &c.clone());
-        let pre_c_prime = get_predecessor_states_of_block(transition_system, &c_prime.clone());
-        let pre_c_prime_diff_c = get_predecessor_states_of_block(transition_system, &c_prime.clone().uniq(c.clone()));
+        let pre_c = get_predecessor_states_of_block(transition_system, &c);
+        let pre_c_prime = get_predecessor_states_of_block(transition_system, &c_prime);
+        let pre_c_prime_diff_c = get_predecessor_states_of_block(transition_system, &c_prime_diff_c);
 
         current_partition.ternary_refine(&pre_c, &pre_c_prime, &pre_c_prime_diff_c);
 
-        old_partition = Partition::from_vecs(&(old_partition.to_vecs().uniq(vec![c_prime.clone()])).union(vec![c.clone(), c_prime.uniq(c)]));
+        if !c.is_empty() {
+            queue.push_back(c);
+        }
+        if !c_prime_diff_c.is_empty() {
+            queue.push_back(c_prime_diff_c);
+        }
 
-        if current_partition == old_partition {
+        if current_partition.num_blocks() == queue.len() {
             break;
+        } else { 
+            c_prime = queue.pop_front().unwrap();
         }
     }
 
