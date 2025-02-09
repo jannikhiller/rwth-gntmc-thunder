@@ -76,9 +76,7 @@ pub fn quotienting(transition_system: &TransitionSystem) -> TransitionSystem{
         new_reverse_relations.len(),
         new_reverse_relations.len(),
         &reverse_transformed,
-    );
-
-    //build new initial states new indexes
+    );  //build new initial states new indexes
     let mut new_init_states: Vec<usize> = vec![];
     for init_state in transition_system.get_initial_states(){
         if let Some(slice) = eq_classes.get_block_of_state(&init_state){
@@ -89,6 +87,8 @@ pub fn quotienting(transition_system: &TransitionSystem) -> TransitionSystem{
             }
         }
     }
+    println!("{:?}", last_state);
+    println!("{:?}", new_init_states);
     let aps = transition_system.get_ap().clone();
     TransitionSystem::new(new_tmatrix,
                           new_reverse_matrix,
@@ -102,6 +102,8 @@ pub fn quotienting(transition_system: &TransitionSystem) -> TransitionSystem{
 #[cfg(test)]
 mod tests {
     use crate::bisimulation::quotienting::quotienting;
+    use crate::checker::invariant::bfs_invariant_checking;
+    use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
 
     fn sorted_partition(mut partition: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
         partition.iter_mut().for_each(|class| class.sort());
@@ -134,6 +136,56 @@ mod tests {
         "
             .parse()
             .unwrap();
+        let quotiened_ts = quotienting(&ts);
+        println!("{:?}", quotiened_ts.get_states());
+        assert_eq!(quotiened_ts.get_states().len(), 9);
+        assert_eq!(quotiened_ts.get_num_transitions(), 14);
+
+        //now we build our property
+        //we want to build:  a or b or c
+        let atomic_a = FormulaTreeNode::new(
+            None,
+            None,
+            Some("a".to_string()),
+            FormulaTreeNodeType::Atomic,
+        );
+        let atomic_b = FormulaTreeNode::new(
+            None,
+            None,
+            Some("b".to_string()),
+            FormulaTreeNodeType::Atomic,
+        );
+        let atomic_c = FormulaTreeNode::new(
+            None,
+            None,
+            Some("c".to_string()),
+            FormulaTreeNodeType::Atomic,
+        );
+        let or = FormulaTreeNode::new(
+            Some(Box::new(atomic_b)),
+            Some(Box::new(atomic_c)),
+            None,
+            FormulaTreeNodeType::Or,
+        );
+        let root = FormulaTreeNode::new(
+            Some(Box::new(atomic_a)),
+            Some(Box::new(or)),
+            None,
+            FormulaTreeNodeType::Or,
+        );
+        let property_1 = Property::new("ExampleTree".to_string(), PropertyType::Invariant(root));
+        assert_eq!(bfs_invariant_checking(&ts, &property_1), bfs_invariant_checking(&quotiened_ts, &property_1));
+
+        let root = FormulaTreeNode::new(
+            None,
+            None,
+            Some("a".to_string()),
+            FormulaTreeNodeType::Atomic,
+        );
+        let property_2 = Property::new("ExampleTree".to_string(), PropertyType::Invariant(root));
+        //we test on is_ok here, since name states differ-> traces differ
+        assert_eq!(bfs_invariant_checking(&ts, &property_2).is_ok(), bfs_invariant_checking(&quotiened_ts, &property_2).is_ok());
+
         println!("{:?}", quotienting(&ts));
     }
 
