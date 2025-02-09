@@ -185,6 +185,7 @@ mod tests {
         let property = Property::new(
             "PersistenceProperty".to_string(),
             PropertyType::Persistence(root),
+            vec!["a".to_string()],
         );
 
         assert!(persistence_checking_with_nested_dfs(&transition_system, &property).is_ok());
@@ -205,6 +206,7 @@ mod tests {
         let property = Property::new(
             "PersistenceProperty".to_string(),
             PropertyType::Persistence(root),
+            vec!["a".to_string()],
         );
 
         let result = persistence_checking_with_nested_dfs(&transition_system, &property);

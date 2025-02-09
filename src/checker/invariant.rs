@@ -188,7 +188,7 @@ mod tests {
             None,
             FormulaTreeNodeType::Or,
         );
-        let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant(root));
+        let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant(root), vec!["a".to_string(),"b".to_string(),"c".to_string()]);
         assert!(bfs_invariant_checking(&ts, &property).is_ok());
     }
     #[test]
@@ -204,7 +204,7 @@ mod tests {
             Some("a".to_string()),
             FormulaTreeNodeType::Atomic,
         );
-        let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant(root));
+        let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant(root), vec!["a".to_string()]);
         assert!(bfs_invariant_checking(&ts, &property).err().is_some());
 
         //for printing the counter example

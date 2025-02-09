@@ -26,6 +26,8 @@ pub struct Property<ValueType> {
     pub property_type: PropertyType<ValueType>,
     /// The name of the property.
     pub name: String,
+    ///The atomic propositions of the property.
+    aps: Vec<String>,
 }
 
 /// Creates a new `Property` with a given name, property type, and root node.
@@ -44,15 +46,21 @@ impl Property<String> {
     /// # Parameters
     /// - `name`: A `String` representing the name of the property.
     /// - `property_type`: The `PropertyType` specifying the type of the property.
+    /// - `aps`: The `Vec<String>` containing all atomic propositions of the property.
     /// - `root`: The root `FormulaTreeNode` of the tree.
     ///
     /// # Returns
     /// - A new instance of `Property`.
-    pub fn new(name: String, property_type: PropertyType<String>) -> Self {
+    pub fn new(name: String, property_type: PropertyType<String>, aps: Vec<String>) -> Self {
         Property {
             name,
             property_type,
+            aps
         }
+    }
+
+    pub fn get_aps(&self) -> Vec<String> {
+        self.aps.clone()
     }
 
     /// Evaluates the property tree against a list of labels.
@@ -782,7 +790,8 @@ mod tests {
             None,
             FormulaTreeNodeType::And,
         );
-        let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant(root));
+        let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant(root),
+                                     vec!["A".to_string(), "B".to_string()]);
 
         let labels = vec!["A".to_string()];
         assert!(
@@ -919,6 +928,7 @@ mod tests {
         let mut property = Property::new(
             "Example LTL Property".to_string(),
             PropertyType::Ltl(root.clone()),
+            vec!["A".to_string(), "B".to_string()],
         );
 
         println!("Tree before negating: \n {}", &root);
@@ -993,6 +1003,7 @@ mod tests {
         let mut property = Property::new(
             "Example LTL Property".to_string(),
             PropertyType::Ltl(root.clone()),
+            vec!["A".to_string(), "B".to_string()]
         );
 
         println!("Tree before negating: \n {}", &root);
@@ -1076,6 +1087,7 @@ mod tests {
         let mut property = Property::new(
             "Example LTL Property".to_string(),
             PropertyType::Ltl(root.clone()),
+            vec!["A".to_string(), "B".to_string()]
         );
 
         println!("Tree before negating: \n {}", &root);
@@ -1171,6 +1183,7 @@ mod tests {
         let mut property = Property::new(
             "Example LTL Property".to_string(),
             PropertyType::Ltl(root.clone()),
+            vec!["A".to_string(), "B".to_string()]
         );
 
         println!("Tree before negating: \n {}", &root);
@@ -1242,6 +1255,7 @@ mod tests {
         let mut property = Property::new(
             "Example LTL Property".to_string(),
             PropertyType::Ltl(root.clone()),
+            vec!["A".to_string(), "B".to_string()]
         );
 
         println!("Tree before negating: \n {}", &root);
@@ -1405,6 +1419,7 @@ mod tests {
         let (indices_to_subformulas, elementary_sets) = comp_elementary_sets(&Property::new(
             "ltl property1".to_string(),
             PropertyType::Ltl(ltl_tree.clone()),
+            vec!["a".to_string(), "b".to_string()]
         ));
 
         for i in indices_to_subformulas.keys() {
@@ -1545,6 +1560,7 @@ mod tests {
         let (indices_to_subformulas, elementary_sets) = comp_elementary_sets(&Property::new(
             "ltl property2".to_string(),
             PropertyType::Ltl(ltl_tree.clone()),
+            vec!["a".to_string(), "b".to_string()]
         ));
 
         // create elementary sets based on exercise solution
