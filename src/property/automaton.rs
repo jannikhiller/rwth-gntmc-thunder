@@ -680,6 +680,7 @@ mod tests {
         let ltl_gnba = LtlGnba::from_ltl_property(&Property::new(
             "ltl property".to_string(),
             PropertyType::Ltl(ltl_tree.clone()),
+            vec!["a".to_string()]
         ));
 
         assert_eq!(ltl_gnba.transition_matrix.rows(), 4);
@@ -766,6 +767,7 @@ mod tests {
         let ltl_gnba = LtlGnba::from_ltl_property(&Property::new(
             "ltl property".to_string(),
             PropertyType::Ltl(ltl_tree.clone()),
+            vec!["a".to_string(),"b".to_string()]
         ));
 
         let transition_matrix_b_sets = SparseMatrix::from_2d_vec(&vec![

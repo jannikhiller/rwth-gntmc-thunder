@@ -45,6 +45,7 @@ pub fn check(
 
 pub struct Options {
     pub persistence_algorithm: PersistenceCheckingAlgorithm,
+    pub quotienting_algorithm: QuotientingAlgorithm
 }
 
 impl Default for Options {
@@ -58,6 +59,7 @@ impl Options {
         // default algorithm is set here
         Options {
             persistence_algorithm: PersistenceCheckingAlgorithm::NestedDfs,
+            quotienting_algorithm: QuotientingAlgorithm::Without,
         }
     }
 
@@ -67,6 +69,12 @@ impl Options {
     ) {
         self.persistence_algorithm = persistence_algorithm
     }
+    pub fn set_quotienting_algorithm(
+        &mut self,
+        quotienting_algorithm: QuotientingAlgorithm,
+    ) {
+        self.quotienting_algorithm = quotienting_algorithm
+    }
 }
 
 #[derive(clap::ValueEnum, Default, Debug, Clone)]
@@ -74,4 +82,12 @@ pub enum PersistenceCheckingAlgorithm {
     Scc,
     #[default]
     NestedDfs,
+}
+
+#[derive(clap::ValueEnum, Default, Debug, Clone, PartialEq)]
+pub enum QuotientingAlgorithm {
+    AdvancedRefinement,
+    SimpleRefinement,
+    #[default]
+    Without,
 }

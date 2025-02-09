@@ -1,10 +1,11 @@
-use crate::checker::checker::{check, Options, PersistenceCheckingAlgorithm};
+use crate::checker::checker::{check, Options, PersistenceCheckingAlgorithm, QuotientingAlgorithm};
 use crate::common::transition_system::TransitionSystem;
 use crate::parser::gntmc::parse_gntmc_file;
 use crate::property::property::Property;
 use clap::Parser;
 use env_logger::Builder;
 use std::io::Write;
+use crate::bisimulation::quotienting::quotienting;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -18,6 +19,9 @@ struct Cli {
 
     #[arg(short, long, default_value_t, value_enum)]
     persistence: PersistenceCheckingAlgorithm,
+
+    #[arg(short, long, default_value_t, value_enum)]
+    bisimulation: QuotientingAlgorithm,
 }
 
 fn initialize_logger(verbosity: u8) {
@@ -59,10 +63,18 @@ fn parse_model_and_properties(
 
 fn check_properties(ts: &TransitionSystem, props: &[Property<String>], options: &Options) -> f64 {
     let mut total_model_checking_time = std::time::Duration::new(0, 0);
+    let mut checking_ts: &TransitionSystem = ts;
+    let mut owned_ts; // Declare outside the loop
     for (i, prop) in props.iter().enumerate() {
+        if options.quotienting_algorithm != QuotientingAlgorithm::Without{
+            //add function to get all aps of propert
+            let aps = prop.get_aps();
+            owned_ts = quotienting(ts, &options, Some(&aps));
+            checking_ts = &owned_ts;
+        }
         println!("Checking property {i}: {:?}...", prop.name);
         let pre_checking_time = std::time::Instant::now();
-        let result = check(ts, prop, options);
+        let result = check(checking_ts, prop, options);
         let post_checking_time = std::time::Instant::now();
         println!(
             "Done. Checking took {}s",
@@ -94,8 +106,11 @@ pub fn run() {
     let (ts, props, parsing_time) = parse_model_and_properties(&args.gntmc_file);
 
     let persistence_algorithm = args.persistence;
+    let quotienting_algorithm: QuotientingAlgorithm = args.bisimulation;
     let mut options = Options::new();
     options.set_persistence_algorithm(persistence_algorithm);
+    options.set_quotienting_algorithm(quotienting_algorithm.clone());
+
     let checking_time = check_properties(&ts, &props, &options);
 
     println!("Total runtime: {:?}", parsing_time + checking_time);
