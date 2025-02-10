@@ -289,7 +289,7 @@ impl FormulaTreeNode<String> {
 
     pub fn minimalize_tree(&mut self) {
 
-        // Erstelle die künstliche Wurzel
+        // create "artifical" root node to enssure we minimalize the complete tree
         let mut artificial_root = FormulaTreeNode {
             node_type: FormulaTreeNodeType::And,
             left: Some(Box::new(FormulaTreeNode {
