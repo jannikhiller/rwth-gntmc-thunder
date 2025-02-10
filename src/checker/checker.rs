@@ -1,3 +1,5 @@
+use std::fmt;
+use std::fmt::Formatter;
 use crate::checker::ctl::ctl_checking;
 use crate::checker::invariant::bfs_invariant_checking;
 use crate::checker::ltl::ltl_checking;
@@ -90,4 +92,14 @@ pub enum QuotientingAlgorithm {
     SimpleRefinement,
     #[default]
     Without,
+}
+
+impl fmt::Display for QuotientingAlgorithm {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            QuotientingAlgorithm::AdvancedRefinement => write!(f, "advanced refinement"),
+            QuotientingAlgorithm::SimpleRefinement => write!(f, "simple refinement"),
+            QuotientingAlgorithm::Without => write!(f, "without quotienting"),
+        }
+    }
 }
