@@ -6,7 +6,6 @@ use std::collections::{HashMap, VecDeque};
 use std::ops::Shl;
 use itertools::Itertools;
 use log::{debug, trace};
-use std::collections::HashMap;
 
 pub fn ctl_checking(
     transition_system: &TransitionSystem,

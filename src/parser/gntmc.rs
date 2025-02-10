@@ -613,7 +613,7 @@ fn build_properties(props: Vec<GntmcProperty>) -> (Vec<Property<String>>, Vec<Op
                             PropertyType::Ltl(formula.translate(aps))
                         }
                         GntmcPropertyKind::Ctl(formula) => {
-                            let mut formula = formula.translate();
+                            let mut formula = formula.translate(aps);
                             formula.minimalize_tree();
                             PropertyType::Ctl(formula)
                         }
