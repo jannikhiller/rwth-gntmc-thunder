@@ -31,45 +31,33 @@ pub struct Property<ValueType> {
     aps: Vec<String>,
 }
 
-impl <ValueType> PartialEq for PropertyType<ValueType> {
+impl<ValueType> PartialEq for PropertyType<ValueType> {
     fn eq(&self, other: &Self) -> bool {
         match self {
-            PropertyType::Invariant(_) => {
-                match other { 
-                    PropertyType::Invariant(_) => true,
-                    _ => false
-                }
-            }
-            PropertyType::Persistence(_) => {
-                match other {
-                    PropertyType::Persistence(_) => true,
-                    _ => false
-                }
-            }
-            PropertyType::RegularSafety(_) => {
-                match other {
-                    PropertyType::RegularSafety(_) => true,
-                    _ => false
-                }
-            }
-            PropertyType::OmegaRegular(_) => {
-                match other {
-                    PropertyType::OmegaRegular(_) => true,
-                    _ => false
-                }
-            }
-            PropertyType::Ltl(_) => {
-                match other {
-                    PropertyType::Ltl(_) => true,
-                    _ => false
-                }
-            }
-            PropertyType::Ctl(_) => {
-                match other {
-                    PropertyType::Ctl(_) => true,
-                    _ => false
-                }
-            }
+            PropertyType::Invariant(_) => match other {
+                PropertyType::Invariant(_) => true,
+                _ => false,
+            },
+            PropertyType::Persistence(_) => match other {
+                PropertyType::Persistence(_) => true,
+                _ => false,
+            },
+            PropertyType::RegularSafety(_) => match other {
+                PropertyType::RegularSafety(_) => true,
+                _ => false,
+            },
+            PropertyType::OmegaRegular(_) => match other {
+                PropertyType::OmegaRegular(_) => true,
+                _ => false,
+            },
+            PropertyType::Ltl(_) => match other {
+                PropertyType::Ltl(_) => true,
+                _ => false,
+            },
+            PropertyType::Ctl(_) => match other {
+                PropertyType::Ctl(_) => true,
+                _ => false,
+            },
         }
     }
 }
@@ -99,7 +87,7 @@ impl Property<String> {
         Property {
             name,
             property_type,
-            aps
+            aps,
         }
     }
 
@@ -834,8 +822,11 @@ mod tests {
             None,
             FormulaTreeNodeType::And,
         );
-        let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant(root),
-                                     vec!["A".to_string(), "B".to_string()]);
+        let property = Property::new(
+            "ExampleTree".to_string(),
+            PropertyType::Invariant(root),
+            vec!["A".to_string(), "B".to_string()],
+        );
 
         let labels = vec!["A".to_string()];
         assert!(
@@ -1047,7 +1038,7 @@ mod tests {
         let mut property = Property::new(
             "Example LTL Property".to_string(),
             PropertyType::Ltl(root.clone()),
-            vec!["A".to_string(), "B".to_string()]
+            vec!["A".to_string(), "B".to_string()],
         );
 
         println!("Tree before negating: \n {}", &root);
@@ -1131,7 +1122,7 @@ mod tests {
         let mut property = Property::new(
             "Example LTL Property".to_string(),
             PropertyType::Ltl(root.clone()),
-            vec!["A".to_string(), "B".to_string()]
+            vec!["A".to_string(), "B".to_string()],
         );
 
         println!("Tree before negating: \n {}", &root);
@@ -1227,7 +1218,7 @@ mod tests {
         let mut property = Property::new(
             "Example LTL Property".to_string(),
             PropertyType::Ltl(root.clone()),
-            vec!["A".to_string(), "B".to_string()]
+            vec!["A".to_string(), "B".to_string()],
         );
 
         println!("Tree before negating: \n {}", &root);
@@ -1299,7 +1290,7 @@ mod tests {
         let mut property = Property::new(
             "Example LTL Property".to_string(),
             PropertyType::Ltl(root.clone()),
-            vec!["A".to_string(), "B".to_string()]
+            vec!["A".to_string(), "B".to_string()],
         );
 
         println!("Tree before negating: \n {}", &root);
@@ -1463,7 +1454,7 @@ mod tests {
         let (indices_to_subformulas, elementary_sets) = comp_elementary_sets(&Property::new(
             "ltl property1".to_string(),
             PropertyType::Ltl(ltl_tree.clone()),
-            vec!["a".to_string(), "b".to_string()]
+            vec!["a".to_string(), "b".to_string()],
         ));
 
         for i in indices_to_subformulas.keys() {
@@ -1604,7 +1595,7 @@ mod tests {
         let (indices_to_subformulas, elementary_sets) = comp_elementary_sets(&Property::new(
             "ltl property2".to_string(),
             PropertyType::Ltl(ltl_tree.clone()),
-            vec!["a".to_string(), "b".to_string()]
+            vec!["a".to_string(), "b".to_string()],
         ));
 
         // create elementary sets based on exercise solution

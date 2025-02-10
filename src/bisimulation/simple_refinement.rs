@@ -1,11 +1,12 @@
 use itertools::Itertools;
 
-use crate::common::transition_system::TransitionSystem;
 use crate::bisimulation::partition::*;
+use crate::common::transition_system::TransitionSystem;
 
-
-
-pub fn simple_selection_strategy(ts: &TransitionSystem, aps: Option<&Vec<String>>) -> Partition<usize> {
+pub fn simple_selection_strategy(
+    ts: &TransitionSystem,
+    aps: Option<&Vec<String>>,
+) -> Partition<usize> {
     let mut pi = Partition::from_state_space_by_aps(ts, aps);
     let mut splitter_buffer = Vec::with_capacity(ts.get_num_states());
 
@@ -40,7 +41,9 @@ mod tests {
         partition
     }
 
-    fn test_partitioning(partitioning_method: fn(&TransitionSystem, Option<&Vec<String>>) -> Partition<usize>) {
+    fn test_partitioning(
+        partitioning_method: fn(&TransitionSystem, Option<&Vec<String>>) -> Partition<usize>,
+    ) {
         // taken from model checking 2023 exercise 9
         let ts = "init: 0 1 6 9
         0a -> 2b
@@ -63,8 +66,8 @@ mod tests {
         10b -> 10b
         10b -> 11b
         "
-            .parse()
-            .unwrap();
+        .parse()
+        .unwrap();
         let partition = partitioning_method(&ts, Option::from(&aps("ab")));
         let expected_partition = vec![
             vec![0],

@@ -1,3 +1,4 @@
+use crate::bisimulation::quotienting::quotienting;
 use crate::checker::checker::{check, Options, PersistenceCheckingAlgorithm, QuotientingAlgorithm};
 use crate::common::transition_system::TransitionSystem;
 use crate::parser::gntmc::parse_gntmc_file;
@@ -5,7 +6,6 @@ use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, 
 use clap::Parser;
 use env_logger::Builder;
 use std::io::Write;
-use crate::bisimulation::quotienting::quotienting;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -74,7 +74,10 @@ fn check_properties(ts: &TransitionSystem, props: &[Property<String>], options: 
             let pre_quot_time = std::time::Instant::now();
             quotient_ts = quotienting(ts, options, Some(&aps));
             let post_quot_time = std::time::Instant::now();
-            println!("Quotienting took {}s", (post_quot_time - pre_quot_time).as_secs_f64());
+            println!(
+                "Quotienting took {}s",
+                (post_quot_time - pre_quot_time).as_secs_f64()
+            );
             println!("Meta information of quotient:\n\tnumber of states: {:?}\n\tnumber of transitions: {:?}\n\tnumber of initial states: {:?}",
                      quotient_ts.get_num_states(), quotient_ts.get_num_transitions(), quotient_ts.get_initial_states().len()
             );

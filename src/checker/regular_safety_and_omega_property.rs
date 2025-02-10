@@ -59,8 +59,11 @@ pub fn regular_safety_and_omega_checking(
     let node = FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::Atomic);
 
     if is_omega {
-        let empty_property =
-            Property::new("emptyProperty".to_string(), PropertyType::Persistence(node),  vec![]);
+        let empty_property = Property::new(
+            "emptyProperty".to_string(),
+            PropertyType::Persistence(node),
+            vec![],
+        );
         // distinguish according to the persistence algorithm set in the options
         match options.persistence_algorithm {
             PersistenceCheckingAlgorithm::Scc => {
@@ -71,8 +74,11 @@ pub fn regular_safety_and_omega_checking(
             }
         }
     } else {
-        let empty_property =
-            Property::new("emptyProperty".to_string(), PropertyType::Invariant(node), vec![]);
+        let empty_property = Property::new(
+            "emptyProperty".to_string(),
+            PropertyType::Invariant(node),
+            vec![],
+        );
         bfs_invariant_checking(product_ts, &empty_property)
     }
 }
@@ -224,7 +230,11 @@ mod tests {
     fn test_regular_safety_check() {
         let ts = create_test_transition_system_for_regular_expression();
         let automaton: FiniteAutomaton<String> = create_test_automaton_for_regular_expression();
-        let reg_prop = Property::new("Test".to_string(), PropertyType::RegularSafety(automaton), vec![]);
+        let reg_prop = Property::new(
+            "Test".to_string(),
+            PropertyType::RegularSafety(automaton),
+            vec![],
+        );
         let mut options = Options::new();
         options.set_persistence_algorithm(PersistenceCheckingAlgorithm::Scc);
         match regular_safety_and_omega_checking(&ts, &reg_prop, &options) {
@@ -241,7 +251,11 @@ mod tests {
     fn test_scc() {
         let ts = create_test_transition_system_for_product();
         let automaton = create_test_automaton_for_product();
-        let omega_prop = Property::new("Test".to_string(), PropertyType::OmegaRegular(automaton), vec![]);
+        let omega_prop = Property::new(
+            "Test".to_string(),
+            PropertyType::OmegaRegular(automaton),
+            vec![],
+        );
         let mut options = Options::new();
         options.set_persistence_algorithm(PersistenceCheckingAlgorithm::Scc);
         match regular_safety_and_omega_checking(&ts, &omega_prop, &options) {
