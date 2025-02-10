@@ -1,7 +1,7 @@
 // The quotienting is our interface to be called, needs an Option struct to determine whether the
 // simple or advanced refinement should be used.
 use crate::bisimulation::advanced_refinement::advanced_refinement;
-use crate::bisimulation::partition::{get_successors, Partition};
+use crate::bisimulation::partition::get_successors;
 use crate::bisimulation::simple_refinement::simple_selection_strategy;
 use crate::checker::checker::{Options, QuotientingAlgorithm};
 use crate::common::sparse_matrix::SparseMatrix;
@@ -14,18 +14,13 @@ pub fn quotienting(
     options: &Options,
     ap: Option<&Vec<String>>,
 ) -> TransitionSystem {
-    let eq_classes: Partition<usize>;
-    match options.quotienting_algorithm {
-        QuotientingAlgorithm::AdvancedRefinement => {
-            eq_classes = advanced_refinement(transition_system, ap);
-        }
-        QuotientingAlgorithm::SimpleRefinement => {
-            eq_classes = simple_selection_strategy(transition_system, ap);
-        }
+    let eq_classes = match options.quotienting_algorithm {
+        QuotientingAlgorithm::AdvancedRefinement => advanced_refinement(transition_system, ap),
+        QuotientingAlgorithm::SimpleRefinement => simple_selection_strategy(transition_system, ap),
         QuotientingAlgorithm::Without => {
             panic!("We cannot be here, if flag was set to `without`");
         }
-    }
+    };
     //this is new state space
     //get new transitions for every block
     let mut new_relations: Vec<(usize, usize)> = Vec::new();
@@ -120,12 +115,6 @@ mod tests {
     use crate::checker::checker::{Options, QuotientingAlgorithm};
     use crate::checker::invariant::bfs_invariant_checking;
     use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
-
-    fn sorted_partition(mut partition: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
-        partition.iter_mut().for_each(|class| class.sort());
-        partition.sort();
-        partition
-    }
 
     fn test_partitioning() {
         // taken from model checking 2023 exercise 9

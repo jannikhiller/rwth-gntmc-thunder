@@ -29,9 +29,9 @@ impl Partition<usize> {
         transition_system: &TransitionSystem,
         filter_aps: Option<&Vec<String>>,
     ) -> Self {
-        let ap_bitmask = if filter_aps.is_some() {
+        let ap_bitmask = if let Some(aps) = filter_aps {
             transition_system
-                .get_label_from_aps(filter_aps.unwrap())
+                .get_label_from_aps(aps)
                 .unwrap_or(BitVec::from_elem(transition_system.get_ap().len(), false))
         } else {
             BitVec::from_elem(transition_system.get_ap().len(), true)
@@ -315,7 +315,6 @@ pub fn get_successors(ts: &TransitionSystem, states: &[usize], result_buffer: &m
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::sparse_matrix::SparseMatrix;
 
     #[test]
     fn test_partition() {
@@ -371,57 +370,18 @@ mod tests {
 
     #[test]
     fn test_ap_partition_from_ts() {
-        let transitions = vec![
-            (0, 1, true),
-            (0, 2, true),
-            (2, 1, true),
-            (1, 3, true),
-            (3, 2, true),
-            (3, 3, true),
-            (4, 4, true),
-        ];
-        let transition_matrix = SparseMatrix::from_list_of_entries(5, 5, &transitions);
-        let reverse_transitions = [
-            (1, 0, true),
-            (2, 0, true),
-            (1, 2, true),
-            (3, 1, true),
-            (2, 3, true),
-            (3, 3, true),
-            (4, 4, true),
-        ];
-        let reverse_transition_matrix = SparseMatrix::from_list_of_entries(5, 5, &transitions);
-        let mut state_labels = Vec::new();
-        let ap = vec!["a".to_string(), "b".to_string()];
-        let mut label0 = BitVec::from_elem(2, false);
-        label0.set(0, true);
-        label0.set(1, true);
-        state_labels.push(label0.clone());
-        let label1 = BitVec::from_elem(2, false);
-        state_labels.push(label1.clone());
-        let mut label2 = BitVec::from_elem(2, false);
-        label2.set(0, true);
-        state_labels.push(label2.clone());
-        let mut label3 = BitVec::from_elem(2, false);
-        label3.set(1, true);
-        state_labels.push(label3.clone());
-        let label4 = BitVec::from_elem(2, true);
-        state_labels.push(label4.clone());
-        let label_state_map = HashMap::new();
-        let ts = TransitionSystem::new(
-            transition_matrix,
-            reverse_transition_matrix,
-            4,       // last_state
-            vec![0], // initial_states
-            state_labels,
-            label_state_map,
-            ap,
-        );
-
+        let ts = "init: 0
+        0ab -> 1
+        0ab -> 2a
+        2a -> 1
+        1 -> 3b
+        3b -> 2a
+        3b -> 3b
+        4 -> 4"
+            .parse()
+            .unwrap();
         let partition = Partition::from_state_space_by_aps(&ts, Option::None);
-
         assert_eq!(partition.blocks.len(), 4);
-
         println!("{}", partition);
     }
 
