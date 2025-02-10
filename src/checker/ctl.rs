@@ -2,6 +2,8 @@ use crate::checker::helper::bit_vec_to_ap_strings;
 use crate::common::transition_system::TransitionSystem;
 use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
 use bit_vec::BitVec;
+use std::collections::{HashMap, VecDeque};
+use std::ops::Shl;
 use itertools::Itertools;
 use log::{debug, trace};
 use std::collections::HashMap;
@@ -134,37 +136,32 @@ fn compute_sat_set_of_exists_until(
     formula: FormulaTreeNode<String>,
     cache: &mut HashMap<String, BitVec>,
 ) -> BitVec {
-    trace!("Computing satisfaction sets for EXISTS UNTIL...");
     let left = formula.left.unwrap();
     let right = formula.right.unwrap();
 
     trace!("Computing satisfaction set of right subformula.");
     let mut set_t = compute_sat_set(transition_system, &right, cache);
     trace!("Finished satisfaction set of right subformula.");
-    let mut set_e = set_t.clone();
+    let mut queue = VecDeque::new();
     trace!("Computing satisfaction set of left subformula.");
     let sat_left = compute_sat_set(transition_system, &left, cache);
     trace!("Finished satisfaction set of left subformula.");
 
-    while set_e.any() {
-        let mut s_prime = 0;
-        for (state_index, b) in set_e.iter().enumerate() {
-            if b {
-                s_prime = state_index;
-                trace!("Chose state {} as s'", s_prime);
-                set_e.set(state_index, false);
-                break;
-            }
+    for (state, b) in set_t.iter().enumerate() {
+        if b {
+            queue.push_back(state);
         }
+    }
 
+    let mut sat_left_minus_set_t = sat_left.clone();
+    sat_left_minus_set_t.difference(&set_t);
+    while let Some(s_prime) = queue.pop_front() {
         for state in transition_system.get_predecessor_states(s_prime) {
             trace!("Checking predecessor state {}", state);
-            let mut sat_left_minus_set_t = sat_left.clone();
-            sat_left_minus_set_t.difference(&set_t);
-
             if sat_left_minus_set_t.get(*state).unwrap() {
                 set_t.set(*state, true);
-                set_e.set(*state, true);
+                sat_left_minus_set_t.set(*state, false);
+                queue.push_back(*state);
             }
         }
     }
@@ -189,8 +186,7 @@ fn compute_sat_set_of_exists_globally(
 ) -> BitVec {
     trace!("Computing satisfaction sets for EXISTS GLOBALLY...");
     let mut set_t = compute_sat_set(transition_system, &formula.left.unwrap(), cache);
-    let mut set_e = set_t.clone();
-    set_e.negate();
+    let mut queue = VecDeque::new();
 
     let mut c = HashMap::new();
     for (curr_state, b) in set_t.iter().enumerate() {
@@ -200,25 +196,14 @@ fn compute_sat_set_of_exists_globally(
                 curr_state,
                 transition_system.get_successor_states(curr_state).len(),
             );
-            trace!(
-                "Inserted state c[{}] = {}",
-                curr_state,
-                transition_system.get_successor_states(curr_state).len()
-            );
+            trace!("Inserted state c[{}] = {}", curr_state,
+                transition_system.get_successor_states(curr_state).len());
+        } else {
+            queue.push_back(curr_state);
         }
     }
 
-    while set_e.any() {
-        let mut s_prime = 0;
-        for (curr_state, b) in set_e.iter().enumerate() {
-            if b {
-                s_prime = curr_state;
-                trace!("Chose state {} as s'", s_prime);
-                set_e.set(s_prime, false);
-                break;
-            }
-        }
-
+    while let Some(s_prime) = queue.pop_front() {
         for predecessor_state in transition_system.get_predecessor_states(s_prime) {
             trace!("Checking predecessor state {}", predecessor_state);
             if set_t.get(*predecessor_state).unwrap() {
@@ -229,7 +214,7 @@ fn compute_sat_set_of_exists_globally(
                 c.insert(*predecessor_state, c.get(predecessor_state).unwrap() - 1);
                 if *c.get(predecessor_state).unwrap() == 0 {
                     set_t.set(*predecessor_state, false);
-                    set_e.set(*predecessor_state, true);
+                    queue.push_back(*predecessor_state);
                 }
             }
         }
