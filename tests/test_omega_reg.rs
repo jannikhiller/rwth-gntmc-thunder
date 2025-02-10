@@ -2,8 +2,8 @@ macro_rules! check_file {
     ($file:expr $(, $is_true:expr)?) => {
         let (ts, props, is_trues) = gntmc::parse_gntmc_file($file);
         for (prop, is_true) in props.iter().zip(is_trues.iter()) {
-            let mut options_ndfs = thunder::checker::checker::Options::new();
-            options_ndfs.set_persistence_algorithm(thunder::checker::checker::PersistenceCheckingAlgorithm::NestedDfs);
+            let mut options_ndfs = thunder::checker::Options::new();
+            options_ndfs.set_persistence_algorithm(thunder::checker::PersistenceCheckingAlgorithm::NestedDfs);
             let prop_fulfilled_ndfs = check(&ts, prop, &options_ndfs);
             let mut fail_message_ndfs = format!("Failed at file {}.", $file);
 
@@ -16,8 +16,8 @@ macro_rules! check_file {
             let expected_ndfs = is_true.unwrap_or($($is_true ||)? false);
             assert_eq!(prop_fulfilled_ndfs.is_ok(), expected_ndfs, "{}", fail_message_ndfs);
 
-            let mut options_scc = thunder::checker::checker::Options::new();
-            options_scc.set_persistence_algorithm(thunder::checker::checker::PersistenceCheckingAlgorithm::Scc);
+            let mut options_scc = thunder::checker::Options::new();
+            options_scc.set_persistence_algorithm(thunder::checker::PersistenceCheckingAlgorithm::Scc);
             let prop_fulfilled_scc = check(&ts, prop, &options_scc);
             let mut fail_message_scc = format!("Failed at file {}.", $file);
 
@@ -46,7 +46,7 @@ macro_rules! generate_res_test {
 
 #[cfg(test)]
 mod test {
-    use thunder::checker::checker::check;
+    use thunder::checker::check;
     use thunder::parser::gntmc;
     //the first test, is Exc 2 from sheet 3
     generate_res_test!(test_omega_reg_1, test_omega_reg_2);

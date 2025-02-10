@@ -10,7 +10,7 @@ macro_rules! check_file {
                 _ => panic!("Wrong property type"),
             }
 
-            let options = thunder::checker::checker::Options::new();
+            let options = thunder::checker::Options::new();
             let prop_fulfilled = check(&ts, prop, &options);
             let expected = is_true.unwrap_or($($is_true ||)? false);
             assert_eq!(prop_fulfilled.is_ok(), expected);
@@ -31,8 +31,8 @@ macro_rules! generate_res_test {
 
 #[cfg(test)]
 mod tests {
-    use thunder::checker::checker::check;
+    use thunder::checker::check;
     use thunder::parser::gntmc;
-    use thunder::property::property::PropertyType;
+    use thunder::property::PropertyType;
     generate_res_test!(test_ctl_1, test_ctl_2);
 }

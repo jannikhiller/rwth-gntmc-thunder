@@ -1,8 +1,8 @@
 use crate::bisimulation::quotienting::quotienting;
-use crate::checker::checker::{check, Options, PersistenceCheckingAlgorithm, QuotientingAlgorithm};
+use crate::checker::{check, Options, PersistenceCheckingAlgorithm, QuotientingAlgorithm};
 use crate::common::transition_system::TransitionSystem;
 use crate::parser::gntmc::parse_gntmc_file;
-use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+use crate::property::{Property, PropertyType};
 use clap::Parser;
 use env_logger::Builder;
 use std::io::Write;
@@ -63,8 +63,11 @@ fn parse_model_and_properties(
 
 /// # Return
 /// (quotienting time, model checking time)
-fn check_properties(ts: &TransitionSystem, props: &[Property<String>], options: &Options) -> (f64, f64) {
-    let empty_formula = FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::Atomic);
+fn check_properties(
+    ts: &TransitionSystem,
+    props: &[Property<String>],
+    options: &Options,
+) -> (f64, f64) {
     let mut total_quotienting_time = std::time::Duration::new(0, 0);
     let mut total_model_checking_time = std::time::Duration::new(0, 0);
     let mut checking_ts: &TransitionSystem = ts;
@@ -101,7 +104,7 @@ fn check_properties(ts: &TransitionSystem, props: &[Property<String>], options: 
             prop.name,
             result.is_ok()
         );
-        if result.is_err() && prop.property_type != PropertyType::Ctl(empty_formula.clone()) {
+        if result.is_err() && !matches!(prop.property_type, PropertyType::Ctl(_)) {
             let (trace, path) = result.err().unwrap();
             println!("\tFound following path as counterexample: {:?}", path);
             println!("\tCorresponding trace: {:?}", trace);
@@ -122,7 +125,10 @@ fn check_properties(ts: &TransitionSystem, props: &[Property<String>], options: 
         total_model_checking_time.as_secs_f64()
     );
 
-    (total_quotienting_time.as_secs_f64(), total_model_checking_time.as_secs_f64())
+    (
+        total_quotienting_time.as_secs_f64(),
+        total_model_checking_time.as_secs_f64(),
+    )
 }
 
 pub fn run() {
@@ -143,5 +149,8 @@ pub fn run() {
 
     let (quotienting_time, checking_time) = check_properties(&ts, &props, &options);
 
-    println!("Total runtime: {:?}s", parsing_time + quotienting_time + checking_time);
+    println!(
+        "Total runtime: {:?}s",
+        parsing_time + quotienting_time + checking_time
+    );
 }

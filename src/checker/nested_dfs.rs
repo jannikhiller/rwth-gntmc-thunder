@@ -1,5 +1,5 @@
 use crate::common::transition_system::TransitionSystem;
-use crate::property::property::Property;
+use crate::property::Property;
 
 use crate::checker::helper::bit_vec_to_ap_strings;
 use log::{debug, trace};
@@ -166,7 +166,7 @@ mod tests {
     use crate::checker::nested_dfs::persistence_checking_with_nested_dfs;
     use crate::common::sparse_matrix::SparseMatrix;
     use crate::common::transition_system::TransitionSystem;
-    use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+    use crate::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
     use bit_vec::BitVec;
     use std::collections::HashMap;
 
@@ -212,7 +212,7 @@ mod tests {
         let result = persistence_checking_with_nested_dfs(&transition_system, &property);
 
         match &result {
-            Ok(success) => {
+            Ok(_) => {
                 panic!("Property should fail!")
             }
             Err((counterexample, trace_indexes)) => {

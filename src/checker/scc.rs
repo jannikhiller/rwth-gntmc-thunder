@@ -1,6 +1,6 @@
 use crate::checker::helper::bit_vec_to_ap_strings;
 use crate::common::transition_system::TransitionSystem;
-use crate::property::property::Property;
+use crate::property::Property;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Searches for SCCs in the given transition system and checks whether it contains an SCC which
@@ -18,7 +18,7 @@ pub fn find_scc_in_ts(
     property: &Property<String>,
 ) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
     // wrapper struct used to find and store SCCs in the given transition system
-    let mut scc = SCC::new();
+    let mut scc = Scc::new();
     scc.find_sccs(transition_system);
 
     for cluster in scc.sccs {
@@ -92,7 +92,7 @@ fn is_reachable(
     Err(false)
 }
 
-struct SCC {
+struct Scc {
     max_dfs: usize,
     dfs_num: HashMap<usize, usize>,
     low_link: HashMap<usize, usize>,
@@ -100,9 +100,9 @@ struct SCC {
     stack: Vec<usize>,
     sccs: Vec<Vec<usize>>,
 }
-impl SCC {
+impl Scc {
     fn new() -> Self {
-        SCC {
+        Scc {
             max_dfs: 0,
             dfs_num: HashMap::new(),
             low_link: HashMap::new(),
@@ -167,11 +167,6 @@ impl SCC {
             }
         }
     }
-    fn print_sccs(&self) {
-        for scc in &self.sccs {
-            println!("SCC: {:?}", scc);
-        }
-    }
 }
 
 /// Construct a counterexample in the case that the property was violated by the given transition
@@ -216,7 +211,7 @@ mod tests {
     use crate::checker::scc::persistence_checking_with_scc;
     use crate::common::sparse_matrix::SparseMatrix;
     use crate::common::transition_system::TransitionSystem;
-    use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+    use crate::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
     use bit_vec::BitVec;
     use std::collections::HashMap;
 
@@ -262,7 +257,7 @@ mod tests {
         let result = persistence_checking_with_scc(&transition_system, &property);
 
         match &result {
-            Ok(success) => {
+            Ok(_) => {
                 panic!("Property should fail!")
             }
             Err((counterexample, trace_indexes)) => {

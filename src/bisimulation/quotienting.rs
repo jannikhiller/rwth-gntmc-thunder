@@ -1,9 +1,9 @@
 // The quotienting is our interface to be called, needs an Option struct to determine whether the
 // simple or advanced refinement should be used.
 use crate::bisimulation::advanced_refinement::advanced_refinement;
-use crate::bisimulation::partition::{get_successors, Partition};
+use crate::bisimulation::partition::get_successors;
 use crate::bisimulation::simple_refinement::simple_selection_strategy;
-use crate::checker::checker::{Options, QuotientingAlgorithm};
+use crate::checker::{Options, QuotientingAlgorithm};
 use crate::common::sparse_matrix::SparseMatrix;
 use crate::common::transition_system::TransitionSystem;
 use bit_vec::BitVec;
@@ -14,18 +14,13 @@ pub fn quotienting(
     options: &Options,
     ap: Option<&Vec<String>>,
 ) -> TransitionSystem {
-    let eq_classes: Partition<usize>;
-    match options.quotienting_algorithm {
-        QuotientingAlgorithm::AdvancedRefinement => {
-            eq_classes = advanced_refinement(transition_system, ap);
-        }
-        QuotientingAlgorithm::SimpleRefinement => {
-            eq_classes = simple_selection_strategy(transition_system, ap);
-        }
+    let eq_classes = match options.quotienting_algorithm {
+        QuotientingAlgorithm::AdvancedRefinement => advanced_refinement(transition_system, ap),
+        QuotientingAlgorithm::SimpleRefinement => simple_selection_strategy(transition_system, ap),
         QuotientingAlgorithm::Without => {
             panic!("We cannot be here, if flag was set to `without`");
         }
-    }
+    };
     //this is new state space
     //get new transitions for every block
     let mut new_relations: Vec<(usize, usize)> = Vec::new();
@@ -59,7 +54,7 @@ pub fn quotienting(
         get_successors(transition_system, slice, &mut successor_buffer);
 
         for succ in &successor_buffer {
-            if let Some(val) = eq_classes.get_block_of_state(&succ) {
+            if let Some(val) = eq_classes.get_block_of_state(succ) {
                 if let Some(new_succ) = slice_to_index.get(val) {
                     let value = (new_state, *new_succ);
                     if !new_relations.contains(&value) {
@@ -93,9 +88,9 @@ pub fn quotienting(
     ); //build new initial states new indexes
     let mut new_init_states: Vec<usize> = vec![];
     for init_state in transition_system.get_initial_states() {
-        if let Some(slice) = eq_classes.get_block_of_state(&init_state) {
+        if let Some(slice) = eq_classes.get_block_of_state(init_state) {
             if let Some(new_index) = slice_to_index.get(slice) {
-                if !new_init_states.contains(&new_index) {
+                if !new_init_states.contains(new_index) {
                     new_init_states.push(*new_index);
                 }
             }
@@ -117,15 +112,9 @@ pub fn quotienting(
 #[cfg(test)]
 mod tests {
     use crate::bisimulation::quotienting::quotienting;
-    use crate::checker::checker::{Options, QuotientingAlgorithm};
     use crate::checker::invariant::bfs_invariant_checking;
-    use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
-
-    fn sorted_partition(mut partition: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
-        partition.iter_mut().for_each(|class| class.sort());
-        partition.sort();
-        partition
-    }
+    use crate::checker::{Options, QuotientingAlgorithm};
+    use crate::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
 
     fn test_partitioning() {
         // taken from model checking 2023 exercise 9
@@ -217,10 +206,6 @@ mod tests {
             bfs_invariant_checking(&ts, &property_2).is_ok(),
             bfs_invariant_checking(&quotiened_ts, &property_2).is_ok()
         );
-    }
-
-    fn aps(str: &str) -> Vec<String> {
-        str.chars().map(String::from).collect()
     }
 
     #[test]

@@ -1,7 +1,7 @@
 use crate::bisimulation::partition::{get_predecessors, Partition};
 use crate::common::transition_system::TransitionSystem;
 use crate::common::vec_helper::setminus;
-use std::collections::{VecDeque};
+use std::collections::VecDeque;
 
 pub fn advanced_refinement(
     transition_system: &TransitionSystem,
@@ -43,10 +43,10 @@ pub fn advanced_refinement(
         }
 
         let c_prime_diff_c = setminus(&c_prime, &c);
-        
+
         get_predecessors(transition_system, &c, &mut pre_c);
         get_predecessors(transition_system, &c_prime_diff_c, &mut pre_c_prime_diff_c);
-        
+
         current_partition.ternary_refine(&pre_c, &pre_c_prime_diff_c);
 
         if !c.is_empty() {

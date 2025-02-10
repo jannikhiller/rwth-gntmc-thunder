@@ -1,11 +1,9 @@
 use crate::checker::helper::bit_vec_to_ap_strings;
 use crate::common::transition_system::TransitionSystem;
-use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+use crate::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
 use bit_vec::BitVec;
-use std::collections::{HashMap, VecDeque};
-use std::ops::Shl;
-use itertools::Itertools;
 use log::{debug, trace};
+use std::collections::{HashMap, VecDeque};
 
 pub fn ctl_checking(
     transition_system: &TransitionSystem,
@@ -195,8 +193,11 @@ fn compute_sat_set_of_exists_globally(
                 curr_state,
                 transition_system.get_successor_states(curr_state).len(),
             );
-            trace!("Inserted state c[{}] = {}", curr_state,
-                transition_system.get_successor_states(curr_state).len());
+            trace!(
+                "Inserted state c[{}] = {}",
+                curr_state,
+                transition_system.get_successor_states(curr_state).len()
+            );
         } else {
             queue.push_back(curr_state);
         }
@@ -250,7 +251,7 @@ mod tests {
     use crate::checker::ctl::*;
     use crate::common::sparse_matrix::SparseMatrix;
     use crate::common::transition_system::TransitionSystem;
-    use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType};
+    use crate::property::{FormulaTreeNode, FormulaTreeNodeType};
     use bit_vec::BitVec;
     use std::collections::HashMap;
 
