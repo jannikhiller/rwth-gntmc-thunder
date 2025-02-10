@@ -54,7 +54,35 @@ impl TransitionSystem {
     ) -> Self {
         TransitionSystem {
             transition_matrix,
-            reverse_transition_matrix,
+            reverse_transition_matrix: reverse_transition_matrix,
+            last_state,
+            initial_states,
+            state_labels,
+            label_state_map,
+            ap,
+        }
+    }
+
+    /// Creates a new `TransitionSystem` where the reverse transition matrix is set to None.
+    ///
+    /// # Parameters
+    /// - `transition_matrix`: Sparse matrix representing transitions from states.
+    /// - `last_state`: Name of the last state. States are modelled as list from `0 .. last_state` (inclusively).
+    /// - `initial_states`: Vector of indices representing initial states.
+    /// - `state_labels`: Vector of `BitVec` labels for each state.
+    /// - `label_state_map`: HashMap mapping labels to the states that have them.
+    /// - `ap`: Vector of atomic propositions.
+    pub fn new_without_rtm(
+        transition_matrix: SparseMatrix<bool>,
+        last_state: usize,
+        initial_states: Vec<usize>,
+        state_labels: Vec<BitVec>,
+        label_state_map: HashMap<BitVec, Vec<usize>>,
+        ap: Vec<String>,
+    ) -> Self {
+        TransitionSystem {
+            transition_matrix,
+            reverse_transition_matrix: SparseMatrix::default(),
             last_state,
             initial_states,
             state_labels,
@@ -159,8 +187,12 @@ impl TransitionSystem {
     /// # Returns
     /// An iterator over state indices that can reach the given state.
     #[allow(dead_code)]
-    pub fn get_predecessor_states(&self, state: usize) -> &[usize] {
-        self.reverse_transition_matrix.get_col_indexes_in_row(state)
+    pub fn get_predecessor_states(&self, state: usize) -> Option<&[usize]> {
+        if self.reverse_transition_matrix == SparseMatrix::default() { 
+            return None;
+        }
+        let result = self.reverse_transition_matrix.get_col_indexes_in_row(state);
+        Some(result)
     }
 
     /// Computes the product of the transition system with an automaton.
@@ -309,21 +341,6 @@ impl TransitionSystem {
                 })
                 .collect::<Vec<_>>(),
         );
-        let reverse_tmatrix = SparseMatrix::default(); //from_list_of_entries(
-        //     num_of_new_states,
-        //     num_of_new_states,
-        //     &new_state_infos
-        //         .iter()
-        //         .flat_map(|(input, nsi)| {
-        //             nsi.succs.clone().into_iter().map(|output|
-        //                 (
-        //                     new_state_infos.get(&output).unwrap().state_int,
-        //                     new_state_infos.get(input).unwrap().state_int,
-        //                     true,
-        //                 )).collect::<Vec<_>>()
-        //         })
-        //         .collect::<Vec<_>>(),
-        // );
         let mapped_new_init_states = new_init_states
             .iter()
             .map(|s| new_state_infos.get(s).unwrap().state_int)
@@ -382,9 +399,8 @@ impl TransitionSystem {
         }));
         debug!("Finished computation of product.");
 
-        TransitionSystem::new(
+        TransitionSystem::new_without_rtm(
             tmatrix,
-            reverse_tmatrix,
             num_of_new_states - 1,
             mapped_new_init_states,
             new_state_labels,
@@ -498,11 +514,11 @@ mod tests {
     #[test]
     fn test_get_predecessor_states() {
         let ts = create_test_transition_system();
-        let predecessors0: Vec<_> = ts.get_predecessor_states(0).to_vec();
+        let predecessors0: Vec<_> = ts.get_predecessor_states(0).unwrap().to_vec();
         assert_eq!(predecessors0, vec![2]);
-        let predecessors1: Vec<_> = ts.get_predecessor_states(1).to_vec();
+        let predecessors1: Vec<_> = ts.get_predecessor_states(1).unwrap().to_vec();
         assert_eq!(predecessors1, vec![0]);
-        let predecessors2: Vec<_> = ts.get_predecessor_states(2).to_vec();
+        let predecessors2: Vec<_> = ts.get_predecessor_states(2).unwrap().to_vec();
         assert_eq!(predecessors2, vec![1]);
     }
     #[test]
@@ -721,9 +737,8 @@ mod tests {
 
             // check predecessors
             let c_preds = computed.get_predecessor_states(*computed_state);
-            let r_preds = result_ts.get_predecessor_states(*result_state);
-            assert_eq!(c_preds.len(), r_preds.len(),
-                       "Both states should have the same number of predecessors. Expected: {:?} but got: {:?}", r_preds.len(),c_preds.len());
+            assert_eq!(c_preds, None,
+                       "States should have `None` predecessors as the reversed transition matrix is removed after product construction");
 
             // check successors
             let c_succs = computed.get_successor_states(*computed_state);
