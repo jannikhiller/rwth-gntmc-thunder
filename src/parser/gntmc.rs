@@ -184,7 +184,7 @@ pub enum GntmcLtlFormula {
     Implies(Box<GntmcLtlFormula>, Box<GntmcLtlFormula>),
     Finally(Box<GntmcLtlFormula>),
     Globally(Box<GntmcLtlFormula>),
-    True,
+    True
 }
 
 impl GntmcLtlFormula {
@@ -256,6 +256,7 @@ impl GntmcLtlFormula {
             GntmcLtlFormula::True => {
                 FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::True)
             }
+
         }
     }
 }
@@ -271,6 +272,7 @@ pub enum GntmcCtlStateFormula {
     Exists(Box<GntmcCtlPathFormula>),
     Forall(Box<GntmcCtlPathFormula>),
     True,
+    False,
 }
 
 impl GntmcCtlStateFormula {
@@ -388,6 +390,9 @@ impl GntmcCtlStateFormula {
             }
             GntmcCtlStateFormula::True => {
                 FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::True)
+            }
+            GntmcCtlStateFormula::False => {
+                FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::False)
             }
         }
     }
@@ -592,7 +597,7 @@ fn build_properties(props: Vec<GntmcProperty>) -> (Vec<Property<String>>, Vec<Op
                         GntmcPropertyKind::Ltl(formula) => PropertyType::Ltl(formula.translate()),
                         GntmcPropertyKind::Ctl(formula) => {
                             let mut formula = formula.translate();
-                            formula.remove_double_negations();
+                            formula.minimalize_tree();
                             PropertyType::Ctl(formula)
                         }
 
