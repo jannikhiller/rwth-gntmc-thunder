@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
 
-use crate::property::automaton::FiniteAutomaton;
+use crate::parser::automaton::FiniteAutomaton;
 
 #[derive(Debug, Clone)]
 pub enum PropertyType<ValueType> {
@@ -15,6 +15,7 @@ pub enum PropertyType<ValueType> {
     Ltl(FormulaTreeNode<ValueType>),
     Ctl(FormulaTreeNode<ValueType>),
 }
+
 
 /// A tree structure representing a property with logical expressions.
 ///
@@ -30,36 +31,6 @@ pub struct Property<ValueType> {
     aps: Vec<String>,
 }
 
-impl<ValueType> PartialEq for PropertyType<ValueType> {
-    fn eq(&self, other: &Self) -> bool {
-        match self {
-            PropertyType::Invariant(_) => match other {
-                PropertyType::Invariant(_) => true,
-                _ => false,
-            },
-            PropertyType::Persistence(_) => match other {
-                PropertyType::Persistence(_) => true,
-                _ => false,
-            },
-            PropertyType::RegularSafety(_) => match other {
-                PropertyType::RegularSafety(_) => true,
-                _ => false,
-            },
-            PropertyType::OmegaRegular(_) => match other {
-                PropertyType::OmegaRegular(_) => true,
-                _ => false,
-            },
-            PropertyType::Ltl(_) => match other {
-                PropertyType::Ltl(_) => true,
-                _ => false,
-            },
-            PropertyType::Ctl(_) => match other {
-                PropertyType::Ctl(_) => true,
-                _ => false,
-            },
-        }
-    }
-}
 
 /// Creates a new `Property` with a given name, property type, and root node.
 /// The given `ValueType` specifies the datatype of the label.
@@ -137,13 +108,6 @@ impl Property<String> {
     /// - If the given property is not of type LTL.
     pub fn negate(&mut self) {
         match &mut self.property_type {
-            PropertyType::Invariant(_)
-            | PropertyType::Persistence(_)
-            | PropertyType::OmegaRegular(_)
-            | PropertyType::Ctl(_)
-            | PropertyType::RegularSafety(_) => {
-                panic!("Negation of a property is currently only allowed for LTL properties.")
-            }
             PropertyType::Ltl(formula_tree_node) => {
                 debug!("Before adding negation: \n{}", formula_tree_node);
                 // if the formula tree starts with one or more `NOT`'s, then we have to handle this
@@ -155,6 +119,9 @@ impl Property<String> {
                 // remove remaining double negations recursively
                 formula_tree_node.remove_double_negations();
                 debug!("After removing double negations: \n{}", formula_tree_node);
+            }
+            _ => {
+                panic!("Negation of a property is currently only allowed for LTL properties.")
             }
         }
     }
@@ -703,6 +670,7 @@ impl ElementaryNode {
         }
     }
 
+    /*
     fn set_left_value(&mut self, left_value: usize) {
         self.left_value = left_value;
     }
@@ -710,6 +678,7 @@ impl ElementaryNode {
     fn set_right_value(&mut self, right_value: usize) {
         self.right_value = right_value;
     }
+    */
 
     /// Derives the value of this node according to the given `state` where this node is expected
     /// to be at the given `index`. The value is derived such that it is *maximally* and *locally*
@@ -1830,7 +1799,7 @@ mod tests {
             FormulaTreeNodeType::Until,
         );
 
-        let (indices_to_subformulas, elementary_sets) = comp_elementary_sets(&Property::new(
+        let (_, elementary_sets) = comp_elementary_sets(&Property::new(
             "ltl property2".to_string(),
             PropertyType::Ltl(ltl_tree.clone()),
             vec!["a".to_string(), "b".to_string()],

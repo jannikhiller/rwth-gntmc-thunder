@@ -114,7 +114,7 @@ mod tests {
     use crate::bisimulation::quotienting::quotienting;
     use crate::checker::checker::{Options, QuotientingAlgorithm};
     use crate::checker::invariant::bfs_invariant_checking;
-    use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+    use crate::parser::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
 
     fn test_partitioning() {
         // taken from model checking 2023 exercise 9
@@ -208,9 +208,6 @@ mod tests {
         );
     }
 
-    fn aps(str: &str) -> Vec<String> {
-        str.chars().map(String::from).collect()
-    }
 
     #[test]
     fn test_simple_selection_strategy() {

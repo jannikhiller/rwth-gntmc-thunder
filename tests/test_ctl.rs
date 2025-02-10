@@ -33,6 +33,6 @@ macro_rules! generate_res_test {
 mod tests {
     use thunder::checker::checker::check;
     use thunder::parser::gntmc;
-    use thunder::property::property::PropertyType;
+    use thunder::parser::property::PropertyType;
     generate_res_test!(test_ctl_1, test_ctl_2);
 }

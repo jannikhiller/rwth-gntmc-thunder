@@ -8,13 +8,13 @@ use std::io::BufReader;
 
 use crate::common::sparse_matrix::SparseMatrix;
 use crate::common::transition_system::*;
-use crate::property::automaton::{AcceptanceType, FiniteAutomaton};
-use crate::property::property::*;
+use crate::parser::automaton::{AcceptanceType, FiniteAutomaton};
+use crate::parser::property::*;
 
 #[derive(Debug, Deserialize)]
 struct GntmcTransitionSystem {
     states: Vec<u64>,
-    actions: Vec<u64>,
+    //actions: Vec<u64>,
     transitions: Vec<(u64, u64, u64)>,
     initial_states: Vec<u64>,
     labelling: HashMap<u64, Vec<String>>,

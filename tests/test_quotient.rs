@@ -5,7 +5,7 @@ mod tests {
     use thunder::checker::checker::Options;
     use thunder::checker::checker::QuotientingAlgorithm;
     use thunder::parser::gntmc;
-    use thunder::property::property::PropertyType;
+    use thunder::parser::property::PropertyType;
 
     fn run_test(file: &str, sizes: &[usize]) {
         let (ts, props, _) = gntmc::parse_gntmc_file(file);

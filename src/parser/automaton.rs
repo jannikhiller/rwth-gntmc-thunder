@@ -1,5 +1,5 @@
 use crate::common::sparse_matrix::{SparseMatrix, SparseMatrixElement};
-use crate::property::property::{
+use crate::parser::property::{
     comp_elementary_sets, FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType,
 };
 use array_tool::vec::*;
@@ -51,6 +51,7 @@ impl FiniteAutomaton<String> {
             atomic_propositions: None,
         }
     }
+    /*
     pub fn new_with_aps(
         acceptance: AcceptanceType,
         transition_matrix: SparseMatrix<Vec<FormulaTreeNode<String>>>,
@@ -68,6 +69,7 @@ impl FiniteAutomaton<String> {
             atomic_propositions,
         }
     }
+    */
 
     pub fn from_gnba(mut gnba: LtlGnba) -> Self {
         fn create_formula_from_state_aps(aps: Vec<String>) -> FormulaTreeNode<String> {
@@ -571,8 +573,8 @@ impl LtlGnba {
 #[cfg(test)]
 mod tests {
     use crate::common::sparse_matrix::SparseMatrix;
-    use crate::property::automaton::{AcceptanceType, FiniteAutomaton, LtlGnba};
-    use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+    use crate::parser::automaton::{AcceptanceType, FiniteAutomaton, LtlGnba};
+    use crate::parser::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
     use bit_vec::BitVec;
 
     #[test]

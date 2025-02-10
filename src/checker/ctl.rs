@@ -1,8 +1,7 @@
 use crate::checker::helper::bit_vec_to_ap_strings;
 use crate::common::transition_system::TransitionSystem;
-use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+use crate::parser::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
 use bit_vec::BitVec;
-use itertools::Itertools;
 use log::{debug, trace};
 use std::collections::{HashMap, VecDeque};
 
@@ -252,7 +251,7 @@ mod tests {
     use crate::checker::ctl::*;
     use crate::common::sparse_matrix::SparseMatrix;
     use crate::common::transition_system::TransitionSystem;
-    use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType};
+    use crate::parser::property::{FormulaTreeNode, FormulaTreeNodeType};
     use bit_vec::BitVec;
     use std::collections::HashMap;
 

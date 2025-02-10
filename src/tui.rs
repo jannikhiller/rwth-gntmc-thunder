@@ -2,7 +2,7 @@ use crate::bisimulation::quotienting::quotienting;
 use crate::checker::checker::{check, Options, PersistenceCheckingAlgorithm, QuotientingAlgorithm};
 use crate::common::transition_system::TransitionSystem;
 use crate::parser::gntmc::parse_gntmc_file;
-use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+use crate::parser::property::{Property, PropertyType};
 use clap::Parser;
 use env_logger::Builder;
 use std::io::Write;
@@ -68,7 +68,6 @@ fn check_properties(
     props: &[Property<String>],
     options: &Options,
 ) -> (f64, f64) {
-    let empty_formula = FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::Atomic);
     let mut total_quotienting_time = std::time::Duration::new(0, 0);
     let mut total_model_checking_time = std::time::Duration::new(0, 0);
     let mut checking_ts: &TransitionSystem = ts;
@@ -105,7 +104,7 @@ fn check_properties(
             prop.name,
             result.is_ok()
         );
-        if result.is_err() && prop.property_type != PropertyType::Ctl(empty_formula.clone()) {
+        if result.is_err() && matches!(prop.property_type, PropertyType::Ctl(_)) {
             let (trace, path) = result.err().unwrap();
             println!("\tFound following path as counterexample: {:?}", path);
             println!("\tCorresponding trace: {:?}", trace);

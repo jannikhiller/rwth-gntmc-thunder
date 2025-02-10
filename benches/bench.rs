@@ -1,7 +1,7 @@
 use thunder::checker::*;
 use thunder::common::*;
 use thunder::parser::*;
-use thunder::property::property;
+use thunder::parser::property;
 
 fn main() {
     divan::main();
