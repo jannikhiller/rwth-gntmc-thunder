@@ -4,6 +4,7 @@ use crate::common::transition_system::TransitionSystem;
 use crate::common::vec_helper::{intersect, setminus};
 use bit_vec::BitVec;
 use index_list::{IndexList, ListIndex};
+use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::{kmerge, Itertools};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -69,7 +70,7 @@ impl Partition<usize> {
     }
 }
 
-impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
+impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
     /// Create a partition from a list of vectors
     pub fn from_vecs(vecs: &Vec<Vec<T>>) -> Self {
         let mut elements = Vec::new();
@@ -103,15 +104,22 @@ impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
             + block.start
     }
 
-    fn move_item_to_next_block(&mut self, block_index: ListIndex, item: &T) {
+    /// Returns the index of the next block and the index of the moved item
+    fn move_item_to_next_block(
+        &mut self,
+        block_index: ListIndex,
+        item_index: usize,
+    ) -> (ListIndex, usize) {
         let next_block_index = self.blocks.next_index(block_index);
-        let block_end = self.blocks.get_mut(block_index).unwrap().end;
-        let item_index = self.find_in_block(block_index, item);
+        let new_item_index = self.blocks.get_mut(block_index).unwrap().end - 1;
 
-        self.elements.swap(item_index, block_end - 1);
+        self.elements.swap(item_index, new_item_index);
         self.blocks.get_mut(block_index).unwrap().end -= 1;
         self.blocks.get_mut(next_block_index).unwrap().start -= 1;
-        self.block_map.insert(item.clone(), next_block_index);
+        self.block_map
+            .insert(self.elements[new_item_index].clone(), next_block_index);
+
+        (next_block_index, new_item_index)
     }
 
     /// Refine the partition wrt a set `splitter`
@@ -134,7 +142,8 @@ impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
                 );
                 changed_blocks.insert(block_index);
             }
-            self.move_item_to_next_block(block_index, splitter_item);
+            let item_index = self.find_in_block(block_index, splitter_item);
+            self.move_item_to_next_block(block_index, item_index);
             let block = self.blocks.get(block_index).unwrap();
             if block.start == block.end {
                 self.blocks.remove(block_index);
@@ -147,59 +156,71 @@ impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
 
     pub fn ternary_refine(
         &mut self,
-        pre_c: &Vec<T>,
-        pre_c_prime: &Vec<T>,
-        pre_c_prime_diff_c: &Vec<T>,
-    ) {
-        let mut new_blocks = IndexList::new();
+        pre_c: &[T],
+        _pre_c_prime: &[T],
+        pre_c_prime_diff_c: &[T],
+    ) -> bool {
+        let mut changed_blocks = HashSet::new();
 
-        for block in self.blocks.iter() {
-            let states_of_b = self.elements[block.start..block.end].to_vec();
-
-            let b1 = intersect(
-                intersect(states_of_b.as_ref(), pre_c).as_ref(),
-                pre_c_prime_diff_c,
-            ); // B \cap Pre(C) \cap Pre(C' \setminus C)
-            let b2 = setminus(
-                intersect(states_of_b.as_ref(), pre_c).as_ref(),
-                pre_c_prime_diff_c,
-            ); // (B \cap Pre(C)) \setminus Pre(C' \setminus C)
-            let b3 = setminus(
-                intersect(states_of_b.as_ref(), pre_c_prime_diff_c).as_ref(),
-                pre_c,
-            ); // (B \cap Pre(C' \setminus C)) \setminus Pre(C)
-            let b4 = setminus(states_of_b.as_ref(), pre_c_prime); // B \setminus Pre(C')
-
-            let mut offset = block.start;
-            let mut marker = block.start;
-
-            let split_blocks = [&b1, &b2, &b3, &b4];
-            'inner: for b_i in split_blocks {
-                if b_i.is_empty() {
-                    continue 'inner;
+        let splitter = pre_c
+            .iter()
+            .cloned()
+            .merge_join_by(pre_c_prime_diff_c.iter().cloned(), |a, b| a.cmp(b))
+            .map(|result| {
+                match result {
+                    Both(state, _) => (state, 1), // B_1 = B \cap Pre(C) \cap Pre(C' \setminus C)
+                    Left(state) => (state, 2), // B_2 = (B \cap Pre(C)) \setminus Pre(C' \setminus C)
+                    Right(state) => (state, 3), // B_3 = (B \cap Pre(C' \setminus C)) \setminus Pre(C)
                 }
+            });
+        // the items that are not in the splitter are in B_4 and remain in the same block
 
-                let mut b_i_marker = 0;
-                let new_block = PartitionBlock {
-                    start: marker,
-                    end: marker + b_i.len(),
-                };
-
-                let new_list_index: ListIndex = new_blocks.insert_last(new_block);
-
-                while marker < b_i.len() + offset {
-                    self.elements[marker] = b_i[b_i_marker].clone();
-                    self.block_map
-                        .insert(self.elements[marker].clone(), new_list_index);
-                    marker += 1;
-                    b_i_marker += 1;
+        for (state, set) in splitter {
+            let &block_index = self
+                .block_map
+                .get(&state)
+                .unwrap_or_else(|| panic!("State {state:?} is not part of the partition."));
+            let block_end = self.blocks.get(block_index).unwrap().end;
+            if !changed_blocks.contains(&block_index) {
+                for _ in 0..3 {
+                    // three new blocks
+                    self.blocks.insert_after(
+                        block_index,
+                        PartitionBlock {
+                            start: block_end,
+                            end: block_end,
+                        },
+                    );
                 }
+                changed_blocks.insert(block_index);
+            }
 
-                offset += b_i.len();
+            let mut block_index = block_index;
+            let mut item_index = self.find_in_block(block_index, &state);
+            for _ in 0..set {
+                (block_index, item_index) = self.move_item_to_next_block(block_index, item_index);
             }
         }
 
-        self.blocks = new_blocks;
+        // clean up empty blocks
+        let mut partition_changed = false;
+        for mut block_index in changed_blocks {
+            let mut num_empty_blocks = 0;
+            for _ in 0..4 {
+                let next_block_index = self.blocks.next_index(block_index);
+                let block = self.blocks.get(block_index).unwrap();
+                if block.start == block.end {
+                    self.blocks.remove(block_index);
+                    num_empty_blocks += 1;
+                }
+                block_index = next_block_index;
+            }
+            if num_empty_blocks != 3 {
+                partition_changed = true;
+            }
+        }
+
+        partition_changed
     }
 
     pub fn get_block_of_state(&self, state: &T) -> Option<&[T]> {
@@ -221,7 +242,7 @@ impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
             .map(|block| &self.elements[block.start..block.end])
     }
 
-    pub fn to_sorted_vecs(&self) -> Vec<Vec<T>> {
+    fn to_sorted_vecs(&self) -> Vec<Vec<T>> {
         self.to_slices()
             .map(|slice| {
                 let mut res = slice.to_vec();
@@ -240,22 +261,28 @@ impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
     }
 }
 
-impl fmt::Display for Partition<usize> {
+impl<T: fmt::Display> fmt::Display for Partition<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for block in self.blocks.iter() {
-            writeln!(f, "Block starting at {} to {}:", block.start, block.end);
-            write!(f, "[");
+        for block in &self.blocks {
+            writeln!(
+                f,
+                "Block {} starting at {} to {}:",
+                self.blocks.index_of(block.clone()),
+                block.start,
+                block.end
+            )?;
+            write!(f, "[")?;
             for state in block.start..block.end {
-                write!(f, "{}, ", self.elements[state]);
+                write!(f, "{}, ", self.elements[state])?;
             }
-            writeln!(f, "]");
+            writeln!(f, "]")?;
         }
 
         Ok(())
     }
 }
 
-impl PartialEq for Partition<usize> {
+impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> PartialEq for Partition<T> {
     fn eq(&self, other: &Self) -> bool {
         let mut self_vecs = self.to_sorted_vecs();
         let mut other_vecs = other.to_sorted_vecs();
@@ -442,6 +469,27 @@ mod tests {
         assert_eq!(
             sorted_partition(partition.to_vecs()),
             vec![vec![0, 1, 2,], vec![3, 4],]
+        );
+    }
+
+    #[test]
+    fn test_ternary_refine() {
+        let mut partition = Partition::from_vecs(&vec![vec![1, 2, 3, 4], vec![5]]);
+        let pre_c = vec![1, 2];
+        let pre_c_prime = vec![];
+        let pre_c_prime_diff_c = vec![1, 3];
+        let changed = partition.ternary_refine(&pre_c, &pre_c_prime, &pre_c_prime_diff_c);
+        assert!(changed);
+        assert_eq!(
+            sorted_partition(partition.to_vecs()),
+            vec![vec![1], vec![2], vec![3], vec![4], vec![5]]
+        );
+        let changed = partition.ternary_refine(&pre_c, &pre_c_prime, &pre_c_prime_diff_c);
+        println!("{}", partition);
+        assert!(!changed);
+        assert_eq!(
+            sorted_partition(partition.to_vecs()),
+            vec![vec![1], vec![2], vec![3], vec![4], vec![5]]
         );
     }
 }
