@@ -154,11 +154,7 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
         !changed_blocks.is_empty()
     }
 
-    pub fn ternary_refine(
-        &mut self,
-        pre_c: &[T],
-        pre_c_prime_diff_c: &[T],
-    ) -> bool {
+    pub fn ternary_refine(&mut self, pre_c: &[T], pre_c_prime_diff_c: &[T]) -> bool {
         let mut changed_blocks = HashSet::new();
 
         let splitter = pre_c
@@ -170,7 +166,7 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
                     Both(state, _) => (state, 1), // B_1 = B \cap Pre(C) \cap Pre(C' \setminus C)
                     Left(state) => (state, 2), // B_2 = (B \cap Pre(C)) \setminus Pre(C' \setminus C)
                     Right(state) => (state, 3), // B_3 = (B \cap Pre(C' \setminus C)) \setminus Pre(C)
-                    // the items that are not in the splitter are in B_4 and remain in the same block
+                                                // the items that are not in the splitter are in B_4 and remain in the same block
                 }
             });
 
@@ -301,7 +297,7 @@ pub fn get_predecessors(ts: &TransitionSystem, states: &[usize], result_buffer: 
                 .iter()
                 .map(|&state| ts.get_predecessor_states(state).iter()),
         )
-            .dedup(),
+        .dedup(),
     );
 }
 
@@ -313,7 +309,7 @@ pub fn get_successors(ts: &TransitionSystem, states: &[usize], result_buffer: &m
                 .iter()
                 .map(|&state| ts.get_successor_states(state).iter()),
         )
-            .dedup(),
+        .dedup(),
     );
 }
 

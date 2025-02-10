@@ -191,7 +191,7 @@ pub enum GntmcLtlFormula {
     Implies(Box<GntmcLtlFormula>, Box<GntmcLtlFormula>),
     Finally(Box<GntmcLtlFormula>),
     Globally(Box<GntmcLtlFormula>),
-    True
+    True,
 }
 
 impl GntmcLtlFormula {
@@ -266,7 +266,6 @@ impl GntmcLtlFormula {
             GntmcLtlFormula::True => {
                 FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::True)
             }
-
         }
     }
 }

@@ -1,5 +1,3 @@
-use std::fmt;
-use std::fmt::Formatter;
 use crate::checker::ctl::ctl_checking;
 use crate::checker::invariant::bfs_invariant_checking;
 use crate::checker::ltl::ltl_checking;
@@ -8,6 +6,8 @@ use crate::checker::regular_safety_and_omega_property::regular_safety_and_omega_
 use crate::checker::scc::persistence_checking_with_scc;
 use crate::common::transition_system::TransitionSystem;
 use crate::property::property::{Property, PropertyType};
+use std::fmt;
+use std::fmt::Formatter;
 
 /// Wrapper function which acts as an interface to correctly handle checking different types of
 /// properties on a given transition system.

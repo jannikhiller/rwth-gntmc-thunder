@@ -328,7 +328,6 @@ impl FormulaTreeNode<String> {
     }
 
     pub fn minimalize_tree(&mut self) {
-
         // create "artifical" root node to enssure we minimalize the complete tree
         let mut artificial_root = FormulaTreeNode {
             node_type: FormulaTreeNodeType::And,
@@ -343,7 +342,6 @@ impl FormulaTreeNode<String> {
         };
         let mut saved_tree = artificial_root.clone();
 
-
         artificial_root.remove_double_negations();
         artificial_root.simplify_tree();
 
@@ -352,8 +350,8 @@ impl FormulaTreeNode<String> {
             artificial_root.remove_double_negations();
             artificial_root.simplify_tree();
         }
-        if let Some(new_root ) = artificial_root.right{
-            *self  = *new_root;
+        if let Some(new_root) = artificial_root.right {
+            *self = *new_root;
         }
     }
 
@@ -361,17 +359,17 @@ impl FormulaTreeNode<String> {
         if let FormulaTreeNodeType::Atomic = self.node_type {
             return;
         }
-        let mut false_node =Some(Box::from(FormulaTreeNode::new(
+        let mut false_node = Some(Box::from(FormulaTreeNode::new(
             None,
             None,
             None,
-            FormulaTreeNodeType::False
+            FormulaTreeNodeType::False,
         )));
         let mut true_node = Some(Box::from(FormulaTreeNode::new(
             None,
             None,
             None,
-            FormulaTreeNodeType::True
+            FormulaTreeNodeType::True,
         )));
         // Determine changes for `self.left`
         let new_left = if let Some(left_child) = self.left.as_ref() {
@@ -396,9 +394,12 @@ impl FormulaTreeNode<String> {
                         FormulaTreeNodeType::False => Some(false_node.clone()),
                         //case A and A => A
                         FormulaTreeNodeType::Atomic => {
-                            if child_of_left_child.label == left_child.right.as_ref().unwrap().label {
+                            if child_of_left_child.label == left_child.right.as_ref().unwrap().label
+                            {
                                 Some(Some(child_of_left_child.clone()))
-                            } else { None }
+                            } else {
+                                None
+                            }
                         }
                         _ => None,
                     }
@@ -412,9 +413,15 @@ impl FormulaTreeNode<String> {
                             // case: Exists A Until False|True => False|True
                             let right_until_child = child_of_left_child.right.clone();
                             let right_until_child_2 = child_of_left_child.right.clone();
-                            if FormulaTreeNodeType::True == right_until_child.unwrap().node_type  {Some(true_node.clone())}
-                            else if FormulaTreeNodeType::False == right_until_child_2.unwrap().node_type { Some(false_node.clone()) }
-                            else { None }
+                            if FormulaTreeNodeType::True == right_until_child.unwrap().node_type {
+                                Some(true_node.clone())
+                            } else if FormulaTreeNodeType::False
+                                == right_until_child_2.unwrap().node_type
+                            {
+                                Some(false_node.clone())
+                            } else {
+                                None
+                            }
                         }
                         _ => None,
                     }
@@ -430,9 +437,12 @@ impl FormulaTreeNode<String> {
                         FormulaTreeNodeType::False => Some(left_child.right.clone()),
                         //case A and A => A
                         FormulaTreeNodeType::Atomic => {
-                            if child_of_left_child.label == left_child.right.as_ref().unwrap().label {
+                            if child_of_left_child.label == left_child.right.as_ref().unwrap().label
+                            {
                                 Some(Some(child_of_left_child.clone()))
-                            } else { None }
+                            } else {
+                                None
+                            }
                         }
                         _ => None,
                     }
@@ -442,7 +452,6 @@ impl FormulaTreeNode<String> {
             } else {
                 None
             }
-
         } else {
             None
         };
@@ -466,7 +475,7 @@ impl FormulaTreeNode<String> {
                 } else {
                     None
                 }
-            }  else if FormulaTreeNodeType::And == right_child.node_type {
+            } else if FormulaTreeNodeType::And == right_child.node_type {
                 if let Some(child_of_left_child) = right_child.left.as_ref() {
                     match child_of_left_child.node_type {
                         //case A and True => A
@@ -475,9 +484,13 @@ impl FormulaTreeNode<String> {
                         FormulaTreeNodeType::False => Some(false_node.clone()),
                         //case A and A => A
                         FormulaTreeNodeType::Atomic => {
-                            if child_of_left_child.label == right_child.right.as_ref().unwrap().label {
+                            if child_of_left_child.label
+                                == right_child.right.as_ref().unwrap().label
+                            {
                                 Some(Some(child_of_left_child.clone()))
-                            } else { None }
+                            } else {
+                                None
+                            }
                         }
                         _ => None,
                     }
@@ -491,16 +504,22 @@ impl FormulaTreeNode<String> {
                             // case: Exists A Until False|True => False|True
                             let right_until_child = child_of_left_child.right.clone();
                             let right_until_child_2 = child_of_left_child.right.clone();
-                            if FormulaTreeNodeType::True == right_until_child.unwrap().node_type  {Some(true_node.clone())}
-                            else if FormulaTreeNodeType::False == right_until_child_2.unwrap().node_type { Some(false_node.clone()) }
-                            else { None }
+                            if FormulaTreeNodeType::True == right_until_child.unwrap().node_type {
+                                Some(true_node.clone())
+                            } else if FormulaTreeNodeType::False
+                                == right_until_child_2.unwrap().node_type
+                            {
+                                Some(false_node.clone())
+                            } else {
+                                None
+                            }
                         }
                         _ => None,
                     }
                 } else {
                     None
                 }
-            }else if FormulaTreeNodeType::Or == right_child.node_type {
+            } else if FormulaTreeNodeType::Or == right_child.node_type {
                 if let Some(child_of_left_child) = right_child.left.as_ref() {
                     match child_of_left_child.node_type {
                         //case A and True => A
@@ -509,9 +528,13 @@ impl FormulaTreeNode<String> {
                         FormulaTreeNodeType::False => Some(right_child.right.clone()),
                         //case A and A => A
                         FormulaTreeNodeType::Atomic => {
-                            if child_of_left_child.label == right_child.right.as_ref().unwrap().label {
+                            if child_of_left_child.label
+                                == right_child.right.as_ref().unwrap().label
+                            {
                                 Some(Some(child_of_left_child.clone()))
-                            } else { None }
+                            } else {
+                                None
+                            }
                         }
                         _ => None,
                     }
@@ -650,7 +673,7 @@ pub enum FormulaTreeNodeType {
     #[default]
     Atomic,
     True,
-    False
+    False,
 }
 
 /// Internal struct to handle elements of the closure during the computation of elementary sets

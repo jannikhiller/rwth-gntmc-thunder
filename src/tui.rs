@@ -63,7 +63,11 @@ fn parse_model_and_properties(
 
 /// # Return
 /// (quotienting time, model checking time)
-fn check_properties(ts: &TransitionSystem, props: &[Property<String>], options: &Options) -> (f64, f64) {
+fn check_properties(
+    ts: &TransitionSystem,
+    props: &[Property<String>],
+    options: &Options,
+) -> (f64, f64) {
     let empty_formula = FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::Atomic);
     let mut total_quotienting_time = std::time::Duration::new(0, 0);
     let mut total_model_checking_time = std::time::Duration::new(0, 0);
@@ -122,7 +126,10 @@ fn check_properties(ts: &TransitionSystem, props: &[Property<String>], options: 
         total_model_checking_time.as_secs_f64()
     );
 
-    (total_quotienting_time.as_secs_f64(), total_model_checking_time.as_secs_f64())
+    (
+        total_quotienting_time.as_secs_f64(),
+        total_model_checking_time.as_secs_f64(),
+    )
 }
 
 pub fn run() {
@@ -143,5 +150,8 @@ pub fn run() {
 
     let (quotienting_time, checking_time) = check_properties(&ts, &props, &options);
 
-    println!("Total runtime: {:?}s", parsing_time + quotienting_time + checking_time);
+    println!(
+        "Total runtime: {:?}s",
+        parsing_time + quotienting_time + checking_time
+    );
 }
