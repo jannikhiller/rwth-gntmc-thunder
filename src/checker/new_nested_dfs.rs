@@ -1,9 +1,8 @@
-use std::cmp::PartialEq;
 use crate::common::transition_system::TransitionSystem;
-use crate::property::property::Property;
-
+use crate::property::*;
 use crate::checker::helper::bit_vec_to_ap_strings;
 use log::{debug, trace};
+use std::cmp::PartialEq;
 use std::collections::{VecDeque};
 use bit_vec::BitVec;
 
@@ -260,7 +259,7 @@ mod tests {
     use crate::checker::new_nested_dfs::persistence_checking_with_nested_dfs;
     use crate::common::sparse_matrix::SparseMatrix;
     use crate::common::transition_system::TransitionSystem;
-    use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+    use crate::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
     use bit_vec::BitVec;
     use std::collections::HashMap;
 
@@ -279,6 +278,7 @@ mod tests {
         let property = Property::new(
             "PersistenceProperty".to_string(),
             PropertyType::Persistence(root),
+            vec!["a".to_string()],
         );
 
         assert!(persistence_checking_with_nested_dfs(&transition_system, &property).is_ok());
@@ -299,12 +299,13 @@ mod tests {
         let property = Property::new(
             "PersistenceProperty".to_string(),
             PropertyType::Persistence(root),
+            vec!["a".to_string()],
         );
 
         let result = persistence_checking_with_nested_dfs(&transition_system, &property);
 
         match &result {
-            Ok(success) => {
+            Ok(_) => {
                 panic!("Property should fail!")
             }
             Err((counterexample, trace_indexes)) => {

@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use log::trace;
 use crate::checker::helper::bit_vec_to_ap_strings;
 use crate::common::transition_system::TransitionSystem;
-use crate::property::property::Property;
+use crate::property::Property;
 
 pub fn persistence_checking_with_couvreur_scc(
     transition_system: &TransitionSystem,

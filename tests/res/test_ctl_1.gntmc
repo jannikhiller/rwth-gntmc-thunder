@@ -1,0 +1,112 @@
+{
+  "name": "CTL TS",
+  "lts": {
+    "states": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "actions": [
+      0
+    ],
+    "transitions": [
+      [0, 0, 1],
+      [0, 0, 3],
+      [1, 0, 2],
+      [2, 0, 2],
+      [2, 0, 3],
+      [3, 0, 0]
+    ],
+    "initial_states": [
+      0
+    ],
+    "labelling": {
+      "0": ["a", "e"],
+      "1": ["b"],
+      "2": ["c"],
+      "3": ["d"]
+    }
+  },
+  "properties": [
+      {
+        "name": "forall globally exists finally a",
+        "is_true": true,
+        "ctl": {
+          "forall": {
+            "globally": {
+              "exists": {
+                "finally": {
+                  "atom": "a"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "exists finally exists globally not a",
+        "is_true": true,
+        "ctl": {
+          "exists": {
+            "finally": {
+              "exists": {
+                "globally": {
+                  "not": {
+                    "atom": "a"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+    {
+      "name": "exists finally exists globally c",
+      "is_true": true,
+      "ctl": {
+        "exists": {
+          "finally": {
+            "exists": {
+              "globally": {
+                "atom": "c"
+              }
+            }
+          }
+        }
+      }
+    },
+      {
+        "name": "forall globally forall finally a",
+        "is_true": false,
+        "ctl": {
+          "forall": {
+            "globally": {
+              "forall": {
+                "finally": {
+                  "atom": "a"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "exists finally forall globally not a",
+        "is_true": false,
+        "ctl": {
+          "exists": {
+            "finally": {
+              "forall": {
+                "globally": {
+                  "not": {
+                    "atom": "a"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+  ]
+}

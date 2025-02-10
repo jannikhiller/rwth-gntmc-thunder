@@ -1,6 +1,6 @@
 use crate::checker::helper::bit_vec_to_ap_strings;
 use crate::common::transition_system::TransitionSystem;
-use crate::property::property::Property;
+use crate::property::Property;
 use bit_vec::BitVec;
 use log::trace;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -107,7 +107,7 @@ mod tests {
     use crate::checker::invariant::bfs_invariant_checking;
     use crate::common::sparse_matrix::SparseMatrix;
     use crate::common::transition_system::TransitionSystem;
-    use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+    use crate::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
     use bit_vec::BitVec;
     use std::collections::HashMap;
 
@@ -188,7 +188,11 @@ mod tests {
             None,
             FormulaTreeNodeType::Or,
         );
-        let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant(root));
+        let property = Property::new(
+            "ExampleTree".to_string(),
+            PropertyType::Invariant(root),
+            vec!["a".to_string(), "b".to_string(), "c".to_string()],
+        );
         assert!(bfs_invariant_checking(&ts, &property).is_ok());
     }
     #[test]
@@ -204,11 +208,12 @@ mod tests {
             Some("a".to_string()),
             FormulaTreeNodeType::Atomic,
         );
-        let property = Property::new("ExampleTree".to_string(), PropertyType::Invariant(root));
-        assert_eq!(
-            bfs_invariant_checking(&ts, &property).err().is_none(),
-            false
+        let property = Property::new(
+            "ExampleTree".to_string(),
+            PropertyType::Invariant(root),
+            vec!["a".to_string()],
         );
+        assert!(bfs_invariant_checking(&ts, &property).err().is_some());
 
         //for printing the counter example
         //println!("{:?}", bfs_invariant_checking(ts, property).err());

@@ -1,8 +1,9 @@
+mod bisimulation;
 mod checker;
 mod common;
 mod parser;
-mod tui;
 mod property;
+mod tui;
 
 fn main() {
     tui::run()

@@ -1,9 +1,11 @@
-use std::collections::HashMap;
+use crate::common::sparse_matrix::{SparseMatrix, SparseMatrixElement};
+use crate::property::{
+    comp_elementary_sets, FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType,
+};
+use array_tool::vec::*;
 use bit_vec::BitVec;
 use log::{debug, trace};
-use array_tool::vec::*;
-use crate::common::sparse_matrix::{SparseMatrix, SparseMatrixElement};
-use crate::property::property::{comp_elementary_sets, FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+use std::collections::HashMap;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AcceptanceType {
@@ -49,13 +51,14 @@ impl FiniteAutomaton<String> {
             atomic_propositions: None,
         }
     }
+    /*
     pub fn new_with_aps(
         acceptance: AcceptanceType,
         transition_matrix: SparseMatrix<Vec<FormulaTreeNode<String>>>,
         last_state: usize,
         initial_state: BitVec,
         accepting_states: BitVec,
-        atomic_propositions: Option<Vec<String>>
+        atomic_propositions: Option<Vec<String>>,
     ) -> Self {
         FiniteAutomaton {
             acceptance,
@@ -66,6 +69,7 @@ impl FiniteAutomaton<String> {
             atomic_propositions,
         }
     }
+    */
 
     pub fn from_gnba(mut gnba: LtlGnba) -> Self {
         fn create_formula_from_state_aps(aps: Vec<String>) -> FormulaTreeNode<String> {
@@ -86,7 +90,9 @@ impl FiniteAutomaton<String> {
                         Some(aps[0].to_string()),
                         FormulaTreeNodeType::Atomic,
                     ))),
-                    Some(Box::from(create_formula_from_state_aps(aps[1..].to_owned()))),
+                    Some(Box::from(create_formula_from_state_aps(
+                        aps[1..].to_owned(),
+                    ))),
                     None,
                     FormulaTreeNodeType::And,
                 )
@@ -94,14 +100,14 @@ impl FiniteAutomaton<String> {
             trace!("Formula: {}", res);
             res
         }
-        
+
         // If the gnba does not contain any accepting sets, the property does not specify any
         // infinite behavior, i.e., it does not contain any until. Thus, all states (= all
         // behavior) is acceptable.
-        if gnba.accepting_states.is_empty() { 
+        if gnba.accepting_states.is_empty() {
             gnba.accepting_states = vec![BitVec::from_elem(gnba.last_state + 1, true)];
         }
-        
+
         let num_accepting_sets = gnba.accepting_states.len();
         let num_of_gnba_states = gnba.last_state + 1;
         let nba_last_state = (num_of_gnba_states * num_accepting_sets) - 1; // - 1 because 0 is the first state
@@ -119,14 +125,21 @@ impl FiniteAutomaton<String> {
         debug!("Number of initial states: {}", initial_state.count_ones());
         debug!("Last state: {}", nba_last_state);
 
-        for current_accepting_set in 0 .. num_accepting_sets {
-            trace!("Current accepting set, i.e., copy of the gnba: {}", current_accepting_set);
-            for gnba_state in 0 .. num_of_gnba_states {
+        for current_accepting_set in 0..num_accepting_sets {
+            trace!(
+                "Current accepting set, i.e., copy of the gnba: {}",
+                current_accepting_set
+            );
+            for gnba_state in 0..num_of_gnba_states {
                 let state_copy_offset = current_accepting_set * num_of_gnba_states;
                 let nba_state = gnba_state + state_copy_offset;
 
-                trace!("Current NBA state {:?} equals GNBA state {:?} in copy {:?}", nba_state,
-                    gnba_state, current_accepting_set);
+                trace!(
+                    "Current NBA state {:?} equals GNBA state {:?} in copy {:?}",
+                    nba_state,
+                    gnba_state,
+                    current_accepting_set
+                );
 
                 // we need this to construct our transition matrix
                 let formula = create_formula_from_state_aps(gnba.aps_of_state[gnba_state].clone());
@@ -144,31 +157,58 @@ impl FiniteAutomaton<String> {
                     gstate_bv.set(gnba_state, true);
 
                     let target_states = gnba.step(gstate_bv, &gnba.aps_of_state[gnba_state]);
-                    target_states.iter().enumerate().for_each(|(gnba_successor_state, is_reachable)| {
-                        if is_reachable {
-                            // gnba_successor_state + state_copy_offset => corresponding state in the current copy/partition
-                            // + num_of_gnba_states => switch to corresponding state in next partition
-                            trace!("({} + {} + {}) % ({} * {}) = {}", gnba_successor_state, state_copy_offset, num_of_gnba_states, num_accepting_sets, num_of_gnba_states, (gnba_successor_state + state_copy_offset + num_of_gnba_states) % (num_accepting_sets * num_of_gnba_states));
-                            let next_nba_state = (gnba_successor_state + state_copy_offset + num_of_gnba_states) % (num_accepting_sets * num_of_gnba_states);
-                            list_of_entries.push((nba_state, next_nba_state, vec![formula.clone()]));
-                        }
-                    })
+                    target_states.iter().enumerate().for_each(
+                        |(gnba_successor_state, is_reachable)| {
+                            if is_reachable {
+                                // gnba_successor_state + state_copy_offset => corresponding state in the current copy/partition
+                                // + num_of_gnba_states => switch to corresponding state in next partition
+                                trace!(
+                                    "({} + {} + {}) % ({} * {}) = {}",
+                                    gnba_successor_state,
+                                    state_copy_offset,
+                                    num_of_gnba_states,
+                                    num_accepting_sets,
+                                    num_of_gnba_states,
+                                    (gnba_successor_state + state_copy_offset + num_of_gnba_states)
+                                        % (num_accepting_sets * num_of_gnba_states)
+                                );
+                                let next_nba_state =
+                                    (gnba_successor_state + state_copy_offset + num_of_gnba_states)
+                                        % (num_accepting_sets * num_of_gnba_states);
+                                list_of_entries.push((
+                                    nba_state,
+                                    next_nba_state,
+                                    vec![formula.clone()],
+                                ));
+                            }
+                        },
+                    )
                 } else {
                     let mut gstate_bv = BitVec::from_elem(gnba.last_state + 1, false);
                     gstate_bv.set(gnba_state, true);
 
                     let target_states = gnba.step(gstate_bv, &gnba.aps_of_state[gnba_state]);
-                    target_states.iter().enumerate().for_each(|(gnba_successor_state, is_reachable)| {
-                        if is_reachable {
-                            let next_nba_state = gnba_successor_state + state_copy_offset;
-                            list_of_entries.push((nba_state, next_nba_state, vec![formula.clone()]));
-                        }
-                    })
+                    target_states.iter().enumerate().for_each(
+                        |(gnba_successor_state, is_reachable)| {
+                            if is_reachable {
+                                let next_nba_state = gnba_successor_state + state_copy_offset;
+                                list_of_entries.push((
+                                    nba_state,
+                                    next_nba_state,
+                                    vec![formula.clone()],
+                                ));
+                            }
+                        },
+                    )
                 }
             }
         }
 
-        let transition_matrix = SparseMatrix::from_list_of_entries(nba_last_state + 1, nba_last_state + 1, &list_of_entries);
+        let transition_matrix = SparseMatrix::from_list_of_entries(
+            nba_last_state + 1,
+            nba_last_state + 1,
+            &list_of_entries,
+        );
 
         Self {
             acceptance,
@@ -176,7 +216,11 @@ impl FiniteAutomaton<String> {
             last_state: nba_last_state,
             initial_state,
             accepting_states,
-            atomic_propositions: Some(gnba.aps_of_state.iter().fold(Vec::new(), |acc, val| acc.union(val.clone())))
+            atomic_propositions: Some(
+                gnba.aps_of_state
+                    .iter()
+                    .fold(Vec::new(), |acc, val| acc.union(val.clone())),
+            ),
         }
     }
 
@@ -195,11 +239,11 @@ impl FiniteAutomaton<String> {
     pub fn step(&mut self, state: BitVec, label: &Vec<String>) -> BitVec {
         trace!("State {} with label {:?}", state, label);
         let get_successors_of_index = |index: usize| {
-            self.transition_matrix
-                .get_row(index)
-                .flat_map(|SparseMatrixElement { col_index, value }| {
+            self.transition_matrix.get_row(index).flat_map(
+                |SparseMatrixElement { col_index, value }| {
                     value.iter().map(move |tree| (tree, col_index))
-                })
+                },
+            )
         };
 
         let state_successors = state
@@ -251,23 +295,32 @@ pub struct LtlGnba {
     last_state: usize,
 }
 
+#[derive(Debug, Clone, PartialEq, Copy)]
+struct SubFormulaIndex {
+    index: usize,
+    inverted: bool,
+}
+
 fn filter_successors_with_next(
     set: &BitVec,
-    elementary_sets: &Vec<BitVec>,
+    elementary_sets: &[BitVec],
     index_of_formula: usize,
-    index_of_subformula_of_next: &HashMap<usize, (bool, usize)>,
+    index_of_subformula: SubFormulaIndex,
     successors: &mut BitVec,
 ) {
-    let (inverted, subformula_index) = index_of_subformula_of_next[&index_of_formula];
+    let SubFormulaIndex {
+        index: subformula_index,
+        inverted,
+    } = index_of_subformula;
     if set[index_of_formula] {
-        for successor_index in 0..successors.len() {
-            if !elementary_sets[successor_index][subformula_index] != inverted {
+        for (successor_index, elementary_set) in elementary_sets.iter().enumerate() {
+            if elementary_set[subformula_index] == inverted {
                 successors.set(successor_index, false);
             }
         }
     } else {
-        for successor_index in 0..successors.len() {
-            if elementary_sets[successor_index][subformula_index] != inverted {
+        for (successor_index, elementary_set) in elementary_sets.iter().enumerate() {
+            if elementary_set[subformula_index] != inverted {
                 successors.set(successor_index, false);
             }
         }
@@ -276,9 +329,9 @@ fn filter_successors_with_next(
 
 fn filter_successors_with_until(
     set: &BitVec,
-    elementary_sets: &Vec<BitVec>,
+    elementary_sets: &[BitVec],
     index_of_formula: usize,
-    index_of_subformula_of_until: &HashMap<usize, ((bool, usize), (bool, usize))>,
+    index_of_subformulas: (SubFormulaIndex, SubFormulaIndex),
     successors: &mut BitVec,
 ) {
     // Until(f, g) \in set <==> g \in set or (f \in set and Until(f, g) \in successor)
@@ -287,8 +340,16 @@ fn filter_successors_with_until(
         index_of_formula
     );
 
-    let ((f_inverted, f_index), (g_inverted, g_index)) =
-        index_of_subformula_of_until[&index_of_formula];
+    let (
+        SubFormulaIndex {
+            index: f_index,
+            inverted: f_inverted,
+        },
+        SubFormulaIndex {
+            index: g_index,
+            inverted: g_inverted,
+        },
+    ) = index_of_subformulas;
     trace!(
         "f: {} {}, g: {} {}",
         f_index,
@@ -298,14 +359,14 @@ fn filter_successors_with_until(
     );
     if set[index_of_formula] {
         trace!("set contains until formula");
-        if !set[g_index] != g_inverted {
+        if set[g_index] == g_inverted {
             trace!("g is not in set");
-            if !set[f_index] != f_inverted {
+            if set[f_index] == f_inverted {
                 trace!("f is not in set");
                 successors.clear();
             } else {
-                for successor_index in 0..successors.len() {
-                    if !elementary_sets[successor_index][index_of_formula] {
+                for (successor_index, elementary_set) in elementary_sets.iter().enumerate() {
+                    if !elementary_set[index_of_formula] {
                         trace!("g is not in successor {}", successor_index);
                         successors.set(successor_index, false);
                     }
@@ -319,8 +380,8 @@ fn filter_successors_with_until(
             successors.clear();
         } else if set[f_index] != f_inverted {
             trace!("f is in set");
-            for successor_index in 0..successors.len() {
-                if elementary_sets[successor_index][index_of_formula] {
+            for (successor_index, elementary_set) in elementary_sets.iter().enumerate() {
+                if elementary_set[index_of_formula] {
                     trace!("g is in successor {}", successor_index);
                     successors.set(successor_index, false);
                 }
@@ -342,7 +403,7 @@ impl LtlGnba {
         };
 
         // we precompute the indexes of the subformulas for next and until
-        let index_of_subformula_of_next: HashMap<usize, (bool, usize)> = indices_to_formula
+        let index_of_subformula_of_next: HashMap<usize, SubFormulaIndex> = indices_to_formula
             .iter()
             .filter(|(_, formula)| formula.node_type == FormulaTreeNodeType::Next)
             .map(|(index, formula)| {
@@ -354,19 +415,19 @@ impl LtlGnba {
                 }
                 (
                     *index,
-                    (
-                        inverted,
-                        *indices_to_formula
+                    SubFormulaIndex {
+                        index: *indices_to_formula
                             .iter()
                             .find(|(_, f)| **f == **subformula)
                             .unwrap()
                             .0,
-                    ),
+                        inverted,
+                    },
                 )
             })
             .collect();
 
-        let index_of_subformula_of_until: HashMap<usize, ((bool, usize), (bool, usize))> =
+        let index_of_subformulas_of_until: HashMap<usize, (SubFormulaIndex, SubFormulaIndex)> =
             indices_to_formula
                 .iter()
                 .filter(|(_, formula)| formula.node_type == FormulaTreeNodeType::Until)
@@ -386,22 +447,22 @@ impl LtlGnba {
                     (
                         *index,
                         (
-                            (
-                                left_inverted,
-                                *indices_to_formula
+                            SubFormulaIndex {
+                                index: *indices_to_formula
                                     .iter()
                                     .find(|(_, f)| **f == **left_subformula)
                                     .unwrap()
                                     .0,
-                            ),
-                            (
-                                right_inverted,
-                                *indices_to_formula
+                                inverted: left_inverted,
+                            },
+                            SubFormulaIndex {
+                                index: *indices_to_formula
                                     .iter()
                                     .find(|(_, f)| **f == **right_subformula)
                                     .unwrap()
                                     .0,
-                            ),
+                                inverted: right_inverted,
+                            },
                         ),
                     )
                 })
@@ -441,7 +502,7 @@ impl LtlGnba {
                             set,
                             &elementary_sets,
                             j,
-                            &index_of_subformula_of_next,
+                            index_of_subformula_of_next[&j],
                             &mut successors,
                         );
                     }
@@ -450,7 +511,7 @@ impl LtlGnba {
                             set,
                             &elementary_sets,
                             j,
-                            &index_of_subformula_of_until,
+                            index_of_subformulas_of_until[&j],
                             &mut successors,
                         );
                     }
@@ -486,7 +547,13 @@ impl LtlGnba {
             })
             .map(|&i| {
                 let mut f = BitVec::from_elem(last_state + 1, false);
-                let (_, (g_inverted, g)) = index_of_subformula_of_until[&i];
+                let (
+                    _,
+                    SubFormulaIndex {
+                        index: g,
+                        inverted: g_inverted,
+                    },
+                ) = index_of_subformulas_of_until[&i];
                 for (j, set) in elementary_sets.iter().enumerate() {
                     if !set[i] || (set[g] != g_inverted) {
                         f.set(j, true);
@@ -505,8 +572,8 @@ impl LtlGnba {
         }
     }
 
-    fn step(&self, state: BitVec, label: &Vec<String>) -> BitVec {
-        let mut sorted_label = label.clone();
+    fn step(&self, state: BitVec, label: &[String]) -> BitVec {
+        let mut sorted_label = label.to_vec();
         sorted_label.sort();
 
         let mut new_state = BitVec::from_elem(self.last_state + 1, false);
@@ -528,10 +595,10 @@ impl LtlGnba {
 
 #[cfg(test)]
 mod tests {
-    use bit_vec::BitVec;
     use crate::common::sparse_matrix::SparseMatrix;
     use crate::property::automaton::{AcceptanceType, FiniteAutomaton, LtlGnba};
-    use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+    use crate::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+    use bit_vec::BitVec;
 
     #[test]
     fn test_finite_automaton() {
@@ -563,7 +630,7 @@ mod tests {
         let transition_matrix = SparseMatrix::from_list_of_entries(
             4,
             4,
-            &vec![
+            &[
                 (0, 1, vec![atomic_a]),
                 (1, 2, vec![atomic_b]),
                 (2, 3, vec![atomic_c]),
@@ -638,6 +705,7 @@ mod tests {
         let ltl_gnba = LtlGnba::from_ltl_property(&Property::new(
             "ltl property".to_string(),
             PropertyType::Ltl(ltl_tree.clone()),
+            vec!["a".to_string()],
         ));
 
         assert_eq!(ltl_gnba.transition_matrix.rows(), 4);
@@ -647,7 +715,7 @@ mod tests {
         initial_state.set(2, true);
         assert_eq!(ltl_gnba.initial_state, initial_state);
 
-        let transition_matrix = SparseMatrix::from_2d_vec(&vec![
+        let transition_matrix = SparseMatrix::from_2d_vec(&[
             vec![true, true, false, false],
             vec![false, false, true, true],
             vec![true, true, false, false],
@@ -724,6 +792,7 @@ mod tests {
         let ltl_gnba = LtlGnba::from_ltl_property(&Property::new(
             "ltl property".to_string(),
             PropertyType::Ltl(ltl_tree.clone()),
+            vec!["a".to_string(), "b".to_string()],
         ));
 
         let transition_matrix_b_sets = SparseMatrix::from_2d_vec(&vec![
@@ -762,7 +831,7 @@ mod tests {
             ],
         ]);
 
-        let translation_to_index = vec![7, 8, 9, 10, 5, 6, 2, 3, 4, 0, 1];
+        let translation_to_index = [7, 8, 9, 10, 5, 6, 2, 3, 4, 0, 1];
 
         let mut matrix = vec![vec![false; 11]; 11];
         for row in 0..11 {
@@ -801,7 +870,7 @@ mod tests {
         assert_eq!(ltl_gnba.initial_state, initial_state);
         print!("{:?}", ltl_gnba.accepting_states);
 
-        let accepting_states_b_sets = vec![vec![0, 1, 4, 5, 6, 9, 10], vec![0, 2, 4, 6, 7, 9]];
+        let accepting_states_b_sets = [vec![0, 1, 4, 5, 6, 9, 10], vec![0, 2, 4, 6, 7, 9]];
         let mut accepting_states = vec![BitVec::from_elem(11, false); 2];
 
         for i in 0..2 {
@@ -825,12 +894,16 @@ mod tests {
         let mut gnba_accept2 = BitVec::from_elem(3, false);
         gnba_accept2.set(2, true);
         let gnba = LtlGnba {
-            transition_matrix: SparseMatrix::from_2d_vec(&vec![
+            transition_matrix: SparseMatrix::from_2d_vec(&[
                 vec![true, true, true],
                 vec![true, false, false],
                 vec![true, false, false],
             ]),
-            aps_of_state: vec![vec!["q0".to_string()], vec!["q1".to_string()], vec!["q2".to_string()]],
+            aps_of_state: vec![
+                vec!["q0".to_string()],
+                vec!["q1".to_string()],
+                vec!["q2".to_string()],
+            ],
             initial_state: gnba_initial,
             accepting_states: vec![gnba_accept1, gnba_accept2],
             last_state: 2,
@@ -861,13 +934,55 @@ mod tests {
             Some("q2".to_string()),
             FormulaTreeNodeType::Atomic,
         );
-        let nba_transitions = SparseMatrix::from_2d_vec(&vec![
-            vec![vec![q0_formula.clone()], vec![q0_formula.clone()], vec![q0_formula.clone()], vec![], vec![], vec![]],
-            vec![vec![], vec![], vec![], vec![q1_formula.clone()], vec![], vec![]],
-            vec![vec![q2_formula.clone()], vec![], vec![], vec![], vec![], vec![]],
-            vec![vec![], vec![], vec![], vec![q0_formula.clone()], vec![q0_formula.clone()], vec![q0_formula.clone()]],
-            vec![vec![], vec![], vec![], vec![q1_formula.clone()], vec![], vec![]],
-            vec![vec![q2_formula.clone()], vec![], vec![], vec![], vec![], vec![]],
+        let nba_transitions = SparseMatrix::from_2d_vec(&[
+            vec![
+                vec![q0_formula.clone()],
+                vec![q0_formula.clone()],
+                vec![q0_formula.clone()],
+                vec![],
+                vec![],
+                vec![],
+            ],
+            vec![
+                vec![],
+                vec![],
+                vec![],
+                vec![q1_formula.clone()],
+                vec![],
+                vec![],
+            ],
+            vec![
+                vec![q2_formula.clone()],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+            ],
+            vec![
+                vec![],
+                vec![],
+                vec![],
+                vec![q0_formula.clone()],
+                vec![q0_formula.clone()],
+                vec![q0_formula.clone()],
+            ],
+            vec![
+                vec![],
+                vec![],
+                vec![],
+                vec![q1_formula.clone()],
+                vec![],
+                vec![],
+            ],
+            vec![
+                vec![q2_formula.clone()],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+            ],
         ]);
         let nba = FiniteAutomaton {
             acceptance: AcceptanceType::Buchi,
