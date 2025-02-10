@@ -1,10 +1,10 @@
-use crate::checker::{Options, PersistenceCheckingAlgorithm};
 use crate::checker::invariant::bfs_invariant_checking;
 use crate::checker::nested_dfs::persistence_checking_with_nested_dfs;
 use crate::checker::scc::persistence_checking_with_scc;
+use crate::checker::{Options, PersistenceCheckingAlgorithm};
 use crate::common::transition_system::TransitionSystem;
-use crate::parser::automaton::FiniteAutomaton;
-use crate::parser::property::*;
+use crate::property::automaton::FiniteAutomaton;
+use crate::property::*;
 
 /// Checks if the given transition system satisfies the given property. It accepts regular safety
 /// properties and omega regular properties. For regular safety properties it builds the sync.
@@ -81,8 +81,8 @@ pub fn regular_safety_and_omega_checking(
 mod tests {
     use super::*;
     use crate::common::sparse_matrix::SparseMatrix;
-    use crate::parser::automaton::AcceptanceType::*;
-    use crate::parser::automaton::*;
+    use crate::property::automaton::AcceptanceType::*;
+    use crate::property::automaton::*;
     use bit_vec::BitVec;
 
     fn create_test_automaton_for_product() -> FiniteAutomaton<String> {

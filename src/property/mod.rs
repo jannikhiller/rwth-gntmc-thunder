@@ -1,10 +1,12 @@
+pub mod automaton;
+
 use bit_vec::BitVec;
 use log::*;
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
 
-use crate::parser::automaton::FiniteAutomaton;
+use automaton::FiniteAutomaton;
 
 #[derive(Debug, Clone)]
 pub enum PropertyType<ValueType> {

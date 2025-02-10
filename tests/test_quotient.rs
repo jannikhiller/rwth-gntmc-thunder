@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod tests {
     use thunder::bisimulation;
-    use thunder::checker::checker::check;
-    use thunder::checker::checker::Options;
-    use thunder::checker::checker::QuotientingAlgorithm;
+    use thunder::checker::check;
+    use thunder::checker::Options;
+    use thunder::checker::QuotientingAlgorithm;
     use thunder::parser::gntmc;
-    use thunder::parser::property::PropertyType;
+    use thunder::property::PropertyType;
 
     fn run_test(file: &str, sizes: &[usize]) {
         let (ts, props, _) = gntmc::parse_gntmc_file(file);
@@ -23,7 +23,7 @@ mod tests {
                     assert_eq!(ts_prime.get_states().len(), sizes[0]);
                     assert_eq!(ts_prime.get_num_transitions(), sizes[1]);
                     println!("finished quotienting with simple refinement");
-                    let options_new = thunder::checker::checker::Options::new();
+                    let options_new = thunder::checker::Options::new();
                     let result = check(&ts_prime, prop, &options_new);
                     let expected = check(&ts, prop, &options_new);
                     assert_eq!(result.is_ok(), expected.is_ok());

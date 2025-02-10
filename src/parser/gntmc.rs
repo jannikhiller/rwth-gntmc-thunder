@@ -8,8 +8,8 @@ use std::io::BufReader;
 
 use crate::common::sparse_matrix::SparseMatrix;
 use crate::common::transition_system::*;
-use crate::parser::automaton::{AcceptanceType, FiniteAutomaton};
-use crate::parser::property::*;
+use crate::property::automaton::{AcceptanceType, FiniteAutomaton};
+use crate::property::*;
 
 #[derive(Debug, Deserialize)]
 struct GntmcTransitionSystem {

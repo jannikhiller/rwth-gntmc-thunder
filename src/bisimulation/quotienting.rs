@@ -112,9 +112,9 @@ pub fn quotienting(
 #[cfg(test)]
 mod tests {
     use crate::bisimulation::quotienting::quotienting;
-    use crate::checker::checker::{Options, QuotientingAlgorithm};
     use crate::checker::invariant::bfs_invariant_checking;
-    use crate::parser::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+    use crate::checker::{Options, QuotientingAlgorithm};
+    use crate::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
 
     fn test_partitioning() {
         // taken from model checking 2023 exercise 9

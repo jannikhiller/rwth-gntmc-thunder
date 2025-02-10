@@ -13,7 +13,7 @@ use crate::checker::nested_dfs::persistence_checking_with_nested_dfs;
 use crate::checker::regular_safety_and_omega_property::regular_safety_and_omega_checking;
 use crate::checker::scc::persistence_checking_with_scc;
 use crate::common::transition_system::TransitionSystem;
-use crate::parser::property::{Property, PropertyType};
+use crate::property::{Property, PropertyType};
 use std::fmt;
 use std::fmt::Formatter;
 

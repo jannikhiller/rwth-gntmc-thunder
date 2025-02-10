@@ -1,5 +1,5 @@
 use crate::common::sparse_matrix::{SparseMatrix, SparseMatrixElement};
-use crate::parser::property::{
+use crate::property::{
     comp_elementary_sets, FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType,
 };
 use array_tool::vec::*;
@@ -596,8 +596,8 @@ impl LtlGnba {
 #[cfg(test)]
 mod tests {
     use crate::common::sparse_matrix::SparseMatrix;
-    use crate::parser::automaton::{AcceptanceType, FiniteAutomaton, LtlGnba};
-    use crate::parser::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
+    use crate::property::automaton::{AcceptanceType, FiniteAutomaton, LtlGnba};
+    use crate::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
     use bit_vec::BitVec;
 
     #[test]

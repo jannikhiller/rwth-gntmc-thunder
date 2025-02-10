@@ -1,8 +1,8 @@
-use crate::checker::Options;
 use crate::checker::regular_safety_and_omega_property::regular_safety_and_omega_checking;
+use crate::checker::Options;
 use crate::common::transition_system::TransitionSystem;
-use crate::parser::automaton::{FiniteAutomaton, LtlGnba};
-use crate::parser::property::{Property, PropertyType};
+use crate::property::automaton::{FiniteAutomaton, LtlGnba};
+use crate::property::{Property, PropertyType};
 
 pub fn ltl_checking(
     transition_system: &TransitionSystem,
