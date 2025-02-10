@@ -6,7 +6,7 @@ use crate ::common::sparse_matrix::SparseMatrix;
 use crate::common::transition_system::TransitionSystem;
 use crate::bisimulation::simple_refinement::simple_selection_strategy;
 use crate::bisimulation::advanced_refinement::advanced_refinement;
-use crate::bisimulation::partition::Partition;
+use crate::bisimulation::partition::{Partition, get_successors};
 use crate::checker::checker::{Options, QuotientingAlgorithm};
 
 pub fn quotienting(transition_system: &TransitionSystem, options: &Options, ap: Option<&Vec<String>>) -> TransitionSystem {
@@ -54,10 +54,11 @@ pub fn quotienting(transition_system: &TransitionSystem, options: &Options, ap: 
     }
 
 
+    let mut successor_buffer = Vec::new();
     for (new_state,slice) in eq_classes.to_slices().enumerate() {
-        let succs = eq_classes.get_successor_states_of_block(transition_system, slice);
+        get_successors(transition_system, slice, &mut successor_buffer);
 
-        for succ in succs {
+        for succ in &successor_buffer {
             if let Some(val) = eq_classes.get_block_of_state(&succ){
                 if let Some(new_succ) = slice_to_index.get(val) {
                     let value = (new_state, *new_succ);

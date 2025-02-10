@@ -12,7 +12,7 @@ use crate::common::vec_helper::{intersect, setminus};
 
 #[derive(Debug, Copy, Clone)]
 #[derive(PartialEq)]
-pub struct PartitionBlock {
+struct PartitionBlock {
     start: usize,
     /// exclusive
     end: usize,
@@ -45,7 +45,7 @@ impl Partition<usize> {
         Self::from_vecs(&states_grouped_by_label)
     }
 
-    pub fn get_predecessor_states_of_block(&self, ts: &TransitionSystem, block: PartitionBlock) -> Vec<usize> {
+    fn get_predecessor_states_of_block(&self, ts: &TransitionSystem, block: PartitionBlock) -> Vec<usize> {
         let start_index = block.start;
         let end_index = block.end;
         let mut predecessors = Vec::new();
@@ -58,16 +58,6 @@ impl Partition<usize> {
         predecessors
     }
 
-    pub fn get_successor_states_of_block(&self, ts: &TransitionSystem, block: &[usize]) -> Vec<usize> {
-        let mut successors = Vec::new();
-
-        for current_state_idx in block {
-            let successors_of_current_state = ts.get_successor_states(*current_state_idx);
-            successors.append(successors_of_current_state.to_vec().as_mut());
-        }
-
-        successors
-    }
 }
 
 impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
@@ -92,7 +82,7 @@ impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
         }
     }
 
-    pub fn find_in_block(&self, block_index: ListIndex, item: &T) -> usize {
+    fn find_in_block(&self, block_index: ListIndex, item: &T) -> usize {
         // TODO: panics here if element is not in block
         let block = self.blocks.get(block_index).unwrap();
         // this is a linear search, if it becomes a bottleneck, we can consider
@@ -150,7 +140,7 @@ impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
         let mut new_blocks = IndexList::new();
 
         for block in self.blocks.iter() {
-            let states_of_b = self.get_states_of_block(*block).to_vec();
+            let states_of_b = self.elements[block.start..block.end].to_vec();
 
             let b1 = intersect(intersect(states_of_b.as_ref(), pre_c).as_ref(), pre_c_prime_diff_c); // B \cap Pre(C) \cap Pre(C' \setminus C)
             let b2 = setminus(intersect(states_of_b.as_ref(), pre_c).as_ref(), pre_c_prime_diff_c); // (B \cap Pre(C)) \setminus Pre(C' \setminus C)
@@ -202,9 +192,6 @@ impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
         Some(&self.elements[block.unwrap().start..block.unwrap().end])
     }
 
-    pub fn get_states_of_block(&self, block: PartitionBlock) -> &[T] {
-        &self.elements[block.start..block.end]
-    }
 
     /// Return the partition as an iterator over its sets
     pub fn to_slices(&self) -> impl Iterator<Item = &[T]> {
@@ -224,7 +211,7 @@ impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
     pub fn to_vecs(&self) -> Vec<Vec<T>> {
         self.to_slices().map(|slice| slice.to_vec()).collect()
     }
-    
+
     pub fn num_blocks(&self) -> usize {
         self.blocks.len()
     }
@@ -264,6 +251,18 @@ pub fn get_predecessors(ts: &TransitionSystem, states: &[usize], result_buffer: 
             states
                 .iter()
                 .map(|&state| ts.get_predecessor_states(state).iter()),
+        )
+            .dedup(),
+    );
+}
+
+pub fn get_successors(ts: &TransitionSystem, states: &[usize], result_buffer: &mut Vec<usize>) {
+    result_buffer.clear();
+    result_buffer.extend(
+        kmerge(
+            states
+                .iter()
+                .map(|&state| ts.get_successor_states(state).iter()),
         )
             .dedup(),
     );
