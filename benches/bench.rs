@@ -1,6 +1,6 @@
 use thunder::checker::*;
 use thunder::common::*;
-use thunder::parser::property;
+use thunder::property::*;
 use thunder::parser::*;
 
 fn main() {
@@ -19,7 +19,7 @@ fn build_model(
     file: &str,
 ) -> (
     transition_system::TransitionSystem,
-    Vec<property::Property<String>>,
+    Vec<Property<String>>,
     Vec<Option<bool>>,
 ) {
     gntmc::parse_gntmc_file(file)

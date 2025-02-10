@@ -104,7 +104,7 @@ fn check_properties(
             prop.name,
             result.is_ok()
         );
-        if result.is_err() && matches!(prop.property_type, PropertyType::Ctl(_)) {
+        if result.is_err() && !matches!(prop.property_type, PropertyType::Ctl(_)) {
             let (trace, path) = result.err().unwrap();
             println!("\tFound following path as counterexample: {:?}", path);
             println!("\tCorresponding trace: {:?}", trace);
