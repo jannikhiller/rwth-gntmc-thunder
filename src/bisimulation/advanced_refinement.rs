@@ -1,30 +1,30 @@
 use crate::bisimulation::partition::{get_predecessors, Partition};
 use crate::common::transition_system::TransitionSystem;
 use crate::common::vec_helper::setminus;
-use std::collections::VecDeque;
+use std::collections::{VecDeque};
+use itertools::Itertools;
 
 pub fn advanced_refinement(
     transition_system: &TransitionSystem,
     aps: Option<&Vec<String>>,
 ) -> Partition<usize> {
-    let mut queue = VecDeque::new();
+    let mut working_queue = VecDeque::new();
 
+    // initial refinement
     let mut c_prime = transition_system.get_states().collect::<Vec<_>>();
     let mut current_partition = Partition::from_state_space_by_aps(transition_system, aps);
     current_partition.refine(&c_prime);
 
     let mut pre_c = Vec::with_capacity(transition_system.get_num_states());
-    let mut pre_c_prime = Vec::with_capacity(transition_system.get_num_states());
     let mut pre_c_prime_diff_c = Vec::with_capacity(transition_system.get_num_states());
 
     loop {
         while c_prime.len() < 2 {
-            queue.push_back(c_prime);
-            c_prime = queue.pop_front().unwrap();
+            working_queue.push_back(c_prime);
+            c_prime = working_queue.pop_front().unwrap();
         }
 
         let mut c = Vec::new();
-
         let mut found_suitable_candidate = false;
         for c_candidate in current_partition.to_slices() {
             if c_candidate.len() > c_prime.len() / 2 {
@@ -39,30 +39,30 @@ pub fn advanced_refinement(
         }
 
         if !found_suitable_candidate {
-            queue.push_back(c_prime);
-            c_prime = queue.pop_front().unwrap();
+            working_queue.push_back(c_prime);
+            c_prime = working_queue.pop_front().unwrap();
             continue;
         }
 
         let c_prime_diff_c = setminus(&c_prime, &c);
 
         get_predecessors(transition_system, &c, &mut pre_c);
-        get_predecessors(transition_system, &c_prime, &mut pre_c_prime);
         get_predecessors(transition_system, &c_prime_diff_c, &mut pre_c_prime_diff_c);
 
-        current_partition.ternary_refine(&pre_c, &pre_c_prime, &pre_c_prime_diff_c);
+        current_partition.ternary_refine(&pre_c, &pre_c_prime_diff_c);
 
         if !c.is_empty() {
-            queue.push_back(c);
+            working_queue.push_back(c);
         }
         if !c_prime_diff_c.is_empty() {
-            queue.push_back(c_prime_diff_c);
+            working_queue.push_front(c_prime_diff_c);
         }
 
-        if current_partition.num_blocks() == queue.len() {
+        if current_partition.num_blocks() == working_queue.len() {
             break;
         } else {
-            c_prime = queue.pop_front().unwrap();
+            working_queue.iter().sorted_unstable_by(|a, b| b.len().cmp(&a.len()));
+            c_prime = working_queue.pop_front().unwrap();
         }
     }
 

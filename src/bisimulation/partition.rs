@@ -157,7 +157,6 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
     pub fn ternary_refine(
         &mut self,
         pre_c: &[T],
-        _pre_c_prime: &[T],
         pre_c_prime_diff_c: &[T],
     ) -> bool {
         let mut changed_blocks = HashSet::new();
@@ -171,9 +170,9 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
                     Both(state, _) => (state, 1), // B_1 = B \cap Pre(C) \cap Pre(C' \setminus C)
                     Left(state) => (state, 2), // B_2 = (B \cap Pre(C)) \setminus Pre(C' \setminus C)
                     Right(state) => (state, 3), // B_3 = (B \cap Pre(C' \setminus C)) \setminus Pre(C)
+                    // the items that are not in the splitter are in B_4 and remain in the same block
                 }
             });
-        // the items that are not in the splitter are in B_4 and remain in the same block
 
         for (state, set) in splitter {
             let &block_index = self
@@ -302,7 +301,7 @@ pub fn get_predecessors(ts: &TransitionSystem, states: &[usize], result_buffer: 
                 .iter()
                 .map(|&state| ts.get_predecessor_states(state).iter()),
         )
-        .dedup(),
+            .dedup(),
     );
 }
 
@@ -314,7 +313,7 @@ pub fn get_successors(ts: &TransitionSystem, states: &[usize], result_buffer: &m
                 .iter()
                 .map(|&state| ts.get_successor_states(state).iter()),
         )
-        .dedup(),
+            .dedup(),
     );
 }
 
@@ -476,15 +475,14 @@ mod tests {
     fn test_ternary_refine() {
         let mut partition = Partition::from_vecs(&vec![vec![1, 2, 3, 4], vec![5]]);
         let pre_c = vec![1, 2];
-        let pre_c_prime = vec![];
         let pre_c_prime_diff_c = vec![1, 3];
-        let changed = partition.ternary_refine(&pre_c, &pre_c_prime, &pre_c_prime_diff_c);
+        let changed = partition.ternary_refine(&pre_c, &pre_c_prime_diff_c);
         assert!(changed);
         assert_eq!(
             sorted_partition(partition.to_vecs()),
             vec![vec![1], vec![2], vec![3], vec![4], vec![5]]
         );
-        let changed = partition.ternary_refine(&pre_c, &pre_c_prime, &pre_c_prime_diff_c);
+        let changed = partition.ternary_refine(&pre_c, &pre_c_prime_diff_c);
         println!("{}", partition);
         assert!(!changed);
         assert_eq!(
