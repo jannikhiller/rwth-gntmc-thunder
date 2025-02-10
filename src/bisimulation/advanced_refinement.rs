@@ -54,7 +54,7 @@ pub fn advanced_refinement(transition_system: &TransitionSystem, aps: Option<&Ve
             queue.push_back(c);
         }
         if !c_prime_diff_c.is_empty() {
-                queue.push_back(c_prime_diff_c);
+            queue.push_back(c_prime_diff_c);
         }
 
         if current_partition.num_blocks() == queue.len() {

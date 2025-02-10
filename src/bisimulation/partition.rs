@@ -28,7 +28,7 @@ pub struct Partition<T> {
 impl Partition<usize> {
     pub fn from_state_space_by_aps(transition_system: &TransitionSystem, filter_aps: Option<&Vec<String>>) -> Self {
         let ap_bitmask = if filter_aps.is_some() {
-            transition_system.get_label_from_aps(filter_aps.unwrap())
+            transition_system.get_label_from_aps(filter_aps.unwrap()).unwrap_or(BitVec::from_elem(transition_system.get_ap().len(), false))
         } else {
             BitVec::from_elem(transition_system.get_ap().len(), true)
         };

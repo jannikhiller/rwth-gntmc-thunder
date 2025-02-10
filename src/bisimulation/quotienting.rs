@@ -101,8 +101,7 @@ pub fn quotienting(transition_system: &TransitionSystem, options: &Options, ap: 
             }
         }
     }
-    println!("{:?}", last_state);
-    println!("{:?}", new_init_states);
+
     let aps = transition_system.get_ap().clone();
     TransitionSystem::new(new_tmatrix,
                           new_reverse_matrix,

@@ -162,12 +162,16 @@ impl TransitionSystem {
     ///
     /// # Returns
     /// A `BitVec` where bits corresponding to the specified APs are set to `true`.
-    pub fn get_label_from_aps(&self, aps: &[String]) -> BitVec {
+    pub fn get_label_from_aps(&self, aps: &[String]) -> Option<BitVec> {
         let mut label = BitVec::from_elem(self.ap.len(), false);
         for s in aps {
-            label.set(self.ap.binary_search(s).unwrap(), true);
+            let idx = self.ap.binary_search(s);
+            if idx.is_err() {
+                return None;
+            }
+            label.set(idx.unwrap(), true);
         }
-        label
+        Some(label)
     }
 
     /// Returns an iterator over the successor states of a given state.
@@ -659,7 +663,7 @@ mod tests {
     fn test_get_label_from_aps() {
         let ts = create_test_transition_system();
         let aps = vec!["a".to_string(), "c".to_string()];
-        let label = ts.get_label_from_aps(&aps);
+        let label = ts.get_label_from_aps(&aps).unwrap();
         assert!(label.get(0).unwrap()); // "a" is true
         assert!(!label.get(1).unwrap()); // "b" is false
         assert!(label.get(2).unwrap()); // "c" is true

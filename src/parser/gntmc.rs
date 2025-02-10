@@ -527,6 +527,7 @@ fn build_ts(input: GntmcTransitionSystem) -> TransitionSystem {
         .collect::<HashSet<_>>()
         .into_iter()
         .cloned()
+        .sorted()
         .collect();
 
     trace!("Built atomic propositions.");

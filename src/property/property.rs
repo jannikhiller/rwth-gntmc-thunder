@@ -5,6 +5,7 @@ use std::fmt;
 use std::hash::Hash;
 
 use crate::property::automaton::FiniteAutomaton;
+use crate::property::property::PropertyType::RegularSafety;
 
 #[derive(Debug, Clone)]
 pub enum PropertyType<ValueType> {
@@ -28,6 +29,49 @@ pub struct Property<ValueType> {
     pub name: String,
     ///The atomic propositions of the property.
     aps: Vec<String>,
+}
+
+impl <ValueType> PartialEq for PropertyType<ValueType> {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            PropertyType::Invariant(_) => {
+                match other { 
+                    PropertyType::Invariant(_) => true,
+                    _ => false
+                }
+            }
+            PropertyType::Persistence(_) => {
+                match other {
+                    PropertyType::Persistence(_) => true,
+                    _ => false
+                }
+            }
+            PropertyType::RegularSafety(_) => {
+                match other {
+                    PropertyType::RegularSafety(_) => true,
+                    _ => false
+                }
+            }
+            PropertyType::OmegaRegular(_) => {
+                match other {
+                    PropertyType::OmegaRegular(_) => true,
+                    _ => false
+                }
+            }
+            PropertyType::Ltl(_) => {
+                match other {
+                    PropertyType::Ltl(_) => true,
+                    _ => false
+                }
+            }
+            PropertyType::Ctl(_) => {
+                match other {
+                    PropertyType::Ctl(_) => true,
+                    _ => false
+                }
+            }
+        }
+    }
 }
 
 /// Creates a new `Property` with a given name, property type, and root node.

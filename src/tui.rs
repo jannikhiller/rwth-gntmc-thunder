@@ -1,7 +1,7 @@
 use crate::checker::checker::{check, Options, PersistenceCheckingAlgorithm, QuotientingAlgorithm};
 use crate::common::transition_system::TransitionSystem;
 use crate::parser::gntmc::parse_gntmc_file;
-use crate::property::property::Property;
+use crate::property::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
 use clap::Parser;
 use env_logger::Builder;
 use std::io::Write;
@@ -55,22 +55,30 @@ fn parse_model_and_properties(
     let post_parsing_time = std::time::Instant::now();
     let parsing_time = (post_parsing_time - pre_parsing_time).as_secs_f64();
     println!("Done. Model building took {}s", parsing_time);
-    println!("Meta information of model:\n\tnumber of states: {:?}\n\tnumber of transitions: {:?}\n\tnumber of initial states: {:?}",
+    println!("Meta information of model:\n\tnumber of states: {:?}\n\tnumber of transitions: {:?}\n\tnumber of initial states: {:?}\n",
         ts.get_num_states(), ts.get_num_transitions(), ts.get_initial_states().len()
     );
     (ts, props, parsing_time)
 }
 
 fn check_properties(ts: &TransitionSystem, props: &[Property<String>], options: &Options) -> f64 {
+    let empty_formula = FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::Atomic);
     let mut total_model_checking_time = std::time::Duration::new(0, 0);
     let mut checking_ts: &TransitionSystem = ts;
-    let mut owned_ts; // Declare outside the loop
+    let mut quotient_ts; // Declare outside the loop
     for (i, prop) in props.iter().enumerate() {
-        if options.quotienting_algorithm != QuotientingAlgorithm::Without{
-            //add function to get all aps of propert
+        if options.quotienting_algorithm != QuotientingAlgorithm::Without {
+            // add function to get all aps of property
             let aps = prop.get_aps();
-            owned_ts = quotienting(ts, &options, Some(&aps));
-            checking_ts = &owned_ts;
+            println!("Performing bisimulation quotienting with given strategy");
+            let pre_quot_time = std::time::Instant::now();
+            quotient_ts = quotienting(ts, options, Some(&aps));
+            let post_quot_time = std::time::Instant::now();
+            println!("Quotienting took {}s", (post_quot_time - pre_quot_time).as_secs_f64());
+            println!("Meta information of quotient:\n\tnumber of states: {:?}\n\tnumber of transitions: {:?}\n\tnumber of initial states: {:?}",
+                     quotient_ts.get_num_states(), quotient_ts.get_num_transitions(), quotient_ts.get_initial_states().len()
+            );
+            checking_ts = &quotient_ts;
         }
         println!("Checking property {i}: {:?}...", prop.name);
         let pre_checking_time = std::time::Instant::now();
@@ -86,11 +94,12 @@ fn check_properties(ts: &TransitionSystem, props: &[Property<String>], options: 
             prop.name,
             result.is_ok()
         );
-        if result.is_err() {
+        if result.is_err() && prop.property_type != PropertyType::Ctl(empty_formula.clone()) {
             let (trace, path) = result.err().unwrap();
             println!("\tFound following path as counterexample: {:?}", path);
             println!("\tCorresponding trace: {:?}", trace);
         }
+        println!();
     }
     println!(
         "Checked all properties. Total time for checking: {}s",
@@ -109,7 +118,7 @@ pub fn run() {
     let quotienting_algorithm: QuotientingAlgorithm = args.bisimulation;
     let mut options = Options::new();
     options.set_persistence_algorithm(persistence_algorithm);
-    options.set_quotienting_algorithm(quotienting_algorithm.clone());
+    options.set_quotienting_algorithm(quotienting_algorithm);
 
     let checking_time = check_properties(&ts, &props, &options);
 
