@@ -2,14 +2,13 @@ macro_rules! check_file {
     ($file:expr $(, $is_true:expr)?) => {
         let (ts, props, is_trues) = gntmc::parse_gntmc_file($file);
         let aps_arrays = vec![
-        vec!["crit0".to_string(), "wait0".to_string()],
-        vec!["some_crit".to_string()],
-        vec!["crit0".to_string()],
-        vec!["fair".to_string(), "crit0".to_string()]
-];
+            vec!["crit0".to_string(), "wait0".to_string()],
+            vec!["some_crit".to_string()],
+            vec!["crit0".to_string()],
+            vec!["fair".to_string(), "crit0".to_string()],
+        ];
 
-        for (prop,aps) in props.iter().zip(aps_arrays) {
-
+        for (prop, aps) in props.iter().zip(aps_arrays) {
             assert_eq!(prop.get_aps(), aps)
         }
     };

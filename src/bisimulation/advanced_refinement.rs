@@ -1,9 +1,12 @@
-use std::collections::{VecDeque};
-use crate::common::transition_system::TransitionSystem;
 use crate::bisimulation::partition::{get_predecessors, Partition};
+use crate::common::transition_system::TransitionSystem;
 use crate::common::vec_helper::setminus;
+use std::collections::VecDeque;
 
-pub fn advanced_refinement(transition_system: &TransitionSystem, aps: Option<&Vec<String>>) -> Partition<usize> {
+pub fn advanced_refinement(
+    transition_system: &TransitionSystem,
+    aps: Option<&Vec<String>>,
+) -> Partition<usize> {
     let mut queue = VecDeque::new();
 
     let mut c_prime = transition_system.get_states().collect::<Vec<_>>();
@@ -49,7 +52,6 @@ pub fn advanced_refinement(transition_system: &TransitionSystem, aps: Option<&Ve
 
         current_partition.ternary_refine(&pre_c, &pre_c_prime, &pre_c_prime_diff_c);
 
-
         if !c.is_empty() {
             queue.push_back(c);
         }
@@ -59,14 +61,13 @@ pub fn advanced_refinement(transition_system: &TransitionSystem, aps: Option<&Ve
 
         if current_partition.num_blocks() == queue.len() {
             break;
-        } else { 
+        } else {
             c_prime = queue.pop_front().unwrap();
         }
     }
 
     current_partition
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -80,7 +81,9 @@ mod tests {
         partition
     }
 
-    fn test_partitioning(partitioning_method: fn(&TransitionSystem, Option<&Vec<String>>) -> Partition<usize>) {
+    fn test_partitioning(
+        partitioning_method: fn(&TransitionSystem, Option<&Vec<String>>) -> Partition<usize>,
+    ) {
         // taken from model checking 2023 exercise 9
         let ts = "init: 0 1 6 9
         0a -> 2b
@@ -103,8 +106,8 @@ mod tests {
         10b -> 10b
         10b -> 11b
         "
-            .parse()
-            .unwrap();
+        .parse()
+        .unwrap();
         let partition = partitioning_method(&ts, Option::from(&aps("ab")));
         let expected_partition = vec![
             vec![0],

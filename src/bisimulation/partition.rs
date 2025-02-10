@@ -1,18 +1,17 @@
 #![allow(dead_code)]
 
+use crate::common::transition_system::TransitionSystem;
+use crate::common::vec_helper::{intersect, setminus};
+use bit_vec::BitVec;
 use index_list::{IndexList, ListIndex};
+use itertools::{kmerge, Itertools};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fmt::Debug;
 use std::hash::Hash;
-use bit_vec::BitVec;
-use itertools::{kmerge, Itertools};
-use crate::common::transition_system::TransitionSystem;
-use crate::common::vec_helper::{intersect, setminus};
 
-#[derive(Debug, Copy, Clone)]
-#[derive(PartialEq)]
-pub struct PartitionBlock {
+#[derive(Debug, Copy, Clone, PartialEq)]
+struct PartitionBlock {
     start: usize,
     /// exclusive
     end: usize,
@@ -26,14 +25,20 @@ pub struct Partition<T> {
 }
 
 impl Partition<usize> {
-    pub fn from_state_space_by_aps(transition_system: &TransitionSystem, filter_aps: Option<&Vec<String>>) -> Self {
+    pub fn from_state_space_by_aps(
+        transition_system: &TransitionSystem,
+        filter_aps: Option<&Vec<String>>,
+    ) -> Self {
         let ap_bitmask = if filter_aps.is_some() {
-            transition_system.get_label_from_aps(filter_aps.unwrap()).unwrap_or(BitVec::from_elem(transition_system.get_ap().len(), false))
+            transition_system
+                .get_label_from_aps(filter_aps.unwrap())
+                .unwrap_or(BitVec::from_elem(transition_system.get_ap().len(), false))
         } else {
             BitVec::from_elem(transition_system.get_ap().len(), true)
         };
 
-        let states_grouped_by_label = transition_system.get_states()
+        let states_grouped_by_label = transition_system
+            .get_states()
             .into_group_map_by(|&state| {
                 let mut label = transition_system.get_state_label(state).clone();
                 label.and(&ap_bitmask);
@@ -45,28 +50,22 @@ impl Partition<usize> {
         Self::from_vecs(&states_grouped_by_label)
     }
 
-    pub fn get_predecessor_states_of_block(&self, ts: &TransitionSystem, block: PartitionBlock) -> Vec<usize> {
+    fn get_predecessor_states_of_block(
+        &self,
+        ts: &TransitionSystem,
+        block: PartitionBlock,
+    ) -> Vec<usize> {
         let start_index = block.start;
         let end_index = block.end;
         let mut predecessors = Vec::new();
 
-        for current_state_idx in start_index .. end_index {
-            let predecessors_of_current_state = ts.get_predecessor_states(self.elements[current_state_idx]);
+        for current_state_idx in start_index..end_index {
+            let predecessors_of_current_state =
+                ts.get_predecessor_states(self.elements[current_state_idx]);
             predecessors.append(predecessors_of_current_state.to_vec().as_mut());
         }
 
         predecessors
-    }
-
-    pub fn get_successor_states_of_block(&self, ts: &TransitionSystem, block: &[usize]) -> Vec<usize> {
-        let mut successors = Vec::new();
-
-        for current_state_idx in block {
-            let successors_of_current_state = ts.get_successor_states(*current_state_idx);
-            successors.append(successors_of_current_state.to_vec().as_mut());
-        }
-
-        successors
     }
 }
 
@@ -92,7 +91,7 @@ impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
         }
     }
 
-    pub fn find_in_block(&self, block_index: ListIndex, item: &T) -> usize {
+    fn find_in_block(&self, block_index: ListIndex, item: &T) -> usize {
         // TODO: panics here if element is not in block
         let block = self.blocks.get(block_index).unwrap();
         // this is a linear search, if it becomes a bottleneck, we can consider
@@ -146,17 +145,30 @@ impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
         !changed_blocks.is_empty()
     }
 
-    pub fn ternary_refine(&mut self, pre_c: &Vec<T>, pre_c_prime: &Vec<T>, pre_c_prime_diff_c: &Vec<T>) {
+    pub fn ternary_refine(
+        &mut self,
+        pre_c: &Vec<T>,
+        pre_c_prime: &Vec<T>,
+        pre_c_prime_diff_c: &Vec<T>,
+    ) {
         let mut new_blocks = IndexList::new();
 
         for block in self.blocks.iter() {
-            let states_of_b = self.get_states_of_block(*block).to_vec();
+            let states_of_b = self.elements[block.start..block.end].to_vec();
 
-            let b1 = intersect(intersect(states_of_b.as_ref(), pre_c).as_ref(), pre_c_prime_diff_c); // B \cap Pre(C) \cap Pre(C' \setminus C)
-            let b2 = setminus(intersect(states_of_b.as_ref(), pre_c).as_ref(), pre_c_prime_diff_c); // (B \cap Pre(C)) \setminus Pre(C' \setminus C)
-            let b3 = setminus(intersect(states_of_b.as_ref(), pre_c_prime_diff_c).as_ref(), pre_c); // (B \cap Pre(C' \setminus C)) \setminus Pre(C)
+            let b1 = intersect(
+                intersect(states_of_b.as_ref(), pre_c).as_ref(),
+                pre_c_prime_diff_c,
+            ); // B \cap Pre(C) \cap Pre(C' \setminus C)
+            let b2 = setminus(
+                intersect(states_of_b.as_ref(), pre_c).as_ref(),
+                pre_c_prime_diff_c,
+            ); // (B \cap Pre(C)) \setminus Pre(C' \setminus C)
+            let b3 = setminus(
+                intersect(states_of_b.as_ref(), pre_c_prime_diff_c).as_ref(),
+                pre_c,
+            ); // (B \cap Pre(C' \setminus C)) \setminus Pre(C)
             let b4 = setminus(states_of_b.as_ref(), pre_c_prime); // B \setminus Pre(C')
-
 
             let mut offset = block.start;
             let mut marker = block.start;
@@ -167,18 +179,18 @@ impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
                     continue 'inner;
                 }
 
-
                 let mut b_i_marker = 0;
                 let new_block = PartitionBlock {
                     start: marker,
-                    end: marker + b_i.len()
+                    end: marker + b_i.len(),
                 };
 
                 let new_list_index: ListIndex = new_blocks.insert_last(new_block);
 
                 while marker < b_i.len() + offset {
                     self.elements[marker] = b_i[b_i_marker].clone();
-                    self.block_map.insert(self.elements[marker].clone(), new_list_index);
+                    self.block_map
+                        .insert(self.elements[marker].clone(), new_list_index);
                     marker += 1;
                     b_i_marker += 1;
                 }
@@ -202,10 +214,6 @@ impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
         Some(&self.elements[block.unwrap().start..block.unwrap().end])
     }
 
-    pub fn get_states_of_block(&self, block: PartitionBlock) -> &[T] {
-        &self.elements[block.start..block.end]
-    }
-
     /// Return the partition as an iterator over its sets
     pub fn to_slices(&self) -> impl Iterator<Item = &[T]> {
         self.blocks
@@ -214,17 +222,19 @@ impl<T: Hash + Eq + Clone + Debug + Ord> Partition<T> {
     }
 
     pub fn to_sorted_vecs(&self) -> Vec<Vec<T>> {
-        self.to_slices().map(|slice| {
-            let mut res = slice.to_vec();
-            res.sort();
-            res
-        }).collect()
+        self.to_slices()
+            .map(|slice| {
+                let mut res = slice.to_vec();
+                res.sort();
+                res
+            })
+            .collect()
     }
 
     pub fn to_vecs(&self) -> Vec<Vec<T>> {
         self.to_slices().map(|slice| slice.to_vec()).collect()
     }
-    
+
     pub fn num_blocks(&self) -> usize {
         self.blocks.len()
     }
@@ -235,7 +245,7 @@ impl fmt::Display for Partition<usize> {
         for block in self.blocks.iter() {
             writeln!(f, "Block starting at {} to {}:", block.start, block.end);
             write!(f, "[");
-            for state in block.start .. block.end {
+            for state in block.start..block.end {
                 write!(f, "{}, ", self.elements[state]);
             }
             writeln!(f, "]");
@@ -265,14 +275,26 @@ pub fn get_predecessors(ts: &TransitionSystem, states: &[usize], result_buffer: 
                 .iter()
                 .map(|&state| ts.get_predecessor_states(state).iter()),
         )
-            .dedup(),
+        .dedup(),
+    );
+}
+
+pub fn get_successors(ts: &TransitionSystem, states: &[usize], result_buffer: &mut Vec<usize>) {
+    result_buffer.clear();
+    result_buffer.extend(
+        kmerge(
+            states
+                .iter()
+                .map(|&state| ts.get_successor_states(state).iter()),
+        )
+        .dedup(),
     );
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::common::sparse_matrix::SparseMatrix;
     use super::*;
+    use crate::common::sparse_matrix::SparseMatrix;
 
     #[test]
     fn test_partition() {
@@ -335,7 +357,7 @@ mod tests {
             (1, 3, true),
             (3, 2, true),
             (3, 3, true),
-            (4, 4, true)
+            (4, 4, true),
         ];
         let transition_matrix = SparseMatrix::from_list_of_entries(5, 5, &transitions);
         let reverse_transitions = [

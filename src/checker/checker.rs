@@ -47,7 +47,7 @@ pub fn check(
 
 pub struct Options {
     pub persistence_algorithm: PersistenceCheckingAlgorithm,
-    pub quotienting_algorithm: QuotientingAlgorithm
+    pub quotienting_algorithm: QuotientingAlgorithm,
 }
 
 impl Default for Options {
@@ -71,10 +71,7 @@ impl Options {
     ) {
         self.persistence_algorithm = persistence_algorithm
     }
-    pub fn set_quotienting_algorithm(
-        &mut self,
-        quotienting_algorithm: QuotientingAlgorithm,
-    ) {
+    pub fn set_quotienting_algorithm(&mut self, quotienting_algorithm: QuotientingAlgorithm) {
         self.quotienting_algorithm = quotienting_algorithm
     }
 }

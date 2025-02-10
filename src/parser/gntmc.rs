@@ -34,7 +34,9 @@ impl GntmcPropositionalFormula {
     fn translate(&self, aps: &mut Vec<String>) -> FormulaTreeNode<String> {
         match self {
             GntmcPropositionalFormula::Atom(ref f) => {
-                if !aps.contains(&f.to_string()) { aps.push(f.to_string()); }
+                if !aps.contains(&f.to_string()) {
+                    aps.push(f.to_string());
+                }
                 FormulaTreeNode::new(None, None, Some(f.to_string()), FormulaTreeNodeType::Atomic)
             }
             GntmcPropositionalFormula::Not(ref f) => FormulaTreeNode::new(
@@ -132,8 +134,10 @@ struct GntmcFiniteAutomaton {
 
 impl GntmcFiniteAutomaton {
     fn translate(&self, aps: &mut Vec<String>) -> FiniteAutomaton<String> {
-        for ap in self.atomic_propositions.clone(){
-            if !aps.contains(&ap) { aps.push(ap.to_string());}
+        for ap in self.atomic_propositions.clone() {
+            if !aps.contains(&ap) {
+                aps.push(ap.to_string());
+            }
         }
         let acceptance = match self.acceptance {
             Acceptance::Nfa => AcceptanceType::Nfa,
@@ -142,7 +146,7 @@ impl GntmcFiniteAutomaton {
         let mut transitions: Vec<_> = self
             .edges
             .iter()
-            .map(|e| (e.start, e.destination, e.actions.translate(&mut vec![])))//the argument will not be used here
+            .map(|e| (e.start, e.destination, e.actions.translate(&mut vec![]))) //the argument will not be used here
             .collect();
 
         transitions.sort_by_key(|(src, _, _)| *src);
@@ -194,7 +198,9 @@ impl GntmcLtlFormula {
     fn translate(&self, aps: &mut Vec<String>) -> FormulaTreeNode<String> {
         match self {
             GntmcLtlFormula::Atom(ref f) => {
-                if !aps.contains(&f.to_string()) { aps.push(f.to_string()); }
+                if !aps.contains(&f.to_string()) {
+                    aps.push(f.to_string());
+                }
                 FormulaTreeNode::new(None, None, Some(f.to_string()), FormulaTreeNodeType::Atomic)
             }
             GntmcLtlFormula::Not(ref f) => FormulaTreeNode::new(
@@ -281,7 +287,9 @@ impl GntmcCtlStateFormula {
     fn translate(&self, aps: &mut Vec<String>) -> FormulaTreeNode<String> {
         match self {
             GntmcCtlStateFormula::Atom(ref f) => {
-                if !aps.contains(&f.to_string()) { aps.push(f.to_string()); }
+                if !aps.contains(&f.to_string()) {
+                    aps.push(f.to_string());
+                }
                 FormulaTreeNode::new(None, None, Some(f.to_string()), FormulaTreeNodeType::Atomic)
             }
             GntmcCtlStateFormula::Not(ref f) => {
@@ -581,28 +589,32 @@ fn build_properties(props: Vec<GntmcProperty>) -> (Vec<Property<String>>, Vec<Op
             trace!("Found property {:?} of kind {:?}.", p.name, p.kind);
             let aps: &mut Vec<String> = &mut vec![];
             (
-                Property::new(p.name.clone(), match p.kind {
-                    GntmcPropertyKind::Invariant(formula) => {
-                        PropertyType::Invariant(formula.translate(aps))
-                    }
-                    GntmcPropertyKind::RegularSafety(automaton) => {
-                        PropertyType::RegularSafety(automaton.translate(aps))
-                    }
-                    GntmcPropertyKind::Persistence(formula) => {
-                        PropertyType::Persistence(formula.translate(aps))
-                    }
-                    GntmcPropertyKind::OmegaRegular(automaton) => {
-                        PropertyType::OmegaRegular(automaton.translate(aps))
-                    }
-                    GntmcPropertyKind::Ltl(formula) => {
-                        PropertyType::Ltl(formula.translate(aps))
+                Property::new(
+                    p.name.clone(),
+                    match p.kind {
+                        GntmcPropertyKind::Invariant(formula) => {
+                            PropertyType::Invariant(formula.translate(aps))
+                        }
+                        GntmcPropertyKind::RegularSafety(automaton) => {
+                            PropertyType::RegularSafety(automaton.translate(aps))
+                        }
+                        GntmcPropertyKind::Persistence(formula) => {
+                            PropertyType::Persistence(formula.translate(aps))
+                        }
+                        GntmcPropertyKind::OmegaRegular(automaton) => {
+                            PropertyType::OmegaRegular(automaton.translate(aps))
+                        }
+                        GntmcPropertyKind::Ltl(formula) => {
+                            PropertyType::Ltl(formula.translate(aps))
+                        }
+                        GntmcPropertyKind::Ctl(formula) => {
+                            let mut formula = formula.translate(aps);
+                            formula.remove_double_negations();
+                            PropertyType::Ctl(formula)
+                        }
                     },
-                    GntmcPropertyKind::Ctl(formula) => {
-                        let mut formula = formula.translate(aps);
-                        formula.remove_double_negations();
-                        PropertyType::Ctl(formula)
-                    }
-                }, (*aps).clone()),
+                    (*aps).clone(),
+                ),
                 p.is_true,
             )
         })
