@@ -2,7 +2,6 @@ use crate::bisimulation::partition::{get_predecessors, Partition};
 use crate::common::transition_system::TransitionSystem;
 use crate::common::vec_helper::setminus;
 use std::collections::{VecDeque};
-use itertools::Itertools;
 
 pub fn advanced_refinement(
     transition_system: &TransitionSystem,
@@ -30,7 +29,6 @@ pub fn advanced_refinement(
             if c_candidate.len() > c_prime.len() / 2 {
                 continue;
             }
-
             if c_candidate.iter().all(|elem| c_prime.contains(elem)) {
                 c = c_candidate.to_vec();
                 found_suitable_candidate = true;
@@ -45,10 +43,10 @@ pub fn advanced_refinement(
         }
 
         let c_prime_diff_c = setminus(&c_prime, &c);
-
+        
         get_predecessors(transition_system, &c, &mut pre_c);
         get_predecessors(transition_system, &c_prime_diff_c, &mut pre_c_prime_diff_c);
-
+        
         current_partition.ternary_refine(&pre_c, &pre_c_prime_diff_c);
 
         if !c.is_empty() {
@@ -61,7 +59,6 @@ pub fn advanced_refinement(
         if current_partition.num_blocks() == working_queue.len() {
             break;
         } else {
-            working_queue.iter().sorted_unstable_by(|a, b| b.len().cmp(&a.len()));
             c_prime = working_queue.pop_front().unwrap();
         }
     }
