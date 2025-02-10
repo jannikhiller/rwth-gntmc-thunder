@@ -295,14 +295,23 @@ pub struct LtlGnba {
     last_state: usize,
 }
 
+#[derive(Debug, Clone, PartialEq, Copy)]
+struct SubFormulaIndex {
+    index: usize,
+    inverted: bool,
+}
+
 fn filter_successors_with_next(
     set: &BitVec,
     elementary_sets: &Vec<BitVec>,
     index_of_formula: usize,
-    index_of_subformula_of_next: &HashMap<usize, (bool, usize)>,
+    index_of_subformula: SubFormulaIndex,
     successors: &mut BitVec,
 ) {
-    let (inverted, subformula_index) = index_of_subformula_of_next[&index_of_formula];
+    let SubFormulaIndex {
+        index: subformula_index,
+        inverted,
+    } = index_of_subformula;
     if set[index_of_formula] {
         for successor_index in 0..successors.len() {
             if elementary_sets[successor_index][subformula_index] == inverted {
@@ -322,7 +331,7 @@ fn filter_successors_with_until(
     set: &BitVec,
     elementary_sets: &Vec<BitVec>,
     index_of_formula: usize,
-    index_of_subformula_of_until: &HashMap<usize, ((bool, usize), (bool, usize))>,
+    index_of_subformulas: (SubFormulaIndex, SubFormulaIndex),
     successors: &mut BitVec,
 ) {
     // Until(f, g) \in set <==> g \in set or (f \in set and Until(f, g) \in successor)
@@ -331,8 +340,16 @@ fn filter_successors_with_until(
         index_of_formula
     );
 
-    let ((f_inverted, f_index), (g_inverted, g_index)) =
-        index_of_subformula_of_until[&index_of_formula];
+    let (
+        SubFormulaIndex {
+            index: f_index,
+            inverted: f_inverted,
+        },
+        SubFormulaIndex {
+            index: g_index,
+            inverted: g_inverted,
+        },
+    ) = index_of_subformulas;
     trace!(
         "f: {} {}, g: {} {}",
         f_index,
@@ -386,7 +403,7 @@ impl LtlGnba {
         };
 
         // we precompute the indexes of the subformulas for next and until
-        let index_of_subformula_of_next: HashMap<usize, (bool, usize)> = indices_to_formula
+        let index_of_subformula_of_next: HashMap<usize, SubFormulaIndex> = indices_to_formula
             .iter()
             .filter(|(_, formula)| formula.node_type == FormulaTreeNodeType::Next)
             .map(|(index, formula)| {
@@ -398,19 +415,19 @@ impl LtlGnba {
                 }
                 (
                     *index,
-                    (
-                        inverted,
-                        *indices_to_formula
+                    SubFormulaIndex {
+                        index: *indices_to_formula
                             .iter()
                             .find(|(_, f)| **f == **subformula)
                             .unwrap()
                             .0,
-                    ),
+                        inverted,
+                    },
                 )
             })
             .collect();
 
-        let index_of_subformula_of_until: HashMap<usize, ((bool, usize), (bool, usize))> =
+        let index_of_subformulas_of_until: HashMap<usize, (SubFormulaIndex, SubFormulaIndex)> =
             indices_to_formula
                 .iter()
                 .filter(|(_, formula)| formula.node_type == FormulaTreeNodeType::Until)
@@ -430,22 +447,22 @@ impl LtlGnba {
                     (
                         *index,
                         (
-                            (
-                                left_inverted,
-                                *indices_to_formula
+                            SubFormulaIndex {
+                                index: *indices_to_formula
                                     .iter()
                                     .find(|(_, f)| **f == **left_subformula)
                                     .unwrap()
                                     .0,
-                            ),
-                            (
-                                right_inverted,
-                                *indices_to_formula
+                                inverted: left_inverted,
+                            },
+                            SubFormulaIndex {
+                                index: *indices_to_formula
                                     .iter()
                                     .find(|(_, f)| **f == **right_subformula)
                                     .unwrap()
                                     .0,
-                            ),
+                                inverted: right_inverted,
+                            },
                         ),
                     )
                 })
@@ -485,7 +502,7 @@ impl LtlGnba {
                             set,
                             &elementary_sets,
                             j,
-                            &index_of_subformula_of_next,
+                            index_of_subformula_of_next[&j],
                             &mut successors,
                         );
                     }
@@ -494,7 +511,7 @@ impl LtlGnba {
                             set,
                             &elementary_sets,
                             j,
-                            &index_of_subformula_of_until,
+                            index_of_subformulas_of_until[&j],
                             &mut successors,
                         );
                     }
@@ -530,7 +547,13 @@ impl LtlGnba {
             })
             .map(|&i| {
                 let mut f = BitVec::from_elem(last_state + 1, false);
-                let (_, (g_inverted, g)) = index_of_subformula_of_until[&i];
+                let (
+                    _,
+                    SubFormulaIndex {
+                        index: g,
+                        inverted: g_inverted,
+                    },
+                ) = index_of_subformulas_of_until[&i];
                 for (j, set) in elementary_sets.iter().enumerate() {
                     if !set[i] || (set[g] != g_inverted) {
                         f.set(j, true);
@@ -549,8 +572,8 @@ impl LtlGnba {
         }
     }
 
-    fn step(&self, state: BitVec, label: &Vec<String>) -> BitVec {
-        let mut sorted_label = label.clone();
+    fn step(&self, state: BitVec, label: &[String]) -> BitVec {
+        let mut sorted_label = label.to_vec();
         sorted_label.sort();
 
         let mut new_state = BitVec::from_elem(self.last_state + 1, false);
