@@ -18,7 +18,7 @@ pub fn find_scc_in_ts(
     property: &Property<String>,
 ) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
     // wrapper struct used to find and store SCCs in the given transition system
-    let mut scc = SCC::new();
+    let mut scc = Scc::new();
     scc.find_sccs(transition_system);
 
     for cluster in scc.sccs {
@@ -92,7 +92,7 @@ fn is_reachable(
     Err(false)
 }
 
-struct SCC {
+struct Scc {
     max_dfs: usize,
     dfs_num: HashMap<usize, usize>,
     low_link: HashMap<usize, usize>,
@@ -100,9 +100,9 @@ struct SCC {
     stack: Vec<usize>,
     sccs: Vec<Vec<usize>>,
 }
-impl SCC {
+impl Scc {
     fn new() -> Self {
-        SCC {
+        Scc {
             max_dfs: 0,
             dfs_num: HashMap::new(),
             low_link: HashMap::new(),

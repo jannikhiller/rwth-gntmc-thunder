@@ -1,4 +1,4 @@
-use crate::checker::checker::Options;
+use crate::checker::Options;
 use crate::checker::regular_safety_and_omega_property::regular_safety_and_omega_checking;
 use crate::common::transition_system::TransitionSystem;
 use crate::parser::automaton::{FiniteAutomaton, LtlGnba};

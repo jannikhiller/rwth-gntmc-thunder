@@ -303,7 +303,7 @@ struct SubFormulaIndex {
 
 fn filter_successors_with_next(
     set: &BitVec,
-    elementary_sets: &Vec<BitVec>,
+    elementary_sets: &[BitVec],
     index_of_formula: usize,
     index_of_subformula: SubFormulaIndex,
     successors: &mut BitVec,
@@ -313,14 +313,14 @@ fn filter_successors_with_next(
         inverted,
     } = index_of_subformula;
     if set[index_of_formula] {
-        for successor_index in 0..successors.len() {
-            if elementary_sets[successor_index][subformula_index] == inverted {
+        for (successor_index, elementary_set) in elementary_sets.iter().enumerate() {
+            if elementary_set[subformula_index] == inverted {
                 successors.set(successor_index, false);
             }
         }
     } else {
-        for successor_index in 0..successors.len() {
-            if elementary_sets[successor_index][subformula_index] != inverted {
+        for (successor_index, elementary_set) in elementary_sets.iter().enumerate() {
+            if elementary_set[subformula_index] != inverted {
                 successors.set(successor_index, false);
             }
         }
@@ -329,7 +329,7 @@ fn filter_successors_with_next(
 
 fn filter_successors_with_until(
     set: &BitVec,
-    elementary_sets: &Vec<BitVec>,
+    elementary_sets: &[BitVec],
     index_of_formula: usize,
     index_of_subformulas: (SubFormulaIndex, SubFormulaIndex),
     successors: &mut BitVec,
@@ -365,8 +365,8 @@ fn filter_successors_with_until(
                 trace!("f is not in set");
                 successors.clear();
             } else {
-                for successor_index in 0..successors.len() {
-                    if !elementary_sets[successor_index][index_of_formula] {
+                for (successor_index, elementary_set) in elementary_sets.iter().enumerate() {
+                    if !elementary_set[index_of_formula] {
                         trace!("g is not in successor {}", successor_index);
                         successors.set(successor_index, false);
                     }
@@ -380,8 +380,8 @@ fn filter_successors_with_until(
             successors.clear();
         } else if set[f_index] != f_inverted {
             trace!("f is in set");
-            for successor_index in 0..successors.len() {
-                if elementary_sets[successor_index][index_of_formula] {
+            for (successor_index, elementary_set) in elementary_sets.iter().enumerate() {
+                if elementary_set[index_of_formula] {
                     trace!("g is in successor {}", successor_index);
                     successors.set(successor_index, false);
                 }

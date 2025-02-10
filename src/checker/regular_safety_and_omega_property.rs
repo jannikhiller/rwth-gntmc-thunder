@@ -1,4 +1,4 @@
-use crate::checker::checker::{Options, PersistenceCheckingAlgorithm};
+use crate::checker::{Options, PersistenceCheckingAlgorithm};
 use crate::checker::invariant::bfs_invariant_checking;
 use crate::checker::nested_dfs::persistence_checking_with_nested_dfs;
 use crate::checker::scc::persistence_checking_with_scc;

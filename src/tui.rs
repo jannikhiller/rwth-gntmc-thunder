@@ -1,5 +1,5 @@
 use crate::bisimulation::quotienting::quotienting;
-use crate::checker::checker::{check, Options, PersistenceCheckingAlgorithm, QuotientingAlgorithm};
+use crate::checker::{check, Options, PersistenceCheckingAlgorithm, QuotientingAlgorithm};
 use crate::common::transition_system::TransitionSystem;
 use crate::parser::gntmc::parse_gntmc_file;
 use crate::parser::property::{Property, PropertyType};

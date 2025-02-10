@@ -3,7 +3,7 @@
 use crate::bisimulation::advanced_refinement::advanced_refinement;
 use crate::bisimulation::partition::get_successors;
 use crate::bisimulation::simple_refinement::simple_selection_strategy;
-use crate::checker::checker::{Options, QuotientingAlgorithm};
+use crate::checker::{Options, QuotientingAlgorithm};
 use crate::common::sparse_matrix::SparseMatrix;
 use crate::common::transition_system::TransitionSystem;
 use bit_vec::BitVec;
