@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 use crate::common::transition_system::TransitionSystem;
-use crate::common::vec_helper::{intersect, setminus};
 use bit_vec::BitVec;
 use index_list::{IndexList, ListIndex};
 use itertools::EitherOrBoth::{Both, Left, Right};
@@ -262,7 +261,7 @@ impl<T: fmt::Display> fmt::Display for Partition<T> {
             writeln!(
                 f,
                 "Block {} starting at {} to {}:",
-                self.blocks.index_of(block.clone()),
+                self.blocks.index_of(*block),
                 block.start,
                 block.end
             )?;
@@ -408,7 +407,7 @@ mod tests {
         state_labels.push(label3.clone());
         let label4 = BitVec::from_elem(2, true);
         state_labels.push(label4.clone());
-        let mut label_state_map = HashMap::new();
+        let label_state_map = HashMap::new();
         let ts = TransitionSystem::new(
             transition_matrix,
             reverse_transition_matrix,

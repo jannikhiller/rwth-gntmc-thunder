@@ -5,7 +5,6 @@ use std::fmt;
 use std::hash::Hash;
 
 use crate::property::automaton::FiniteAutomaton;
-use crate::property::property::PropertyType::RegularSafety;
 
 #[derive(Debug, Clone)]
 pub enum PropertyType<ValueType> {
@@ -359,13 +358,13 @@ impl FormulaTreeNode<String> {
         if let FormulaTreeNodeType::Atomic = self.node_type {
             return;
         }
-        let mut false_node = Some(Box::from(FormulaTreeNode::new(
+        let false_node = Some(Box::from(FormulaTreeNode::new(
             None,
             None,
             None,
             FormulaTreeNodeType::False,
         )));
-        let mut true_node = Some(Box::from(FormulaTreeNode::new(
+        let true_node = Some(Box::from(FormulaTreeNode::new(
             None,
             None,
             None,

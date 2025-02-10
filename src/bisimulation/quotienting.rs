@@ -59,7 +59,7 @@ pub fn quotienting(
         get_successors(transition_system, slice, &mut successor_buffer);
 
         for succ in &successor_buffer {
-            if let Some(val) = eq_classes.get_block_of_state(&succ) {
+            if let Some(val) = eq_classes.get_block_of_state(succ) {
                 if let Some(new_succ) = slice_to_index.get(val) {
                     let value = (new_state, *new_succ);
                     if !new_relations.contains(&value) {
@@ -93,9 +93,9 @@ pub fn quotienting(
     ); //build new initial states new indexes
     let mut new_init_states: Vec<usize> = vec![];
     for init_state in transition_system.get_initial_states() {
-        if let Some(slice) = eq_classes.get_block_of_state(&init_state) {
+        if let Some(slice) = eq_classes.get_block_of_state(init_state) {
             if let Some(new_index) = slice_to_index.get(slice) {
-                if !new_init_states.contains(&new_index) {
+                if !new_init_states.contains(new_index) {
                     new_init_states.push(*new_index);
                 }
             }

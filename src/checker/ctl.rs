@@ -5,7 +5,6 @@ use bit_vec::BitVec;
 use itertools::Itertools;
 use log::{debug, trace};
 use std::collections::{HashMap, VecDeque};
-use std::ops::Shl;
 
 pub fn ctl_checking(
     transition_system: &TransitionSystem,

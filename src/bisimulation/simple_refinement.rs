@@ -1,4 +1,3 @@
-use itertools::Itertools;
 
 use crate::bisimulation::partition::*;
 use crate::common::transition_system::TransitionSystem;
