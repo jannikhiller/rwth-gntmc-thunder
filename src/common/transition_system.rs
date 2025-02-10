@@ -797,7 +797,9 @@ mod tests {
         2a -> 1
         1 -> 3b
         3b -> 2a
-        3b -> 3b".parse().unwrap();
+        3b -> 3b"
+            .parse()
+            .unwrap();
 
         let init_auto = create_test_automaton_for_product();
         let computed = init_ts.product_with(init_auto);

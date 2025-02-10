@@ -208,7 +208,6 @@ mod tests {
         );
     }
 
-
     #[test]
     fn test_simple_selection_strategy() {
         test_partitioning();

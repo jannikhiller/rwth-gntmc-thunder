@@ -16,7 +16,6 @@ pub enum PropertyType<ValueType> {
     Ctl(FormulaTreeNode<ValueType>),
 }
 
-
 /// A tree structure representing a property with logical expressions.
 ///
 /// The `Property` contains a root node (`FormulaTreeNode`), a type of property
@@ -30,7 +29,6 @@ pub struct Property<ValueType> {
     ///The atomic propositions of the property.
     aps: Vec<String>,
 }
-
 
 /// Creates a new `Property` with a given name, property type, and root node.
 /// The given `ValueType` specifies the datatype of the label.
