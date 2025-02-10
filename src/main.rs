@@ -1,3 +1,4 @@
+mod bisimulation;
 mod checker;
 mod common;
 mod parser;

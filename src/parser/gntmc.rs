@@ -1,11 +1,10 @@
 use bit_vec::BitVec;
-use itertools::{repeat_n, Itertools};
+use itertools::Itertools;
+use log::*;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::BufReader;
-use std::ops::Shl;
-use log::*;
 
 use crate::common::sparse_matrix::SparseMatrix;
 use crate::common::transition_system::*;
@@ -32,13 +31,16 @@ enum GntmcPropositionalFormula {
 }
 
 impl GntmcPropositionalFormula {
-    fn translate(&self) -> FormulaTreeNode<String> {
+    fn translate(&self, aps: &mut Vec<String>) -> FormulaTreeNode<String> {
         match self {
             GntmcPropositionalFormula::Atom(ref f) => {
+                if !aps.contains(&f.to_string()) {
+                    aps.push(f.to_string());
+                }
                 FormulaTreeNode::new(None, None, Some(f.to_string()), FormulaTreeNodeType::Atomic)
             }
             GntmcPropositionalFormula::Not(ref f) => FormulaTreeNode::new(
-                Some(Box::from(f.translate())),
+                Some(Box::from(f.translate(aps))),
                 None,
                 None,
                 FormulaTreeNodeType::Not,
@@ -46,15 +48,15 @@ impl GntmcPropositionalFormula {
             GntmcPropositionalFormula::And(ref f) => match f.len() {
                 ..=1 => panic!("Not enough elements in formula"),
                 2 => FormulaTreeNode::new(
-                    Some(Box::from(f.first().unwrap().translate())),
-                    Some(Box::from(f.last().unwrap().translate())),
+                    Some(Box::from(f.first().unwrap().translate(aps))),
+                    Some(Box::from(f.last().unwrap().translate(aps))),
                     None,
                     FormulaTreeNodeType::And,
                 ),
                 3.. => FormulaTreeNode::new(
-                    Some(Box::from(f.first().unwrap().translate())),
+                    Some(Box::from(f.first().unwrap().translate(aps))),
                     Some(Box::from(
-                        GntmcPropositionalFormula::And(f[1..].to_vec()).translate(),
+                        GntmcPropositionalFormula::And(f[1..].to_vec()).translate(aps),
                     )),
                     None,
                     FormulaTreeNodeType::And,
@@ -63,15 +65,15 @@ impl GntmcPropositionalFormula {
             GntmcPropositionalFormula::Or(ref f) => match f.len() {
                 ..=1 => panic!("Not enough elements in formula"),
                 2 => FormulaTreeNode::new(
-                    Some(Box::from(f.first().unwrap().translate())),
-                    Some(Box::from(f.last().unwrap().translate())),
+                    Some(Box::from(f.first().unwrap().translate(aps))),
+                    Some(Box::from(f.last().unwrap().translate(aps))),
                     None,
                     FormulaTreeNodeType::Or,
                 ),
                 3.. => FormulaTreeNode::new(
-                    Some(Box::from(f.first().unwrap().translate())),
+                    Some(Box::from(f.first().unwrap().translate(aps))),
                     Some(Box::from(
-                        GntmcPropositionalFormula::Or(f[1..].to_vec()).translate(),
+                        GntmcPropositionalFormula::Or(f[1..].to_vec()).translate(aps),
                     )),
                     None,
                     FormulaTreeNodeType::Or,
@@ -131,7 +133,12 @@ struct GntmcFiniteAutomaton {
 }
 
 impl GntmcFiniteAutomaton {
-    fn translate(&self) -> FiniteAutomaton<String> {
+    fn translate(&self, aps: &mut Vec<String>) -> FiniteAutomaton<String> {
+        for ap in self.atomic_propositions.clone() {
+            if !aps.contains(&ap) {
+                aps.push(ap.to_string());
+            }
+        }
         let acceptance = match self.acceptance {
             Acceptance::Nfa => AcceptanceType::Nfa,
             Acceptance::Buchi => AcceptanceType::Buchi,
@@ -139,7 +146,7 @@ impl GntmcFiniteAutomaton {
         let mut transitions: Vec<_> = self
             .edges
             .iter()
-            .map(|e| (e.start, e.destination, e.actions.translate()))
+            .map(|e| (e.start, e.destination, e.actions.translate(&mut vec![]))) //the argument will not be used here
             .collect();
 
         transitions.sort_by_key(|(src, _, _)| *src);
@@ -188,20 +195,23 @@ pub enum GntmcLtlFormula {
 }
 
 impl GntmcLtlFormula {
-    fn translate(&self) -> FormulaTreeNode<String> {
+    fn translate(&self, aps: &mut Vec<String>) -> FormulaTreeNode<String> {
         match self {
             GntmcLtlFormula::Atom(ref f) => {
+                if !aps.contains(&f.to_string()) {
+                    aps.push(f.to_string());
+                }
                 FormulaTreeNode::new(None, None, Some(f.to_string()), FormulaTreeNodeType::Atomic)
             }
             GntmcLtlFormula::Not(ref f) => FormulaTreeNode::new(
-                Some(Box::from(f.translate())),
+                Some(Box::from(f.translate(aps))),
                 None,
                 None,
                 FormulaTreeNodeType::Not,
             ),
             GntmcLtlFormula::And(ref left, ref right) => FormulaTreeNode::new(
-                Some(Box::from(left.translate())),
-                Some(Box::from(right.translate())),
+                Some(Box::from(left.translate(aps))),
+                Some(Box::from(right.translate(aps))),
                 None,
                 FormulaTreeNodeType::And,
             ),
@@ -212,7 +222,7 @@ impl GntmcLtlFormula {
                         Box::from(GntmcLtlFormula::Not(left.clone())),
                         Box::from(GntmcLtlFormula::Not(right.clone())),
                     )
-                    .translate(),
+                    .translate(aps),
                 )),
                 None,
                 None,
@@ -220,26 +230,26 @@ impl GntmcLtlFormula {
             ),
             // we handle the Next, like the Not-Operator and save them on the left side, of the tree
             GntmcLtlFormula::Next(ref f) => FormulaTreeNode::new(
-                Some(Box::from(f.translate())),
+                Some(Box::from(f.translate(aps))),
                 None,
                 None,
                 FormulaTreeNodeType::Next,
             ),
             GntmcLtlFormula::Until(ref left, ref right) => FormulaTreeNode::new(
-                Some(Box::from(left.translate())),
-                Some(Box::from(right.translate())),
+                Some(Box::from(left.translate(aps))),
+                Some(Box::from(right.translate(aps))),
                 None,
                 FormulaTreeNodeType::Until,
             ),
             // A Implies B <=> not A or B
             GntmcLtlFormula::Implies(ref left, ref right) => {
                 GntmcLtlFormula::Or(Box::from(GntmcLtlFormula::Not(left.clone())), right.clone())
-                    .translate()
+                    .translate(aps)
             }
             //Finally A <=> true Until A
             GntmcLtlFormula::Finally(ref f) => FormulaTreeNode::new(
-                Some(Box::from(GntmcLtlFormula::True.translate())),
-                Some(Box::from(f.translate())),
+                Some(Box::from(GntmcLtlFormula::True.translate(aps))),
+                Some(Box::from(f.translate(aps))),
                 None,
                 FormulaTreeNodeType::Until,
             ),
@@ -247,7 +257,7 @@ impl GntmcLtlFormula {
             GntmcLtlFormula::Globally(ref f) => FormulaTreeNode::new(
                 Some(Box::from(
                     GntmcLtlFormula::Finally(Box::from(GntmcLtlFormula::Not(f.clone())))
-                        .translate(),
+                        .translate(aps),
                 )),
                 None,
                 None,
@@ -276,9 +286,12 @@ pub enum GntmcCtlStateFormula {
 }
 
 impl GntmcCtlStateFormula {
-    fn translate(&self) -> FormulaTreeNode<String> {
+    fn translate(&self, aps: &mut Vec<String>) -> FormulaTreeNode<String> {
         match self {
             GntmcCtlStateFormula::Atom(ref f) => {
+                if !aps.contains(&f.to_string()) {
+                    aps.push(f.to_string());
+                }
                 FormulaTreeNode::new(None, None, Some(f.to_string()), FormulaTreeNodeType::Atomic)
             }
             GntmcCtlStateFormula::Not(ref f) => {
@@ -286,10 +299,10 @@ impl GntmcCtlStateFormula {
                     //Case ¬¬Φ ≡ Φ
                     GntmcCtlStateFormula::Not(inner_f) => {
                         //If double negation, just translate inner formula (ignore double)
-                        inner_f.translate()
+                        inner_f.translate(aps)
                     }
                     _ => FormulaTreeNode::new(
-                        Some(Box::from(f.translate())),
+                        Some(Box::from(f.translate(aps))),
                         None,
                         None,
                         FormulaTreeNodeType::Not,
@@ -297,8 +310,8 @@ impl GntmcCtlStateFormula {
                 }
             }
             GntmcCtlStateFormula::And(ref left, ref right) => FormulaTreeNode::new(
-                Some(Box::from(left.translate())),
-                Some(Box::from(right.translate())),
+                Some(Box::from(left.translate(aps))),
+                Some(Box::from(right.translate(aps))),
                 None,
                 FormulaTreeNodeType::And,
             ),
@@ -309,7 +322,7 @@ impl GntmcCtlStateFormula {
                         Box::from(GntmcCtlStateFormula::Not(left.clone())),
                         Box::from(GntmcCtlStateFormula::Not(right.clone())),
                     )
-                    .translate(),
+                    .translate(aps),
                 )),
                 None,
                 None,
@@ -320,11 +333,11 @@ impl GntmcCtlStateFormula {
                 Box::from(GntmcCtlStateFormula::Not(left.clone())),
                 right.clone(),
             )
-            .translate(),
+            .translate(aps),
             // Exists are fine, as we transform the eventually to an Until,
             // always, next and globally are fine in ENF
             GntmcCtlStateFormula::Exists(ref path) => FormulaTreeNode::new(
-                Some(Box::from(path.translate())),
+                Some(Box::from(path.translate(aps))),
                 None,
                 None,
                 FormulaTreeNodeType::Exists,
@@ -338,7 +351,7 @@ impl GntmcCtlStateFormula {
                             Box::new(GntmcCtlStateFormula::Not(inner_path.clone())),
                         ))),
                     ))
-                    .translate(),
+                    .translate(aps),
                     // Case ∀(Φ U Ψ) = ¬∃(¬Ψ U (¬Φ ∧ ¬Ψ)) ∧ ¬∃□¬Ψ
                     GntmcCtlPathFormula::Until(left_inner_path, right_inner_path) => {
                         GntmcCtlStateFormula::And(
@@ -367,7 +380,7 @@ impl GntmcCtlStateFormula {
                                 )),
                             ))),
                         )
-                        .translate()
+                        .translate(aps)
                     }
                     // Case ∀♦Φ ≡ ∀(true U Φ)
                     GntmcCtlPathFormula::Finally(inner_path) => {
@@ -375,7 +388,7 @@ impl GntmcCtlStateFormula {
                             Box::from(GntmcCtlStateFormula::True),
                             inner_path.clone(),
                         )))
-                        .translate()
+                        .translate(aps)
                     }
                     // Case ∀□Φ ≡ ¬∃♦¬Φ
                     GntmcCtlPathFormula::Globally(inner_path) => {
@@ -384,7 +397,7 @@ impl GntmcCtlStateFormula {
                                 GntmcCtlStateFormula::Not(inner_path.clone()),
                             ))),
                         )))
-                        .translate()
+                        .translate(aps)
                     }
                 }
             }
@@ -407,33 +420,33 @@ pub enum GntmcCtlPathFormula {
     Globally(Box<GntmcCtlStateFormula>),
 }
 impl GntmcCtlPathFormula {
-    fn translate(&self) -> FormulaTreeNode<String> {
+    fn translate(&self, aps: &mut Vec<String>) -> FormulaTreeNode<String> {
         // until, next and globally are fine in ENF
         match self {
             // ∃◯
             GntmcCtlPathFormula::Next(ref state) => FormulaTreeNode::new(
-                Some(Box::from(state.translate())),
+                Some(Box::from(state.translate(aps))),
                 None,
                 None,
                 FormulaTreeNodeType::Next,
             ),
             // ∃(Ψ U Φ) is fine and can stay
             GntmcCtlPathFormula::Until(ref left, ref right) => FormulaTreeNode::new(
-                Some(Box::from(left.translate())),
-                Some(Box::from(right.translate())),
+                Some(Box::from(left.translate(aps))),
+                Some(Box::from(right.translate(aps))),
                 None,
                 FormulaTreeNodeType::Until,
             ),
             // ∃♦Φ ≡ ∃(true U Φ) finally gets broken down to an Until
             GntmcCtlPathFormula::Finally(ref left) => FormulaTreeNode::new(
-                Some(Box::from(GntmcCtlStateFormula::True.translate())),
-                Some(Box::from(left.translate())),
+                Some(Box::from(GntmcCtlStateFormula::True.translate(aps))),
+                Some(Box::from(left.translate(aps))),
                 None,
                 FormulaTreeNodeType::Until,
             ),
             // ∃□ is fine, so it can stay
             GntmcCtlPathFormula::Globally(ref left) => FormulaTreeNode::new(
-                Some(Box::from(left.translate())),
+                Some(Box::from(left.translate(aps))),
                 None,
                 None,
                 FormulaTreeNodeType::Globally,
@@ -527,6 +540,7 @@ fn build_ts(input: GntmcTransitionSystem) -> TransitionSystem {
         .collect::<HashSet<_>>()
         .into_iter()
         .cloned()
+        .sorted()
         .collect();
 
     trace!("Built atomic propositions.");
@@ -550,16 +564,16 @@ fn build_ts(input: GntmcTransitionSystem) -> TransitionSystem {
 
     trace!("Built state labels.");
     let label_states = HashMap::new(); // from_iter((0 .. 2_usize.pow(atomic_props.len() as u32)).map(|label_subset| {
-        // The shifting pushes the labels, i.e., the bits that might be set, into the area that is not truncated in the following
-    //     let mut label = BitVec::from_bytes(&label_subset.shl(usize::BITS - atomic_props.len() as u32).to_be_bytes());
-    //     label.truncate(atomic_props.len());
-    // 
-    //     let states = (0..num_states)
-    //         .filter(|state| state_labels[*state] == label)
-    //         .collect::<Vec<_>>();
-    // 
-    //     (label, states)
-    // }));
+                                       // The shifting pushes the labels, i.e., the bits that might be set, into the area that is not truncated in the following
+                                       //     let mut label = BitVec::from_bytes(&label_subset.shl(usize::BITS - atomic_props.len() as u32).to_be_bytes());
+                                       //     label.truncate(atomic_props.len());
+                                       //
+                                       //     let states = (0..num_states)
+                                       //         .filter(|state| state_labels[*state] == label)
+                                       //         .collect::<Vec<_>>();
+                                       //
+                                       //     (label, states)
+                                       // }));
     trace!("Built reverse state label info.");
 
     TransitionSystem::new(
@@ -578,30 +592,33 @@ fn build_properties(props: Vec<GntmcProperty>) -> (Vec<Property<String>>, Vec<Op
         .into_iter()
         .map(|p| {
             trace!("Found property {:?} of kind {:?}.", p.name, p.kind);
+            let aps: &mut Vec<String> = &mut vec![];
             (
                 Property::new(
                     p.name.clone(),
                     match p.kind {
                         GntmcPropertyKind::Invariant(formula) => {
-                            PropertyType::Invariant(formula.translate())
+                            PropertyType::Invariant(formula.translate(aps))
                         }
                         GntmcPropertyKind::RegularSafety(automaton) => {
-                            PropertyType::RegularSafety(automaton.translate())
+                            PropertyType::RegularSafety(automaton.translate(aps))
                         }
                         GntmcPropertyKind::Persistence(formula) => {
-                            PropertyType::Persistence(formula.translate())
+                            PropertyType::Persistence(formula.translate(aps))
                         }
                         GntmcPropertyKind::OmegaRegular(automaton) => {
-                            PropertyType::OmegaRegular(automaton.translate())
+                            PropertyType::OmegaRegular(automaton.translate(aps))
                         }
-                        GntmcPropertyKind::Ltl(formula) => PropertyType::Ltl(formula.translate()),
+                        GntmcPropertyKind::Ltl(formula) => {
+                            PropertyType::Ltl(formula.translate(aps))
+                        }
                         GntmcPropertyKind::Ctl(formula) => {
-                            let mut formula = formula.translate();
+                            let mut formula = formula.translate(aps);
                             formula.minimalize_tree();
                             PropertyType::Ctl(formula)
                         }
-
                     },
+                    (*aps).clone(),
                 ),
                 p.is_true,
             )

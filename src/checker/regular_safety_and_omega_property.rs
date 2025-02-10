@@ -59,8 +59,11 @@ pub fn regular_safety_and_omega_checking(
     let node = FormulaTreeNode::new(None, None, None, FormulaTreeNodeType::Atomic);
 
     if is_omega {
-        let empty_property =
-            Property::new("emptyProperty".to_string(), PropertyType::Persistence(node));
+        let empty_property = Property::new(
+            "emptyProperty".to_string(),
+            PropertyType::Persistence(node),
+            vec![],
+        );
         // distinguish according to the persistence algorithm set in the options
         match options.persistence_algorithm {
             PersistenceCheckingAlgorithm::Scc => {
@@ -71,8 +74,11 @@ pub fn regular_safety_and_omega_checking(
             }
         }
     } else {
-        let empty_property =
-            Property::new("emptyProperty".to_string(), PropertyType::Invariant(node));
+        let empty_property = Property::new(
+            "emptyProperty".to_string(),
+            PropertyType::Invariant(node),
+            vec![],
+        );
         bfs_invariant_checking(product_ts, &empty_property)
     }
 }
@@ -224,7 +230,11 @@ mod tests {
     fn test_regular_safety_check() {
         let ts = create_test_transition_system_for_regular_expression();
         let automaton: FiniteAutomaton<String> = create_test_automaton_for_regular_expression();
-        let reg_prop = Property::new("Test".to_string(), PropertyType::RegularSafety(automaton));
+        let reg_prop = Property::new(
+            "Test".to_string(),
+            PropertyType::RegularSafety(automaton),
+            vec![],
+        );
         let mut options = Options::new();
         options.set_persistence_algorithm(PersistenceCheckingAlgorithm::Scc);
         match regular_safety_and_omega_checking(&ts, &reg_prop, &options) {
@@ -241,7 +251,11 @@ mod tests {
     fn test_scc() {
         let ts = create_test_transition_system_for_product();
         let automaton = create_test_automaton_for_product();
-        let omega_prop = Property::new("Test".to_string(), PropertyType::OmegaRegular(automaton));
+        let omega_prop = Property::new(
+            "Test".to_string(),
+            PropertyType::OmegaRegular(automaton),
+            vec![],
+        );
         let mut options = Options::new();
         options.set_persistence_algorithm(PersistenceCheckingAlgorithm::Scc);
         match regular_safety_and_omega_checking(&ts, &omega_prop, &options) {
@@ -265,12 +279,14 @@ mod tests {
             (3, 3, true),
         ];
         let transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
-        let reverse_transitions = [(1, 0, true),
+        let reverse_transitions = [
+            (1, 0, true),
             (2, 0, true),
             (1, 2, true),
             (3, 1, true),
             (2, 3, true),
-            (3, 3, true)];
+            (3, 3, true),
+        ];
         let reverse_transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
         let mut state_labels = Vec::new();
         let ap = vec!["a".to_string(), "b".to_string()];

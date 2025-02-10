@@ -1,0 +1,311 @@
+{
+  "name": "exported_model",
+  "lts": {
+    "states": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "actions": [
+      0
+    ],
+    "transitions": [
+      [
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        3
+      ],
+      [
+        1,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        4
+      ],
+      [
+        1,
+        0,
+        5
+      ],
+      [
+        2,
+        0,
+        4
+      ],
+      [
+        2,
+        0,
+        0
+      ],
+      [
+        2,
+        0,
+        6
+      ],
+      [
+        3,
+        0,
+        5
+      ],
+      [
+        3,
+        0,
+        6
+      ],
+      [
+        3,
+        0,
+        0
+      ],
+      [
+        4,
+        0,
+        2
+      ],
+      [
+        4,
+        0,
+        1
+      ],
+      [
+        4,
+        0,
+        7
+      ],
+      [
+        5,
+        0,
+        3
+      ],
+      [
+        5,
+        0,
+        7
+      ],
+      [
+        5,
+        0,
+        1
+      ],
+      [
+        6,
+        0,
+        7
+      ],
+      [
+        6,
+        0,
+        3
+      ],
+      [
+        6,
+        0,
+        2
+      ],
+      [
+        7,
+        0,
+        6
+      ],
+      [
+        7,
+        0,
+        5
+      ],
+      [
+        7,
+        0,
+        4
+      ]
+    ],
+    "initial_states": [
+      0
+    ],
+    "labelling": {
+      "0": [
+        "all_available"
+      ],
+      "7": [
+        "none_available"
+      ]
+    }
+  },
+  "properties": [
+    {
+      "name": "always_some_available",
+      "invariant": {
+        "not": {
+          "atom": "none_available"
+        }
+      }
+    },
+    {
+      "name": "oddly_available",
+      "omegaregular": {
+        "acceptance": "buchi",
+        "states": [
+          0,
+          1,
+          2
+        ],
+        "atomic_propositions": [
+          "none_available"
+        ],
+        "edges": [
+          {
+            "start": 0,
+            "actions": "true",
+            "destination": 1
+          },
+          {
+            "start": 1,
+            "actions": "true",
+            "destination": 0
+          },
+          {
+            "start": 1,
+            "actions": {
+              "atom": "none_available"
+            },
+            "destination": 2
+          },
+          {
+            "start": 2,
+            "actions": "true",
+            "destination": 2
+          }
+        ],
+        "initial_states": [
+          0
+        ],
+        "accepting_states": [
+          2
+        ]
+      }
+    },
+    {
+      "name": "availability_within_five_steps",
+      "ltl": {
+        "globally": {
+          "implies": [
+            {
+              "atom": "all_available"
+            },
+            {
+              "and": [
+                {
+                  "and": [
+                    {
+                      "and": [
+                        {
+                          "and": [
+                            {
+                              "and": [
+                                {
+                                  "not": {
+                                    "atom": "none_available"
+                                  }
+                                },
+                                {
+                                  "next": {
+                                    "not": {
+                                      "atom": "none_available"
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "next": {
+                                "next": {
+                                  "not": {
+                                    "atom": "none_available"
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "next": {
+                            "next": {
+                              "next": {
+                                "not": {
+                                  "atom": "none_available"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "next": {
+                        "next": {
+                          "next": {
+                            "next": {
+                              "not": {
+                                "atom": "none_available"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "next": {
+                    "next": {
+                      "next": {
+                        "next": {
+                          "next": {
+                            "not": {
+                              "atom": "none_available"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "always_reach_all_available",
+      "ctl": {
+        "forall": {
+          "globally": {
+            "exists": {
+              "finally": {
+                "atom": "all_available"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -3,8 +3,12 @@ use crate::common::sparse_matrix::*;
 use crate::property::automaton::FiniteAutomaton;
 use array_tool::vec::*;
 use bit_vec::BitVec;
+use itertools::Itertools;
 use log::{debug, trace};
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::{
+    collections::{BTreeMap, HashMap, HashSet, VecDeque},
+    str::FromStr,
+};
 
 /// Represents a transition system with states, transitions, and labels.
 ///
@@ -12,6 +16,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 /// and labels on states. Atomic propositions (APs) are associated with states through labels.
 ///
 /// The `TransitionSystem` uses sparse matrices to efficiently represent the transition relations.
+#[derive(Debug, PartialEq)]
 pub struct TransitionSystem {
     /// Transition matrix representing the transitions from each state.
     transition_matrix: SparseMatrix<bool>,
@@ -62,16 +67,42 @@ impl TransitionSystem {
         }
     }
 
+    pub fn create_label_info(
+        aps_of_state: &HashMap<usize, Vec<String>>,
+    ) -> (Vec<BitVec>, HashMap<BitVec, Vec<usize>>, Vec<String>) {
+        let mut ap: Vec<_> = aps_of_state.values().flatten().unique().cloned().collect();
+        ap.sort_unstable();
+        let state_labels: Vec<_> = aps_of_state
+            .iter()
+            .collect::<BTreeMap<_, _>>()
+            .into_values()
+            .map(|aps| {
+                let mut label = BitVec::from_elem(ap.len(), false);
+                for a in aps {
+                    label.set(ap.binary_search(a).unwrap(), true);
+                }
+                label
+            })
+            .collect();
+        let mut label_state_map: HashMap<BitVec, Vec<usize>> = HashMap::new();
+        for (state, label) in state_labels.iter().enumerate() {
+            label_state_map
+                .entry(label.clone())
+                .or_insert_with(Vec::new)
+                .push(state);
+        }
+        (state_labels, label_state_map, ap)
+    }
+
     /// Returns the total number of states in the transition system.
     #[allow(dead_code)]
     pub fn get_num_states(&self) -> usize {
         self.last_state + 1
     }
 
-    /// Returns a Vec containing the names of all states of the transition system.
-    #[allow(dead_code)]
-    pub fn get_states(&self) -> Vec<usize> {
-        (0..self.get_num_states()).collect()
+    /// Returns a Range containing the names of all states of the transition system.
+    pub fn get_states(&self) -> std::ops::Range<usize> {
+        0..self.get_num_states()
     }
 
     pub fn get_initial_states(&self) -> &Vec<usize> {
@@ -109,7 +140,7 @@ impl TransitionSystem {
     ///
     /// # Panics
     ///  if the label length does not match the expected length.
-    #[allow(dead_code)]
+    ///
     pub fn get_states_with_label(&self, label: &BitVec) -> &Vec<usize> {
         if label.len() != self.ap.len() {
             panic!("{label:?} is not a valid label as the BitVec has a different size.");
@@ -131,13 +162,16 @@ impl TransitionSystem {
     ///
     /// # Returns
     /// A `BitVec` where bits corresponding to the specified APs are set to `true`.
-    #[allow(dead_code)]
-    pub fn get_label_from_aps(&self, aps: &[String]) -> BitVec {
+    pub fn get_label_from_aps(&self, aps: &[String]) -> Option<BitVec> {
         let mut label = BitVec::from_elem(self.ap.len(), false);
         for s in aps {
-            label.set(self.ap.binary_search(s).unwrap(), true);
+            let idx = self.ap.binary_search(s);
+            if idx.is_err() {
+                return None;
+            }
+            label.set(idx.unwrap(), true);
         }
-        label
+        Some(label)
     }
 
     /// Returns an iterator over the successor states of a given state.
@@ -158,7 +192,6 @@ impl TransitionSystem {
     ///
     /// # Returns
     /// An iterator over state indices that can reach the given state.
-    #[allow(dead_code)]
     pub fn get_predecessor_states(&self, state: usize) -> &[usize] {
         self.reverse_transition_matrix.get_col_indexes_in_row(state)
     }
@@ -188,7 +221,7 @@ impl TransitionSystem {
         // new state |-> new label, i.e., the state of the automaton
         let mut new_state_labels: HashMap<(usize, usize), usize> = HashMap::new();
         let mut new_trans: Vec<((usize, usize), (usize, usize))> = vec![];
-        
+
         let auto_aps: Option<Vec<String>> = auto.get_atomic_propositions();
 
         trace!("Computing init states...");
@@ -358,9 +391,7 @@ impl TransitionSystem {
                 trace!("Found accepting state: {}", auto_state);
                 // set the bit in the BitVec label of the state
                 new_state_labels[*mapped_state].set(
-                    auto_state_to_bv_index
-                        .get(auto_state).copied()
-                        .unwrap(),
+                    auto_state_to_bv_index.get(auto_state).copied().unwrap(),
                     true,
                 );
             }
@@ -385,6 +416,126 @@ impl TransitionSystem {
             new_label_state_map,
             ap,
         )
+    }
+}
+
+impl std::fmt::Display for TransitionSystem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut ts_str = format!("init: {}", self.initial_states.iter().join(" "));
+
+        for from in self.get_states() {
+            for &to in self.get_successor_states(from) {
+                let from_aps = bit_vec_to_ap_strings(self, &self.state_labels[from]);
+                let to_aps = bit_vec_to_ap_strings(self, &self.state_labels[to]);
+                ts_str.push_str(&format!(
+                    "\n{}{} -> {}{}",
+                    from,
+                    from_aps.iter().join(""),
+                    to,
+                    to_aps.iter().join("")
+                ));
+            }
+        }
+        write!(f, "{}", ts_str)
+    }
+}
+
+#[derive(Debug)]
+pub struct ParseError {
+    #[allow(dead_code)]
+    invalid_line: String,
+}
+
+impl FromStr for TransitionSystem {
+    type Err = ParseError;
+
+    /// Creates a new `TransitionSystem` from a string representation for testing purposes.
+    ///
+    /// Format:
+    ///
+    /// init: 0 3
+    /// 0a -> 1b
+    /// 1b -> 2c
+    /// 2c -> 0a
+    /// 3a -> 1b
+    fn from_str(ts_str: &str) -> Result<Self, Self::Err> {
+        let mut init_states: Vec<usize> = vec![];
+        let mut transitions = vec![];
+        let mut aps_of_state = HashMap::new();
+
+        for line in ts_str.lines() {
+            let parts: Vec<_> = line.split_whitespace().collect();
+            if parts.is_empty() {
+                continue;
+            } else if parts[0] == "init:" {
+                init_states.extend(
+                    parts[1..]
+                        .iter()
+                        .map(|s| s.parse())
+                        .collect::<Result<Vec<usize>, _>>()
+                        .map_err(|_| ParseError {
+                            invalid_line: line.to_string(),
+                        })?,
+                );
+            } else {
+                // A -> B where A and B consist of leading didgits indicating the state and
+                // trailing letters each representing an atomic proposition
+                let from_state: usize = parts[0]
+                    .chars()
+                    .take_while(|c| c.is_ascii_digit())
+                    .collect::<String>()
+                    .parse()
+                    .map_err(|_| ParseError {
+                        invalid_line: line.to_string(),
+                    })?;
+                let to_state: usize = parts[2]
+                    .chars()
+                    .take_while(|c| c.is_ascii_digit())
+                    .collect::<String>()
+                    .parse()
+                    .map_err(|_| ParseError {
+                        invalid_line: line.to_string(),
+                    })?;
+                let from_aps: Vec<String> = parts[0]
+                    .chars()
+                    .skip_while(|c| c.is_ascii_digit())
+                    .map_into()
+                    .collect();
+                let to_aps: Vec<String> = parts[2]
+                    .chars()
+                    .skip_while(|c| c.is_ascii_digit())
+                    .map_into()
+                    .collect();
+                aps_of_state.insert(from_state, from_aps);
+                aps_of_state.insert(to_state, to_aps);
+                transitions.push((from_state, to_state, true));
+            }
+        }
+        init_states.sort_unstable();
+
+        let last_state = transitions
+            .iter()
+            .map(|(from, to, _)| *from.max(to))
+            .max()
+            .unwrap_or(0);
+        let (state_labels, label_state_map, ap) =
+            TransitionSystem::create_label_info(&aps_of_state);
+        Ok(TransitionSystem::new(
+            SparseMatrix::from_list_of_entries(last_state + 1, last_state + 1, &transitions),
+            SparseMatrix::from_list_of_entries(
+                last_state + 1,
+                last_state + 1,
+                &transitions
+                    .iter()
+                    .map(|(from, to, _)| (*to, *from, true))
+                    .collect::<Vec<_>>(),
+            ),
+            last_state,
+            init_states,
+            state_labels,
+            label_state_map,
+            ap,
+        ))
     }
 }
 
@@ -434,6 +585,44 @@ mod tests {
             ap,
         )
     }
+
+    #[test]
+    fn test_from_str() {
+        let ts_str = "
+        init: 0 3
+        0a -> 1b
+        1b -> 2c
+        2c -> 0a
+        3a -> 1b";
+
+        let (state_labels, label_state_map, ap) =
+            TransitionSystem::create_label_info(&HashMap::from_iter([
+                (0, vec!["a".to_string()]),
+                (1, vec!["b".to_string()]),
+                (2, vec!["c".to_string()]),
+                (3, vec!["a".to_string()]),
+            ]));
+
+        let ts = TransitionSystem::new(
+            SparseMatrix::from_sorted_list_of_entries(
+                4,
+                4,
+                &[(0, 1, true), (1, 2, true), (2, 0, true), (3, 1, true)],
+            ),
+            SparseMatrix::from_sorted_list_of_entries(
+                4,
+                4,
+                &[(0, 2, true), (1, 0, true), (1, 3, true), (2, 1, true)],
+            ),
+            3,
+            vec![0, 3],
+            state_labels,
+            label_state_map,
+            ap,
+        );
+        assert_eq!(ts, ts_str.parse().unwrap());
+    }
+
     #[test]
     fn test_get_num_states() {
         let ts = create_test_transition_system();
@@ -442,7 +631,7 @@ mod tests {
     #[test]
     fn test_get_states() {
         let ts = create_test_transition_system();
-        assert_eq!(ts.get_states(), vec![0, 1, 2]);
+        assert_eq!(ts.get_states(), 0..3);
     }
     #[test]
     fn test_get_state_label() {
@@ -474,7 +663,7 @@ mod tests {
     fn test_get_label_from_aps() {
         let ts = create_test_transition_system();
         let aps = vec!["a".to_string(), "c".to_string()];
-        let label = ts.get_label_from_aps(&aps);
+        let label = ts.get_label_from_aps(&aps).unwrap();
         assert!(label.get(0).unwrap()); // "a" is true
         assert!(!label.get(1).unwrap()); // "b" is false
         assert!(label.get(2).unwrap()); // "c" is true
@@ -523,12 +712,14 @@ mod tests {
             (3, 3, true),
         ];
         let transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
-        let reverse_transitions = [(1, 0, true),
+        let reverse_transitions = [
+            (1, 0, true),
             (2, 0, true),
             (1, 2, true),
             (3, 1, true),
             (2, 3, true),
-            (3, 3, true)];
+            (3, 3, true),
+        ];
         let reverse_transition_matrix = SparseMatrix::from_list_of_entries(4, 4, &transitions);
         let mut state_labels = Vec::new();
         let ap = vec!["a".to_string(), "b".to_string()];
