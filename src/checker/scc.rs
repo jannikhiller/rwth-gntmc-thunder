@@ -277,7 +277,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nested_dfs_false() {
+    fn test_scc_false() {
         let transition_system = create_test_transition_system_2();
 
         // create formula with only "a"

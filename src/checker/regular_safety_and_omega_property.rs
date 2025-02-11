@@ -71,7 +71,7 @@ pub fn regular_safety_and_omega_checking(
                 new_nested_dfs::persistence_checking_with_nested_dfs(product_ts, &empty_property, Some(old_state_new_state_map))
             }
             PersistenceCheckingAlgorithm::SccCouvreur => {
-                scc_couvreur::persistence_checking_with_couvreur_scc(transition_system, &empty_property, Some(old_state_new_state_map))
+                scc_couvreur::persistence_checking_with_couvreur_scc(product_ts, &empty_property, Some(old_state_new_state_map))
             }
         }
     } else {
