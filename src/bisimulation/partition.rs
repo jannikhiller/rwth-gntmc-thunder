@@ -11,6 +11,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use log::trace;
 
+/// Struct to represent a partition block by a start and (exclusive) end index.
 #[derive(Debug, Copy, Clone, PartialEq)]
 struct PartitionBlock {
     start: usize,
@@ -20,12 +21,26 @@ struct PartitionBlock {
 
 #[derive(Debug)]
 pub struct Partition<T> {
+    /// Vector containing all states, ordered by their corresponding block.
     elements: Vec<T>,
+    /// Doubly-linked list of all blocks inside the partition.
     blocks: IndexList<PartitionBlock>,
+    /// Map to identify to corresponding block of a state.
     block_map: HashMap<T, ListIndex>,
 }
 
 impl Partition<usize> {
+    /// Create a partition based on the state space of a transition system and w.r.t. the
+    /// corresponding state labels.
+    ///
+    /// # Parameters
+    ///
+    /// - `transition_system`: The given transition system.
+    /// - `filter_aps`: A subset of the atomic propositions to be considered during the initial
+    ///   partitioning.
+    ///
+    /// # Returns
+    ///  The created partition.
     pub fn from_state_space_by_aps(
         transition_system: &TransitionSystem,
         filter_aps: Option<&Vec<String>>,
@@ -232,6 +247,7 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
                 }
                 block_index = next_block_index;
             }
+            trace!("Created {} new blocks!", 3 - num_empty_blocks);
             if num_empty_blocks != 3 {
                 trace!("Ternary refinement changed partition and created {} new blocks!", 3 - num_empty_blocks);
                 partition_changed = true;
@@ -263,8 +279,6 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
 
     /// Calculates the slices of the partition.
     ///
-    /// # Parameters
-    ///
     /// # Returns
     /// the partition as an iterator over its sets
     pub fn to_slices(&self) -> impl Iterator<Item = &[T]> {
@@ -283,10 +297,19 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
             .collect()
     }
 
+    /// Returns the partition represented as a vector of vectors, each containing the block elements.
+    ///
+    /// # Returns
+    /// A vector of vectors representing the partition.
     pub fn to_vecs(&self) -> Vec<Vec<T>> {
         self.to_slices().map(|slice| slice.to_vec()).collect()
     }
 
+    /// Returns the number of blocks inside the partition.
+    ///
+    ///
+    /// # Returns
+    /// Number of blocks of the partition.
     pub fn num_blocks(&self) -> usize {
         self.blocks.len()
     }
