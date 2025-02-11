@@ -5,8 +5,6 @@ use crate::checker::helper::bit_vec_to_ap_strings;
 use log::{debug, trace};
 use std::collections::{HashMap, VecDeque};
 use bit_vec::BitVec;
-use array_tool::vec;
-use array_tool::vec::Intersect;
 
 /// Checks if the given transition system satisfies the given persistence property by applying the
 /// nested DFS algorithm as proposed by Stefan Schwoon and Javier Esparza in their
@@ -54,7 +52,7 @@ pub fn persistence_checking_with_nested_dfs(
             return res;
         }
     }
-    
+
     Ok(true)
 }
 
@@ -86,9 +84,9 @@ fn outer_dfs(
     let mut inner_cex_stack = vec![];
 
     while let Some(state) = stack.pop() {
-        outer_cex_stack.push(state);
-
         if get_color(state, bv_one, bv_two) == Color::White {
+            outer_cex_stack.push(state);
+
             stack.push(state);
             set_color(state, Color::Cyan, bv_one, bv_two);
 
@@ -98,8 +96,7 @@ fn outer_dfs(
                     (!check_property_on_state(state, transition_system, property) ||
                         !check_property_on_state(*succ, transition_system, property)) {
                     debug!("Found a cycle in NDFS during outer dfs.");
-                    println!("stack: {:?}", stack);
-                    return Err(reconstruct_path(&mut outer_cex_stack.intersect(stack), &mut inner_cex_stack, transition_system, state_info_map));
+                    return Err(reconstruct_path(&mut outer_cex_stack, &mut inner_cex_stack, transition_system, state_info_map));
                 } else if get_color(*succ, bv_one, bv_two) == Color::White {
                     stack.push(*succ);
                 }
@@ -111,17 +108,18 @@ fn outer_dfs(
 
                 if found_cycle {
                     debug!("Found a cycle in NDFS during inner dfs.");
-                    println!("stack: {:?}", stack);
-                    return Err(reconstruct_path(&mut outer_cex_stack.intersect(stack), &mut inner_cex_stack, transition_system, state_info_map));
+                    return Err(reconstruct_path(&mut outer_cex_stack, &mut inner_cex_stack, transition_system, state_info_map));
                 }
 
                 set_color(state, Color::Red, bv_one, bv_two);
-                outer_cex_stack.pop();
             } else {
                 trace!("Property not fulfilled on state {} in outer dfs", state);
                 set_color(state, Color::Blue, bv_one, bv_two);
-                outer_cex_stack.pop();
             }
+
+            outer_cex_stack.pop();
+        } else {
+            outer_cex_stack.pop();
         }
     }
 
@@ -143,26 +141,30 @@ fn inner_dfs(
     transition_system: &TransitionSystem,
 ) -> bool {
     cex_stack.clear();
+    let mut pred_map = HashMap::new();
     let mut stack = Vec::new();
+
     stack.push(init_state);
 
     while let Some(state) = stack.pop() {
-        // Add state for counterexample
-        cex_stack.push(state);
-
         trace!("Visiting state {} in inner dfs", state);
         for succ in transition_system.get_successor_states(state) {
             if get_color(*succ, bv_one, bv_two) == Color::Cyan {
-                println!("{:?}\n{:?}", stack, cex_stack);
+                cex_stack.push(*succ);
+                let mut buff = *succ;
+
+                while let Some(pred) = pred_map.get(&buff) {
+                    cex_stack.push(*pred);
+                    buff = *pred;
+                }
+
                 return true;
             } else if get_color(*succ, bv_one, bv_two) == Color::Blue {
                 set_color(*succ, Color::Red, bv_one, bv_two);
+                pred_map.insert(*succ, state);
                 stack.push(*succ);
             }
         }
-
-        // Pop state as it is not part of counterexample
-        cex_stack.pop();
     }
 
     false
@@ -189,14 +191,14 @@ fn reconstruct_path(
     println!("outer stack {:?}", outer_stack);
     println!("inner stack {:?}", inner_stack);
 
-    let mut trace = Vec::new();
+    let mut trace = VecDeque::new();
     let mut path = VecDeque::new();
 
     while let Some(mut state) = outer_stack.pop() {
         if let Some(state_info) = state_info_map {
-            trace.push(state_info.get(&state).unwrap().1.clone())
+            trace.push_front(state_info.get(&state).unwrap().1.clone())
         } else {
-            trace.push(bit_vec_to_ap_strings(
+            trace.push_front(bit_vec_to_ap_strings(
                 transition_system,
                 transition_system.get_state_label(state),
             ));
@@ -211,9 +213,9 @@ fn reconstruct_path(
     trace!("Looping part of counterexample:");
     while let Some(mut state) = inner_stack.pop() {
         if let Some(state_info) = state_info_map {
-            trace.push(state_info.get(&state).unwrap().1.clone())
+            trace.push_front(state_info.get(&state).unwrap().1.clone())
         } else {
-            trace.push(bit_vec_to_ap_strings(
+            trace.push_front(bit_vec_to_ap_strings(
                 transition_system,
                 transition_system.get_state_label(state),
             ));
@@ -222,12 +224,13 @@ fn reconstruct_path(
         if state_info_map.is_some() {
             state = state_info_map.unwrap().get(&state).unwrap().0;
         }
+
         trace!("{}, ", state);
         path.push_front(state);
     }
     trace!("Length of counterexample: {:?}", path.len());
 
-    (trace, Vec::from(path))
+    (Vec::from(trace), Vec::from(path))
 }
 
 
