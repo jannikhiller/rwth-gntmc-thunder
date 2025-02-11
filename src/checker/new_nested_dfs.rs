@@ -1,11 +1,12 @@
+use std::cmp::PartialEq;
 use crate::common::transition_system::TransitionSystem;
-use crate::property::*;
+use crate::property::Property;
 use crate::checker::helper::bit_vec_to_ap_strings;
 use log::{debug, trace};
-use std::cmp::PartialEq;
-use std::collections::{VecDeque};
+use std::collections::{HashMap, VecDeque};
 use bit_vec::BitVec;
-
+use array_tool::vec;
+use array_tool::vec::Intersect;
 
 /// Checks if the given transition system satisfies the given persistence property by applying the
 /// nested DFS algorithm as proposed by Stefan Schwoon and Javier Esparza in their
@@ -35,6 +36,7 @@ use bit_vec::BitVec;
 pub fn persistence_checking_with_nested_dfs(
     transition_system: &TransitionSystem,
     property: &Property<String>,
+    state_info_map: Option<&HashMap<usize, (usize, Vec<String>)>>,
 ) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
     let num_ts_states = transition_system.get_num_states();
     let mut bv_one = BitVec::from_elem(num_ts_states, false);
@@ -46,7 +48,7 @@ pub fn persistence_checking_with_nested_dfs(
 
         bv_one.clear();
         bv_two.clear();
-        let res = outer_dfs(transition_system, property, *init_state, &mut bv_one, &mut bv_two);
+        let res = outer_dfs(transition_system, property, *init_state, &mut bv_one, &mut bv_two, state_info_map);
 
         if res.is_err() {
             return res;
@@ -76,14 +78,18 @@ fn outer_dfs(
     init_state: usize,
     bv_one: &mut BitVec,
     bv_two: &mut BitVec,
+    state_info_map: Option<&HashMap<usize, (usize, Vec<String>)>>,
 ) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
     trace!("Starting outer dfs with state {}", init_state);
-    let mut outer_stack = vec![init_state];
-    let mut inner_stack = vec![];
+    let mut stack = vec![init_state];
+    let mut outer_cex_stack = vec![];
+    let mut inner_cex_stack = vec![];
 
-    while let Some(state) = outer_stack.pop() {
+    while let Some(state) = stack.pop() {
+        outer_cex_stack.push(state);
+
         if get_color(state, bv_one, bv_two) == Color::White {
-            outer_stack.push(state);
+            stack.push(state);
             set_color(state, Color::Cyan, bv_one, bv_two);
 
             for succ in transition_system.get_successor_states(state) {
@@ -92,25 +98,29 @@ fn outer_dfs(
                     (!check_property_on_state(state, transition_system, property) ||
                         !check_property_on_state(*succ, transition_system, property)) {
                     debug!("Found a cycle in NDFS during outer dfs.");
-                    return Err(reconstruct_path(&mut outer_stack, &mut inner_stack, transition_system));
+                    println!("stack: {:?}", stack);
+                    return Err(reconstruct_path(&mut outer_cex_stack.intersect(stack), &mut inner_cex_stack, transition_system, state_info_map));
                 } else if get_color(*succ, bv_one, bv_two) == Color::White {
-                    outer_stack.push(*succ);
+                    stack.push(*succ);
                 }
             }
         } else if get_color(state, bv_one, bv_two) == Color::Cyan {
             if !check_property_on_state(state, transition_system, property) {
                 trace!("Property fulfilled on state {} in outer dfs => starting inner dfs", state);
-                let found_cycle = inner_dfs(state, bv_one, bv_two, &mut inner_stack, transition_system);
+                let found_cycle = inner_dfs(state, bv_one, bv_two, &mut inner_cex_stack, transition_system);
 
                 if found_cycle {
                     debug!("Found a cycle in NDFS during inner dfs.");
-                    return Err(reconstruct_path(&mut outer_stack, &mut inner_stack, transition_system));
+                    println!("stack: {:?}", stack);
+                    return Err(reconstruct_path(&mut outer_cex_stack.intersect(stack), &mut inner_cex_stack, transition_system, state_info_map));
                 }
 
                 set_color(state, Color::Red, bv_one, bv_two);
+                outer_cex_stack.pop();
             } else {
                 trace!("Property not fulfilled on state {} in outer dfs", state);
                 set_color(state, Color::Blue, bv_one, bv_two);
+                outer_cex_stack.pop();
             }
         }
     }
@@ -129,27 +139,30 @@ fn inner_dfs(
     init_state: usize,
     bv_one: &mut BitVec,
     bv_two: &mut BitVec,
-    stack: &mut Vec<usize>,
+    cex_stack: &mut Vec<usize>,
     transition_system: &TransitionSystem,
 ) -> bool {
-    stack.clear();
+    cex_stack.clear();
+    let mut stack = Vec::new();
     stack.push(init_state);
 
     while let Some(state) = stack.pop() {
-        // Add state again in case it is needed for the counterexample
-        stack.push(state);
+        // Add state for counterexample
+        cex_stack.push(state);
 
+        trace!("Visiting state {} in inner dfs", state);
         for succ in transition_system.get_successor_states(state) {
-            trace!("Visiting state {} in inner dfs", state);
             if get_color(*succ, bv_one, bv_two) == Color::Cyan {
+                println!("{:?}\n{:?}", stack, cex_stack);
                 return true;
             } else if get_color(*succ, bv_one, bv_two) == Color::Blue {
                 set_color(*succ, Color::Red, bv_one, bv_two);
                 stack.push(*succ);
             }
         }
-        // Pop state again as it is not needed anymore
-        stack.pop();
+
+        // Pop state as it is not part of counterexample
+        cex_stack.pop();
     }
 
     false
@@ -170,30 +183,49 @@ fn reconstruct_path(
     outer_stack: &mut Vec<usize>,
     inner_stack: &mut Vec<usize>,
     transition_system: &TransitionSystem,
+    state_info_map: Option<&HashMap<usize, (usize, Vec<String>)>>,
 ) -> (Vec<Vec<String>>, Vec<usize>) {
     debug!("Constructing counterexample...");
+    println!("outer stack {:?}", outer_stack);
+    println!("inner stack {:?}", inner_stack);
 
     let mut trace = Vec::new();
     let mut path = VecDeque::new();
 
-    while let Some(state) = outer_stack.pop() {
+    while let Some(mut state) = outer_stack.pop() {
+        if let Some(state_info) = state_info_map {
+            trace.push(state_info.get(&state).unwrap().1.clone())
+        } else {
+            trace.push(bit_vec_to_ap_strings(
+                transition_system,
+                transition_system.get_state_label(state),
+            ));
+        }
+
+        if state_info_map.is_some() {
+            state = state_info_map.unwrap().get(&state).unwrap().0;
+        }
         path.push_front(state);
     }
 
     trace!("Looping part of counterexample:");
-    while let Some(state) = inner_stack.pop() {
+    while let Some(mut state) = inner_stack.pop() {
+        if let Some(state_info) = state_info_map {
+            trace.push(state_info.get(&state).unwrap().1.clone())
+        } else {
+            trace.push(bit_vec_to_ap_strings(
+                transition_system,
+                transition_system.get_state_label(state),
+            ));
+        }
+
+        if state_info_map.is_some() {
+            state = state_info_map.unwrap().get(&state).unwrap().0;
+        }
         trace!("{}, ", state);
         path.push_front(state);
     }
-
     trace!("Length of counterexample: {:?}", path.len());
-    for state in &path {
-        trace.push(bit_vec_to_ap_strings(
-            transition_system,
-            transition_system.get_state_label(*state),
-        ));
-        trace!("{:?}, ", state);
-    }
 
     (trace, Vec::from(path))
 }
@@ -281,7 +313,7 @@ mod tests {
             vec!["a".to_string()],
         );
 
-        assert!(persistence_checking_with_nested_dfs(&transition_system, &property).is_ok());
+        assert!(persistence_checking_with_nested_dfs(&transition_system, &property, None).is_ok());
     }
 
     #[test]
@@ -302,7 +334,7 @@ mod tests {
             vec!["a".to_string()],
         );
 
-        let result = persistence_checking_with_nested_dfs(&transition_system, &property);
+        let result = persistence_checking_with_nested_dfs(&transition_system, &property, None);
 
         match &result {
             Ok(_) => {

@@ -245,11 +245,13 @@ impl TransitionSystem {
     ///
     /// # Returns
     /// The reachable fragment of the product transition system
-    pub fn product_with(&self, mut auto: FiniteAutomaton<String>) -> TransitionSystem {
+    pub fn product_with(&self, mut auto: FiniteAutomaton<String>) -> (TransitionSystem, HashMap<usize, (usize, Vec<String>)>) {
         #[derive(Debug)]
         struct NewStateInfo {
             state_int: usize, // the state represented as a single integer for use in the new TS
             succs: Vec<(usize, usize)>, // states where the state can go to via a transition
+            original_state: usize,
+            original_label: BitVec,
         }
 
         debug!("Computing product of transition system with automaton");
@@ -291,6 +293,8 @@ impl TransitionSystem {
                 let contained = new_state_infos.insert((state, auto_state), NewStateInfo{
                     state_int: new_state_infos.len(),
                     succs: Vec::new(),
+                    original_state: state,
+                    original_label: self.get_state_label(state).clone(),
                 });
                 if let Some(old) = contained {
                     new_state_infos.insert((state, auto_state), old);
@@ -346,6 +350,8 @@ impl TransitionSystem {
                     let old_value = new_state_infos.insert((*ts_succ, auto_succ), NewStateInfo{
                         succs: Vec::new(),
                         state_int: new_state_infos.len(),
+                        original_state: *ts_succ,
+                        original_label: self.get_state_label(*ts_succ).clone(),
                     });
 
                     if let Some(old) = old_value { 
@@ -435,15 +441,26 @@ impl TransitionSystem {
             (label, states)
         }));
         debug!("Finished computation of product.");
+        trace!("Compute HashMap for counterexample");
+        
+        let mut new_state_orig_state_label = HashMap::new();
+        
+        new_state_infos.values().for_each(|new_state_info| {
+            let orig_state = new_state_info.original_state;
+            let orig_label = bit_vec_to_ap_strings(self, &new_state_info.original_label);
 
-        TransitionSystem::new_without_rtm(
+            new_state_orig_state_label.insert(new_state_info.state_int, (orig_state, orig_label));
+        });
+
+        (TransitionSystem::new_without_rtm(
             tmatrix,
             num_of_new_states - 1,
             mapped_new_init_states,
             new_state_labels,
             new_label_state_map,
             ap,
-        )
+        ),
+        new_state_orig_state_label)
     }
 }
 
@@ -831,7 +848,7 @@ mod tests {
             .unwrap();
 
         let init_auto = create_test_automaton_for_product();
-        let computed = init_ts.product_with(init_auto);
+        let (computed, _) = init_ts.product_with(init_auto);
         let result_ts = create_product_result();
 
         // Because of hashing and stuff we cannot rely on == to compare both transition systems.

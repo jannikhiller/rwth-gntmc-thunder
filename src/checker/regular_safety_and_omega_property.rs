@@ -46,7 +46,7 @@ pub fn regular_safety_and_omega_checking(
         PropertyType::Ctl(_) => panic!("Wrong Propertytype"),
     }
 
-    let product_ts = &transition_system.product_with(automaton);
+    let (product_ts, old_state_new_state_map) = &transition_system.product_with(automaton);
 
     // here we construct a property to check if every state in the reachable part of
     // the transitions system does not have a label
@@ -62,16 +62,16 @@ pub fn regular_safety_and_omega_checking(
         // distinguish according to the persistence algorithm set in the options
         match options.persistence_algorithm {
             PersistenceCheckingAlgorithm::Scc => {
-                persistence_checking_with_scc(product_ts, &empty_property)
+                persistence_checking_with_scc(product_ts, &empty_property, Some(old_state_new_state_map))
             }
             PersistenceCheckingAlgorithm::NestedDfs => {
-                nested_dfs::persistence_checking_with_nested_dfs(product_ts, &empty_property)
+                nested_dfs::persistence_checking_with_nested_dfs(product_ts, &empty_property, Some(old_state_new_state_map))
             }
             PersistenceCheckingAlgorithm::NewNestedDfs => {
-                new_nested_dfs::persistence_checking_with_nested_dfs(product_ts, &empty_property)
+                new_nested_dfs::persistence_checking_with_nested_dfs(product_ts, &empty_property, Some(old_state_new_state_map))
             }
             PersistenceCheckingAlgorithm::SccCouvreur => {
-                scc_couvreur::persistence_checking_with_couvreur_scc(transition_system, &empty_property)
+                scc_couvreur::persistence_checking_with_couvreur_scc(transition_system, &empty_property, Some(old_state_new_state_map))
             }
         }
     } else {

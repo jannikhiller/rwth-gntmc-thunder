@@ -7,6 +7,7 @@ use crate::property::Property;
 pub fn persistence_checking_with_couvreur_scc(
     transition_system: &TransitionSystem,
     property: &Property<String>,
+    state_info_map: Option<&HashMap<usize, (usize, Vec<String>)>>,
 ) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
 
     let mut count = 0;
