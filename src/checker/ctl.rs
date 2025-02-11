@@ -13,7 +13,7 @@ pub fn ctl_checking(
 
     match &property.property_type {
         PropertyType::Ctl(formula) => {
-            debug!("Checking CTL-formula: \n{}", formula);
+            trace!("Checking CTL-formula: \n{}", formula);
             // check if all initial states are in the sat set of the given formula
             let sat_set = compute_sat_set(transition_system, &formula.clone(), &mut cache);
             // trace!("Obtained satisfaction set as bitvector: {}", sat_set);

@@ -2,6 +2,7 @@ use crate::bisimulation::partition::{get_predecessors, Partition};
 use crate::common::transition_system::TransitionSystem;
 use crate::common::vec_helper::setminus;
 use std::collections::VecDeque;
+use log::{debug, trace};
 
 /// Implements the advanced refinement algorithm by Paige & Tarjan from the lecture.
 /// Note that the working_queue represents the old partition.
@@ -24,12 +25,15 @@ pub fn advanced_refinement(
     let mut current_partition = Partition::from_state_space_by_aps(transition_system, aps);
     current_partition.refine(&c_prime);
 
+    // create buffers for Pre(C) and Pre(C'\C)
     let mut pre_c = Vec::with_capacity(transition_system.get_num_states());
     let mut pre_c_prime_diff_c = Vec::with_capacity(transition_system.get_num_states());
 
+    let mut iterations = 0;
     loop {
         // search for a fitting C'
         while c_prime.len() < 2 {
+            trace!("C' candidate has size 1 => skip to next...");
             working_queue.push_back(c_prime);
             c_prime = working_queue.pop_front().unwrap();
         }
@@ -39,6 +43,7 @@ pub fn advanced_refinement(
         let mut found_suitable_candidate = false;
         for c_candidate in current_partition.to_slices() {
             if c_candidate.len() > c_prime.len() / 2 {
+                trace!("C candidate has is larger than |C'|/2 => skip to next...");
                 continue;
             }
             if c_candidate.iter().all(|elem| c_prime.contains(elem)) {
@@ -49,6 +54,7 @@ pub fn advanced_refinement(
         }
 
         if !found_suitable_candidate {
+            trace!("No suitable candidate found for C...");
             working_queue.push_back(c_prime);
             c_prime = working_queue.pop_front().unwrap();
             continue;
@@ -59,7 +65,9 @@ pub fn advanced_refinement(
         get_predecessors(transition_system, &c, &mut pre_c);
         get_predecessors(transition_system, &c_prime_diff_c, &mut pre_c_prime_diff_c);
 
+        trace!("Calling ternary refinement for C ({:?}) and C'({:?})...", c, c_prime);
         current_partition.ternary_refine(&pre_c, &pre_c_prime_diff_c);
+        iterations += 1;
 
         if !c.is_empty() {
             working_queue.push_back(c);
@@ -75,6 +83,8 @@ pub fn advanced_refinement(
             c_prime = working_queue.pop_front().unwrap();
         }
     }
+
+    debug!("Finished advanced refinement in {} iterations!", iterations);
 
     current_partition
 }

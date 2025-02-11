@@ -9,6 +9,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fmt::Debug;
 use std::hash::Hash;
+use log::trace;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 struct PartitionBlock {
@@ -219,6 +220,7 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
                 block_index = next_block_index;
             }
             if num_empty_blocks != 3 {
+                trace!("Ternary refinement changed partition and created {} new blocks!", 3 - num_empty_blocks);
                 partition_changed = true;
             }
         }

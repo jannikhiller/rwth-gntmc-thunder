@@ -1,3 +1,4 @@
+use log::debug;
 use crate::bisimulation::partition::*;
 use crate::common::transition_system::TransitionSystem;
 
@@ -8,7 +9,9 @@ pub fn simple_selection_strategy(
     let mut pi = Partition::from_state_space_by_aps(ts, aps);
     let mut splitter_buffer = Vec::with_capacity(ts.get_num_states());
 
+    let mut iterations = 0;
     'outer: loop {
+        iterations += 1;
         // we have to make a copy here, because we mutate pi in the loop. to avoid this, we could
         // check if p_i is a splitter and give up the reference to pi if it is, but i think that
         // the overhead of this check would be bigger than the overhead of copying
@@ -23,6 +26,8 @@ pub fn simple_selection_strategy(
 
         break;
     }
+
+    debug!("Finished simple refinement in {} iterations!", iterations);
 
     pi
 }
