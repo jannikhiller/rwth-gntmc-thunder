@@ -23,19 +23,19 @@ pub fn find_scc_in_ts(
     scc.find_sccs(transition_system);
 
     for cluster in scc.sccs {
-        for state in cluster {
+        for state in cluster.iter() {
             // if label is not empty, we encountered a -f state
-            if !check_property_on_state(state, transition_system, property) {
+            if !check_property_on_state(*state, transition_system, property) {
                 // we have a state which satisfies -f in a cluster
                 // check if state is reachable from start
                 if let Ok(came_from) = is_reachable(
                     transition_system,
                     transition_system.get_initial_states(),
-                    state,
+                    *state,
                 ) {
                     // if its reachable, we found an SCC containing a bad state
                     // => give counterexample
-                    return Err(reconstruct_path(transition_system, &came_from, state, state_info_map));
+                    return Err(reconstruct_path(transition_system, &came_from, *state, &cluster, state_info_map));
                 }
             }
         }
@@ -187,11 +187,27 @@ fn reconstruct_path(
     ts: &TransitionSystem,
     came_from: &HashMap<usize, usize>,
     end_state: usize,
+    scc: &Vec<usize>,
     state_info_map: Option<&HashMap<usize, (usize, Vec<String>)>>,
 ) -> (Vec<Vec<String>>, Vec<usize>) {
     let mut trace = Vec::new();
     let mut path = Vec::new();
     let mut current = end_state;
+
+    //push states of scc
+    for state in scc {
+        if let Some(state_info) = state_info_map {
+            trace.push(state_info.get(state).unwrap().1.clone());
+        } else {
+            trace.push(bit_vec_to_ap_strings(ts, ts.get_state_label(*state)));
+        }
+
+        if let Some(state_info) = state_info_map {
+            path.push(state_info.get(state).unwrap().0)
+        } else {
+            path.push(*state);
+        }
+    }
 
     // push label of last state
     if let Some(state_info) = state_info_map {
