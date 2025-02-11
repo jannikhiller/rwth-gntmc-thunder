@@ -10,6 +10,7 @@ Currently, the following algorithms are implemented:
 - Checking of omega-regular properties (given as NBA)
 - Checking of LTL-formulae
 - Checking of CTL-formulae
+- Bisimulation-Quotienting (simple and advanced refinement, w.r.t. some $A \subseteq 2^{AP}$)
 
 Requirements
 ------------
@@ -38,6 +39,13 @@ where `"filepath"` is a path to the `gntmc`-file containing the specification of
 For model checking regular and omega regular properties the default mechanism is based on nested depth-first search.
 This can be changed to an SCC-based approach by specifing the `-p scc` option. <br /> 
 You can get further information calling `thunder --help`.
+
+#### Bisimulation-Quotienting
+
+To apply bisimulation minimization before checking the given properties, use:
+```bash
+-b <simple-refinement | advanced-refinement>
+```
 
 ### Testing
 ```bash
