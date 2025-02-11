@@ -9,6 +9,17 @@ use crate::common::transition_system::TransitionSystem;
 use bit_vec::BitVec;
 use std::collections::HashMap;
 
+/// Calculates the quotient transition system for a given transition system.
+///
+/// # Parameters
+///
+/// - `transition_system`: The transition system, which the quotient transition system get
+///                        calculated for.
+/// - `options`: The given options, aka which refinement will be used.
+/// - `ap`: The vector of atomic propositions, used for quotienting, if None all are used.
+///
+/// # Returns
+///  the quotiened transition system.
 pub fn quotienting(
     transition_system: &TransitionSystem,
     options: &Options,

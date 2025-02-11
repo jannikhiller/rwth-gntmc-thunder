@@ -5,6 +5,15 @@ use bit_vec::BitVec;
 use log::{debug, trace};
 use std::collections::{HashMap, VecDeque};
 
+/// CTL-checks the given property on the given transition system.
+///
+/// # Parameters
+///
+/// - `transition_system`: The given transition system for which the property gets checked.
+/// - `property`: The given property, which gets checked.
+///
+/// # Returns
+///  if the given property holds.
 pub fn ctl_checking(
     transition_system: &TransitionSystem,
     property: &Property<String>,

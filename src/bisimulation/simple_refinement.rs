@@ -2,6 +2,16 @@ use log::debug;
 use crate::bisimulation::partition::*;
 use crate::common::transition_system::TransitionSystem;
 
+/// The simple selction algorithm from the lecture, to calculate S/TS for a given transition system.
+///
+/// # Parameters
+///
+/// - `transition_system`: The transition system, which S/TS gets calculated for.
+/// - `options`: The given options, aka which refinement will be used.
+/// - `ap`: The vector of atomic propositions, used for quotienting, if None all are used.
+///
+/// # Returns
+///  A partition, which represents the state space of the quotient.
 pub fn simple_selection_strategy(
     ts: &TransitionSystem,
     aps: Option<&Vec<String>>,

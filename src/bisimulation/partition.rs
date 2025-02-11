@@ -72,6 +72,13 @@ impl Partition<usize> {
 
 impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
     /// Create a partition from a list of vectors
+    ///
+    /// # Parameters
+    ///
+    /// - `vecs`: The vector of vectors, creating the partition.
+    ///
+    /// # Returns
+    ///  the created partition.
     pub fn from_vecs(vecs: &Vec<Vec<T>>) -> Self {
         let mut elements = Vec::new();
         let mut blocks = IndexList::new();
@@ -123,7 +130,13 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
     }
 
     /// Refine the partition w.r.t. a set `splitter`
-    /// Returns `true` if the partition has changed
+    ///
+    /// # Parameters
+    ///
+    /// - `splitter`: The splitter, which is used for the refinement.
+    ///
+    /// # Returns
+    ///  `true` if the partition has changed
     pub fn refine(&mut self, splitter: &[T]) -> bool {
         let mut changed_blocks = HashSet::new();
 
@@ -228,6 +241,14 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
         partition_changed
     }
 
+    /// Calculates the block for a given partition and corresponding state.
+    ///
+    /// # Parameters
+    ///
+    /// - `state`: The given state.
+    ///
+    /// # Returns
+    /// the corresponding block.
     pub fn get_block_of_state(&self, state: &T) -> Option<&[T]> {
         let list_index = self.block_map.get(state);
 
@@ -240,7 +261,12 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
         Some(&self.elements[block.unwrap().start..block.unwrap().end])
     }
 
-    /// Return the partition as an iterator over its sets
+    /// Calculates the slices of the partition.
+    ///
+    /// # Parameters
+    ///
+    /// # Returns
+    /// the partition as an iterator over its sets
     pub fn to_slices(&self) -> impl Iterator<Item = &[T]> {
         self.blocks
             .iter()
@@ -299,6 +325,17 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> PartialEq for Partition<
     }
 }
 
+/// Calculates the predecessors for a given slice of states, in their given transition system.
+/// Writes them in a given result buffer.
+///
+/// # Parameters
+///
+/// - `ts`: The given transition system.
+/// - `states`: The given slice, which the predecessors get calculated for.
+/// - `result_buffer`: The buffer, which the predecessors get written into.
+///
+/// # Returns
+/// nothing, as the predecessors, get written into the given buffer.
 pub fn get_predecessors(ts: &TransitionSystem, states: &[usize], result_buffer: &mut Vec<usize>) {
     result_buffer.clear();
     result_buffer.extend(
@@ -311,6 +348,18 @@ pub fn get_predecessors(ts: &TransitionSystem, states: &[usize], result_buffer: 
     );
 }
 
+
+/// Calculates the successors for a given slice of states, in their given transition system.
+/// Writes them in a given result buffer.
+///
+/// # Parameters
+///
+/// - `ts`: The given transition system.
+/// - `states`: The given slice, which the successors get calculated for.
+/// - `result_buffer`: The buffer, which the successors get written into.
+///
+/// # Returns
+/// nothing, as the successors, get written into the given buffer.
 pub fn get_successors(ts: &TransitionSystem, states: &[usize], result_buffer: &mut Vec<usize>) {
     result_buffer.clear();
     result_buffer.extend(
