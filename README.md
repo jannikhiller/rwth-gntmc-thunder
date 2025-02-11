@@ -11,6 +11,7 @@ Currently, the following features are implemented:
 - Checking of LTL-formulae
 - Checking of CTL-formulae
 - Bisimulation-Quotienting (simple and advanced refinement, w.r.t. some $A \subseteq 2^{AP}$)
+- Visualization of the given transition system and counter-examples 
 
 Requirements
 ------------
@@ -36,9 +37,24 @@ thunder "filepath"
 ```
 where `"filepath"` is a path to the `gntmc`-file containing the specification of the model and properties.
 
-For model checking regular and omega regular properties the default mechanism is based on nested depth-first search.
-This can be changed to an SCC-based approach by specifing the `-p scc` option. <br /> 
-You can get further information calling `thunder --help`.
+General information about accepted arguments can be found calling `thunder --help`.
+
+#### Persistence Checking
+
+For model checking regular, omega regular and LTL-based properties the default mechanism is based on nested depth-first search.
+In total, four different algorithms are implemented:
+- basic nested dfs using `-p nested-dfs` (default)
+- improved nested dfs using `-p new-nested-dfs`
+- using SCCs via Tarjan's algorithm using `-p scc`
+- using SCCs via Couvreur algorithm using `-p scc-couvreur`
+
+The implementation of the improved nested dfs and Couvreur's algorithm are based on the paper
+"A Note on On-The-Fly Verification Algorithms" by Stefan Schwoon and Javier Esparza which can be found [here](https://archive.model.in.tum.de/um/bibdb/schwoon/dfs-tr.pdf).
+
+In general, the algorithms taken from this paper may perform better than their simpler counterparts. \
+Note, that both SCC-based algorithms are implemented recursively. Thus, they may produce stackoverflow errors on larger models.
+To increase the stack size you can compile thunder after setting the `RUSTFLAGS="-C link-args=-Wl,-zstack-size=stackSize"` environment variable,
+where `stackSize` is the size of the stack in bytes.
 
 #### Bisimulation-Quotienting
 
@@ -47,8 +63,10 @@ To apply bisimulation minimization before checking the given properties, use:
 -b <simple-refinement | advanced-refinement>
 ```
 
+By default, bisimulation is disabled. It can be explicitly disabled using `-b without`.
+
 #### Visualization
-Currently, we support visualizing the parsed transition system by generating a `DOT`-file by adding the flag \
+Currently, we support visualizing the parsed transition system by generating a `DOT`-file by adding the flag
 ```bash
 --visualize-ts <filename>
 ```
