@@ -38,7 +38,13 @@ pub fn find_scc_in_ts(
                 ) {
                     // if its reachable, we found an SCC containing a bad state
                     // => give counterexample
-                    return Err(reconstruct_path(transition_system, &came_from, *state, &cluster, state_info_map));
+                    return Err(reconstruct_path(
+                        transition_system,
+                        &came_from,
+                        *state,
+                        &cluster,
+                        state_info_map,
+                    ));
                 }
             }
         }
@@ -256,7 +262,6 @@ mod tests {
     use crate::common::transition_system::TransitionSystem;
     use crate::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
     use bit_vec::BitVec;
-    use std::collections::HashMap;
 
     #[test]
     fn test_scc_true() {

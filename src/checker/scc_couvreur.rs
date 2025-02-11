@@ -1,9 +1,9 @@
 use crate::checker::helper::bit_vec_to_ap_strings;
 use crate::common::transition_system::TransitionSystem;
 use crate::property::Property;
+use bit_vec::BitVec;
 use log::trace;
 use std::collections::{HashMap, VecDeque};
-use bit_vec::BitVec;
 
 /// Checks if the given transition system satisfies the given persistence property by applying
 /// Couvreur’s SCC algorithm as discussed by Stefan Schwoon and Javier Esparza in their
@@ -49,13 +49,18 @@ pub fn persistence_checking_with_couvreur_scc(
         );
 
         if found_cycle {
-            return Err(reconstruct_path(&mut cex_stack, transition_system, state_info_map));
+            return Err(reconstruct_path(
+                &mut cex_stack,
+                transition_system,
+                state_info_map,
+            ));
         }
     }
 
     Ok(true)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn couv_dfs(
     s: usize,
     count: &mut usize,
@@ -95,7 +100,7 @@ fn couv_dfs(
             let mut u;
             loop {
                 u = roots.pop().unwrap();
-                
+
                 trace!("\tConsidering root {}", u);
 
                 if !check_property_on_state(u, transition_system, property) {
@@ -155,10 +160,11 @@ fn check_property_on_state(
     property.evaluate(&string_labels_of_current)
 }
 
-fn reconstruct_path(stack: &mut Vec<usize>,
-                    transition_system: &TransitionSystem,
-                    state_info_map: Option<&HashMap<usize, (usize, Vec<String>)>>
-) -> (Vec<Vec<String>>, Vec<usize>)  {
+fn reconstruct_path(
+    stack: &mut Vec<usize>,
+    transition_system: &TransitionSystem,
+    state_info_map: Option<&HashMap<usize, (usize, Vec<String>)>>,
+) -> (Vec<Vec<String>>, Vec<usize>) {
     let mut trace = VecDeque::new();
     let mut path = VecDeque::new();
 
@@ -188,7 +194,6 @@ mod tests {
     use crate::common::transition_system::TransitionSystem;
     use crate::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
     use bit_vec::BitVec;
-    use std::collections::HashMap;
 
     #[test]
     fn test_scc_true() {
@@ -208,7 +213,9 @@ mod tests {
             vec!["a".to_string()],
         );
 
-        assert!(persistence_checking_with_couvreur_scc(&transition_system, &property, None).is_ok());
+        assert!(
+            persistence_checking_with_couvreur_scc(&transition_system, &property, None).is_ok()
+        );
     }
 
     #[test]

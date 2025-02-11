@@ -56,7 +56,7 @@ impl TransitionSystem {
     ) -> Self {
         TransitionSystem {
             transition_matrix,
-            reverse_transition_matrix: reverse_transition_matrix,
+            reverse_transition_matrix,
             last_state,
             initial_states,
             state_labels,
@@ -189,7 +189,7 @@ impl TransitionSystem {
     /// # Returns
     /// An iterator over state indices that can reach the given state.
     pub fn get_predecessor_states(&self, state: usize) -> Option<&[usize]> {
-        if self.reverse_transition_matrix == SparseMatrix::default() { 
+        if self.reverse_transition_matrix == SparseMatrix::default() {
             return None;
         }
         let result = self.reverse_transition_matrix.get_col_indexes_in_row(state);
@@ -211,7 +211,10 @@ impl TransitionSystem {
     ///
     /// # Returns
     /// The reachable fragment of the product transition system
-    pub fn product_with(&self, mut auto: FiniteAutomaton<String>) -> (TransitionSystem, HashMap<usize, (usize, Vec<String>)>) {
+    pub fn product_with(
+        &self,
+        mut auto: FiniteAutomaton<String>,
+    ) -> (TransitionSystem, HashMap<usize, (usize, Vec<String>)>) {
         #[derive(Debug)]
         struct NewStateInfo {
             state_int: usize, // the state represented as a single integer for use in the new TS
@@ -226,7 +229,6 @@ impl TransitionSystem {
         // Used as a cache to improve performance
         let mut bitvecs_to_states: HashMap<BitVec, Vec<String>> = HashMap::new();
         let mut new_state_infos: HashMap<(usize, usize), NewStateInfo> = HashMap::new();
-        let new_init_states: Vec<(usize, usize)>;
         let auto_aps: Option<Vec<String>> = auto.get_atomic_propositions();
 
         trace!("Computing init states...");
@@ -256,19 +258,22 @@ impl TransitionSystem {
                 }
 
                 trace!("original state {} corresponds to automaton state {} resulting in new state {:?}", state, auto_state, (state, auto_state));
-                let contained = new_state_infos.insert((state, auto_state), NewStateInfo{
-                    state_int: new_state_infos.len(),
-                    succs: Vec::new(),
-                    original_state: state,
-                    original_label: self.get_state_label(state).clone(),
-                });
+                let contained = new_state_infos.insert(
+                    (state, auto_state),
+                    NewStateInfo {
+                        state_int: new_state_infos.len(),
+                        succs: Vec::new(),
+                        original_state: state,
+                        original_label: self.get_state_label(state).clone(),
+                    },
+                );
                 if let Some(old) = contained {
                     new_state_infos.insert((state, auto_state), old);
                 }
             }
         }
 
-        new_init_states = new_state_infos.keys().cloned().collect();
+        let new_init_states: Vec<(usize, usize)> = new_state_infos.keys().cloned().collect();
 
         let mut deque: VecDeque<(usize, usize)> = VecDeque::new();
         new_init_states.iter().for_each(|x| deque.push_back(*x));
@@ -313,21 +318,28 @@ impl TransitionSystem {
 
                     trace!("\tCorresponds to automaton state {}\n\t\t=> new state: {:?}; with transition {:?} -> {:?}", auto_succ, (*ts_succ, auto_succ), (ts_state, auto_state), (*ts_succ, auto_succ));
 
-                    let old_value = new_state_infos.insert((*ts_succ, auto_succ), NewStateInfo{
-                        succs: Vec::new(),
-                        state_int: new_state_infos.len(),
-                        original_state: *ts_succ,
-                        original_label: self.get_state_label(*ts_succ).clone(),
-                    });
+                    let old_value = new_state_infos.insert(
+                        (*ts_succ, auto_succ),
+                        NewStateInfo {
+                            succs: Vec::new(),
+                            state_int: new_state_infos.len(),
+                            original_state: *ts_succ,
+                            original_label: self.get_state_label(*ts_succ).clone(),
+                        },
+                    );
 
-                    if let Some(old) = old_value { 
+                    if let Some(old) = old_value {
                         new_state_infos.insert((*ts_succ, auto_succ), old);
                     } else {
                         deque.push_back((*ts_succ, auto_succ));
                         trace!("\t\tNew state has not been seen yet. Adding to Queue...\n\t\tQueue updated to: {:?}", deque);
                     }
 
-                    new_state_infos.get_mut(&(ts_state, auto_state)).unwrap().succs.push((*ts_succ, auto_succ));
+                    new_state_infos
+                        .get_mut(&(ts_state, auto_state))
+                        .unwrap()
+                        .succs
+                        .push((*ts_succ, auto_succ));
                 }
             }
         }
@@ -342,12 +354,16 @@ impl TransitionSystem {
                 .iter()
                 .sorted_by_key(|&(input, _)| new_state_infos.get(input).unwrap().state_int)
                 .flat_map(|(input, nsi)| {
-                    nsi.succs.clone().into_iter().map(|output|
-                        (
-                            new_state_infos.get(input).unwrap().state_int,
-                            new_state_infos.get(&output).unwrap().state_int,
-                            true,
-                        ))
+                    nsi.succs
+                        .clone()
+                        .into_iter()
+                        .map(|output| {
+                            (
+                                new_state_infos.get(input).unwrap().state_int,
+                                new_state_infos.get(&output).unwrap().state_int,
+                                true,
+                            )
+                        })
                         .sorted_by_key(|&(r, c, _)| (r, c))
                         .collect::<Vec<_>>()
                 })
@@ -383,7 +399,10 @@ impl TransitionSystem {
             .collect::<Vec<String>>();
         let mut new_state_labels = vec![BitVec::from_elem(ap.len(), false); num_of_new_states];
         for (ts_state, auto_state) in new_state_infos.keys() {
-            let mapped_state = new_state_infos.get(&(*ts_state, *auto_state)).unwrap().state_int;
+            let mapped_state = new_state_infos
+                .get(&(*ts_state, *auto_state))
+                .unwrap()
+                .state_int;
             let mut bv_auto_state = BitVec::from_elem(auto.get_last_state() + 1, false);
             bv_auto_state.set(*auto_state, true);
             let is_accepting_auto_state = auto.is_accepting(bv_auto_state);
@@ -400,9 +419,9 @@ impl TransitionSystem {
 
         debug!("Finished computation of product.");
         trace!("Compute HashMap for counterexample");
-        
+
         let mut new_state_orig_state_label = HashMap::new();
-        
+
         new_state_infos.values().for_each(|new_state_info| {
             let orig_state = new_state_info.original_state;
             let orig_label = bit_vec_to_ap_strings(self, &new_state_info.original_label);
@@ -410,14 +429,16 @@ impl TransitionSystem {
             new_state_orig_state_label.insert(new_state_info.state_int, (orig_state, orig_label));
         });
 
-        (TransitionSystem::new_without_rtm(
-            tmatrix,
-            num_of_new_states - 1,
-            mapped_new_init_states,
-            new_state_labels,
-            ap,
-        ),
-        new_state_orig_state_label)
+        (
+            TransitionSystem::new_without_rtm(
+                tmatrix,
+                num_of_new_states - 1,
+                mapped_new_init_states,
+                new_state_labels,
+                ap,
+            ),
+            new_state_orig_state_label,
+        )
     }
 
     /// Exports the transition system to a Graphviz DOT file for visualization.
@@ -587,8 +608,7 @@ impl FromStr for TransitionSystem {
             .map(|(from, to, _)| *from.max(to))
             .max()
             .unwrap_or(0);
-        let (state_labels, ap) =
-            TransitionSystem::create_label_info(&aps_of_state);
+        let (state_labels, ap) = TransitionSystem::create_label_info(&aps_of_state);
         Ok(TransitionSystem::new(
             SparseMatrix::from_list_of_entries(last_state + 1, last_state + 1, &transitions),
             SparseMatrix::from_list_of_entries(
@@ -658,13 +678,12 @@ mod tests {
         2c -> 0a
         3a -> 1b";
 
-        let (state_labels, ap) =
-            TransitionSystem::create_label_info(&HashMap::from_iter([
-                (0, vec!["a".to_string()]),
-                (1, vec!["b".to_string()]),
-                (2, vec!["c".to_string()]),
-                (3, vec!["a".to_string()]),
-            ]));
+        let (state_labels, ap) = TransitionSystem::create_label_info(&HashMap::from_iter([
+            (0, vec!["a".to_string()]),
+            (1, vec!["b".to_string()]),
+            (2, vec!["c".to_string()]),
+            (3, vec!["a".to_string()]),
+        ]));
 
         let ts = TransitionSystem::new(
             SparseMatrix::from_sorted_list_of_entries(
