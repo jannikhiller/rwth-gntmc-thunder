@@ -43,7 +43,7 @@ pub fn advanced_refinement(
         let mut found_suitable_candidate = false;
         for c_candidate in current_partition.to_slices() {
             if c_candidate.len() > c_prime.len() / 2 {
-                trace!("C candidate has is larger than |C'|/2 => skip to next...");
+                trace!("C candidate is larger than |C'|/2 => skip to next...");
                 continue;
             }
             if c_candidate.iter().all(|elem| c_prime.contains(elem)) {
@@ -55,8 +55,13 @@ pub fn advanced_refinement(
 
         if !found_suitable_candidate {
             trace!("No suitable candidate found for C...");
+            let temp = c_prime.clone();
             working_queue.push_back(c_prime);
             c_prime = working_queue.pop_front().unwrap();
+            if c_prime == temp {
+                debug!("No candidate found for C, and there is only one element on the queue! Refinement finished as there is no splitter.");
+                break;
+            }
             continue;
         }
 
