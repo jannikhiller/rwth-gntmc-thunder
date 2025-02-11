@@ -109,7 +109,6 @@ mod tests {
     use crate::common::transition_system::TransitionSystem;
     use crate::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
     use bit_vec::BitVec;
-    use std::collections::HashMap;
 
     fn create_test_transition_system() -> TransitionSystem {
         let transitions = vec![

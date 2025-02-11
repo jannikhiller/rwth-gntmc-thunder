@@ -1,7 +1,7 @@
 use crate::checker::invariant::bfs_invariant_checking;
-use crate::checker::{nested_dfs, scc_couvreur};
 use crate::checker::new_nested_dfs;
 use crate::checker::scc::persistence_checking_with_scc;
+use crate::checker::{nested_dfs, scc_couvreur};
 use crate::checker::{Options, PersistenceCheckingAlgorithm};
 use crate::common::transition_system::TransitionSystem;
 use crate::property::automaton::FiniteAutomaton;
@@ -61,17 +61,31 @@ pub fn regular_safety_and_omega_checking(
         );
         // distinguish according to the persistence algorithm set in the options
         match options.persistence_algorithm {
-            PersistenceCheckingAlgorithm::Scc => {
-                persistence_checking_with_scc(product_ts, &empty_property, Some(old_state_new_state_map))
-            }
+            PersistenceCheckingAlgorithm::Scc => persistence_checking_with_scc(
+                product_ts,
+                &empty_property,
+                Some(old_state_new_state_map),
+            ),
             PersistenceCheckingAlgorithm::NestedDfs => {
-                nested_dfs::persistence_checking_with_nested_dfs(product_ts, &empty_property, Some(old_state_new_state_map))
+                nested_dfs::persistence_checking_with_nested_dfs(
+                    product_ts,
+                    &empty_property,
+                    Some(old_state_new_state_map),
+                )
             }
             PersistenceCheckingAlgorithm::NewNestedDfs => {
-                new_nested_dfs::persistence_checking_with_nested_dfs(product_ts, &empty_property, Some(old_state_new_state_map))
+                new_nested_dfs::persistence_checking_with_nested_dfs(
+                    product_ts,
+                    &empty_property,
+                    Some(old_state_new_state_map),
+                )
             }
             PersistenceCheckingAlgorithm::SccCouvreur => {
-                scc_couvreur::persistence_checking_with_couvreur_scc(product_ts, &empty_property, Some(old_state_new_state_map))
+                scc_couvreur::persistence_checking_with_couvreur_scc(
+                    product_ts,
+                    &empty_property,
+                    Some(old_state_new_state_map),
+                )
             }
         }
     } else {

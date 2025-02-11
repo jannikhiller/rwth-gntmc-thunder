@@ -3,9 +3,9 @@ pub mod helper;
 pub mod invariant;
 mod ltl;
 mod nested_dfs;
+mod new_nested_dfs;
 mod regular_safety_and_omega_property;
 mod scc;
-mod new_nested_dfs;
 mod scc_couvreur;
 
 use crate::common::transition_system::TransitionSystem;
@@ -16,8 +16,8 @@ use ltl::ltl_checking;
 use nested_dfs::persistence_checking_with_nested_dfs;
 use regular_safety_and_omega_property::regular_safety_and_omega_checking;
 use scc::persistence_checking_with_scc;
-use std::fmt::Formatter;
 use std::fmt;
+use std::fmt::Formatter;
 
 /// Wrapper function which acts as an interface to correctly handle checking different types of
 /// properties on a given transition system.
@@ -46,10 +46,18 @@ pub fn check(
                     persistence_checking_with_nested_dfs(transition_system, property, None)
                 }
                 PersistenceCheckingAlgorithm::NewNestedDfs => {
-                    new_nested_dfs::persistence_checking_with_nested_dfs(transition_system, property, None)
+                    new_nested_dfs::persistence_checking_with_nested_dfs(
+                        transition_system,
+                        property,
+                        None,
+                    )
                 }
                 PersistenceCheckingAlgorithm::SccCouvreur => {
-                    scc_couvreur::persistence_checking_with_couvreur_scc(transition_system, property, None)
+                    scc_couvreur::persistence_checking_with_couvreur_scc(
+                        transition_system,
+                        property,
+                        None,
+                    )
                 }
             }
         }

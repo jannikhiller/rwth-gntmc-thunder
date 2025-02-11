@@ -79,7 +79,12 @@ fn outer_dfs(
                 {
                     trace!("{:?}", transition_system.get_state_label(s));
                     debug!("Found violation of persistence property.");
-                    return Err(reconstruct_path(&mut pi, &mut xi, transition_system, state_info_map));
+                    return Err(reconstruct_path(
+                        &mut pi,
+                        &mut xi,
+                        transition_system,
+                        state_info_map,
+                    ));
                 }
             }
         }
@@ -188,7 +193,6 @@ mod tests {
     use crate::common::transition_system::TransitionSystem;
     use crate::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
     use bit_vec::BitVec;
-    use std::collections::HashMap;
 
     #[test]
     fn test_nested_dfs_true() {

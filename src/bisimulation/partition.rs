@@ -5,11 +5,11 @@ use bit_vec::BitVec;
 use index_list::{IndexList, ListIndex};
 use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::{kmerge, Itertools};
+use log::trace;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fmt::Debug;
 use std::hash::Hash;
-use log::trace;
 
 /// Struct to represent a partition block by a start and (exclusive) end index.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -76,8 +76,9 @@ impl Partition<usize> {
         let mut predecessors = Vec::new();
 
         for current_state_idx in start_index..end_index {
-            let predecessors_of_current_state =
-                ts.get_predecessor_states(self.elements[current_state_idx]).unwrap();
+            let predecessors_of_current_state = ts
+                .get_predecessor_states(self.elements[current_state_idx])
+                .unwrap();
             predecessors.append(predecessors_of_current_state.to_vec().as_mut());
         }
 
@@ -201,7 +202,7 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
                     Both(state, _) => (state, 1), // B_1 = B \cap Pre(C) \cap Pre(C' \setminus C)
                     Left(state) => (state, 2), // B_2 = (B \cap Pre(C)) \setminus Pre(C' \setminus C)
                     Right(state) => (state, 3), // B_3 = (B \cap Pre(C' \setminus C)) \setminus Pre(C)
-                    // the items that are not in the splitter are in B_4 and remain in the same block
+                                                // the items that are not in the splitter are in B_4 and remain in the same block
                 }
             });
 
@@ -247,7 +248,10 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
             }
             trace!("Created {} new blocks!", 3 - num_empty_blocks);
             if num_empty_blocks != 3 {
-                trace!("Ternary refinement changed partition and created {} new blocks!", 3 - num_empty_blocks);
+                trace!(
+                    "Ternary refinement changed partition and created {} new blocks!",
+                    3 - num_empty_blocks
+                );
                 partition_changed = true;
             }
         }
@@ -368,7 +372,6 @@ pub fn get_predecessors(ts: &TransitionSystem, states: &[usize], result_buffer: 
         .dedup(),
     );
 }
-
 
 /// Calculates the successors for a given slice of states, in their given transition system.
 /// Writes them in a given result buffer.

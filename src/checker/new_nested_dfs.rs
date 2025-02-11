@@ -1,10 +1,10 @@
-use std::cmp::PartialEq;
+use crate::checker::helper::bit_vec_to_ap_strings;
 use crate::common::transition_system::TransitionSystem;
 use crate::property::Property;
-use crate::checker::helper::bit_vec_to_ap_strings;
-use log::{debug, trace};
-use std::collections::{HashMap, VecDeque};
 use bit_vec::BitVec;
+use log::{debug, trace};
+use std::cmp::PartialEq;
+use std::collections::{HashMap, VecDeque};
 
 /// Checks if the given transition system satisfies the given persistence property by applying the
 /// nested DFS algorithm as proposed by Stefan Schwoon and Javier Esparza in their
@@ -13,7 +13,7 @@ use bit_vec::BitVec;
 /// limitations of the stack size. <br />
 /// While the basic of the is outlined here, we refer to the corresponding paper for a
 /// more thorough explanation. <br />
-/// 
+///
 /// ## Idea of the algorithm
 /// The main idea of the algorithm is the same as for a traditional nested dfs but each
 /// state is annotated with more information. Each state is in one of the following categories:
@@ -21,7 +21,7 @@ use bit_vec::BitVec;
 /// - Visited by the outer dfs, but it is not yet finished.
 /// - The outer dfs on a state is finished. The state has not yet been visited in an inner dfs.
 /// - The state has been visited in the outer and an inner dfs.
-/// 
+///
 /// Each information is represented by a different color represented using 2 bits.
 /// For (memory-) efficient representation we use two `BitVec`s for this representation.
 ///
@@ -46,11 +46,14 @@ pub fn persistence_checking_with_nested_dfs(
 
         bv_one.clear();
         bv_two.clear();
-        let res = outer_dfs(transition_system, property, *init_state, &mut bv_one, &mut bv_two, state_info_map);
-
-        if res.is_err() {
-            return res;
-        }
+        outer_dfs(
+            transition_system,
+            property,
+            *init_state,
+            &mut bv_one,
+            &mut bv_two,
+            state_info_map,
+        )?;
     }
 
     Ok(true)
@@ -92,23 +95,43 @@ fn outer_dfs(
 
             for succ in transition_system.get_successor_states(state) {
                 trace!("Considering successor {} in outer dfs", succ);
-                if get_color(*succ, bv_one, bv_two) == Color::Cyan &&
-                    (!check_property_on_state(state, transition_system, property) ||
-                        !check_property_on_state(*succ, transition_system, property)) {
+                if get_color(*succ, bv_one, bv_two) == Color::Cyan
+                    && (!check_property_on_state(state, transition_system, property)
+                        || !check_property_on_state(*succ, transition_system, property))
+                {
                     debug!("Found a cycle in NDFS during outer dfs.");
-                    return Err(reconstruct_path(&mut outer_cex_stack, &mut inner_cex_stack, transition_system, state_info_map));
+                    return Err(reconstruct_path(
+                        &mut outer_cex_stack,
+                        &mut inner_cex_stack,
+                        transition_system,
+                        state_info_map,
+                    ));
                 } else if get_color(*succ, bv_one, bv_two) == Color::White {
                     stack.push(*succ);
                 }
             }
         } else if get_color(state, bv_one, bv_two) == Color::Cyan {
             if !check_property_on_state(state, transition_system, property) {
-                trace!("Property fulfilled on state {} in outer dfs => starting inner dfs", state);
-                let found_cycle = inner_dfs(state, bv_one, bv_two, &mut inner_cex_stack, transition_system);
+                trace!(
+                    "Property fulfilled on state {} in outer dfs => starting inner dfs",
+                    state
+                );
+                let found_cycle = inner_dfs(
+                    state,
+                    bv_one,
+                    bv_two,
+                    &mut inner_cex_stack,
+                    transition_system,
+                );
 
                 if found_cycle {
                     debug!("Found a cycle in NDFS during inner dfs.");
-                    return Err(reconstruct_path(&mut outer_cex_stack, &mut inner_cex_stack, transition_system, state_info_map));
+                    return Err(reconstruct_path(
+                        &mut outer_cex_stack,
+                        &mut inner_cex_stack,
+                        transition_system,
+                        state_info_map,
+                    ));
                 }
 
                 set_color(state, Color::Red, bv_one, bv_two);
@@ -132,7 +155,7 @@ fn outer_dfs(
 /// violates the property has been found and can be reported.
 /// If it is annotated `Blue`, its outer dfs is finished. Thus, it can be annotated `Red`
 /// (since it has now been visited by an inner dfs) and used as the starting point for the next
-/// iteration of the inner dfs. 
+/// iteration of the inner dfs.
 fn inner_dfs(
     init_state: usize,
     bv_one: &mut BitVec,
@@ -231,7 +254,6 @@ fn reconstruct_path(
     (Vec::from(trace), Vec::from(path))
 }
 
-
 /// The algorithm uses colors to encode certain information about each state.
 /// The available colors are listed in this enum.
 /// - `White`: The initial color of each state. The state has not yet been visited by any dfs.
@@ -286,7 +308,6 @@ fn get_color(state: usize, bv_one: &BitVec, bv_two: &BitVec) -> Color {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use crate::checker::new_nested_dfs::persistence_checking_with_nested_dfs;
@@ -294,7 +315,6 @@ mod tests {
     use crate::common::transition_system::TransitionSystem;
     use crate::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
     use bit_vec::BitVec;
-    use std::collections::HashMap;
 
     #[test]
     fn test_nested_dfs_true() {
