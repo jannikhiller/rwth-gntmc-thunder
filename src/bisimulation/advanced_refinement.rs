@@ -3,6 +3,16 @@ use crate::common::transition_system::TransitionSystem;
 use crate::common::vec_helper::setminus;
 use std::collections::VecDeque;
 
+/// Implements the advanced refinement algorithm by Paige & Tarjan from the lecture.
+/// Note that the working_queue represents the old partition.
+///
+/// # Parameters
+///
+/// - `transition_system`: The given transition system for which the quotient shall be computed.
+/// - `aps`: The atomic propositions to be considered during computation of the quotient.
+///
+/// # Returns
+/// A partition, which represents the state space of the quotient.
 pub fn advanced_refinement(
     transition_system: &TransitionSystem,
     aps: Option<&Vec<String>>,
@@ -18,11 +28,13 @@ pub fn advanced_refinement(
     let mut pre_c_prime_diff_c = Vec::with_capacity(transition_system.get_num_states());
 
     loop {
+        // search for a fitting C'
         while c_prime.len() < 2 {
             working_queue.push_back(c_prime);
             c_prime = working_queue.pop_front().unwrap();
         }
 
+        // choose a C s.t. C \subseteq C' and C <= C'/2
         let mut c = Vec::new();
         let mut found_suitable_candidate = false;
         for c_candidate in current_partition.to_slices() {
@@ -53,6 +65,7 @@ pub fn advanced_refinement(
             working_queue.push_back(c);
         }
         if !c_prime_diff_c.is_empty() {
+            // push (C' \ C) to the front as a heuristic, which seems to work quite well
             working_queue.push_front(c_prime_diff_c);
         }
 

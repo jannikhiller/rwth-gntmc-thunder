@@ -121,7 +121,7 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
         (next_block_index, new_item_index)
     }
 
-    /// Refine the partition wrt a set `splitter`
+    /// Refine the partition w.r.t. a set `splitter`
     /// Returns `true` if the partition has changed
     pub fn refine(&mut self, splitter: &[T]) -> bool {
         let mut changed_blocks = HashSet::new();
@@ -153,6 +153,15 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
         !changed_blocks.is_empty()
     }
 
+    /// Executes one iteration of the ternary refinement algorithm w.r.t. some C and C'.
+    ///
+    /// # Parameters
+    ///
+    /// - `pre_c`: Predecessor states of the block C.
+    /// - `pre_c_prime_diff_c`: Predecessor states of the block (C'\C)
+    ///
+    /// # Returns
+    /// True, if some block was split; False, otherwise.
     pub fn ternary_refine(&mut self, pre_c: &[T], pre_c_prime_diff_c: &[T]) -> bool {
         let mut changed_blocks = HashSet::new();
 
@@ -165,7 +174,7 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
                     Both(state, _) => (state, 1), // B_1 = B \cap Pre(C) \cap Pre(C' \setminus C)
                     Left(state) => (state, 2), // B_2 = (B \cap Pre(C)) \setminus Pre(C' \setminus C)
                     Right(state) => (state, 3), // B_3 = (B \cap Pre(C' \setminus C)) \setminus Pre(C)
-                                                // the items that are not in the splitter are in B_4 and remain in the same block
+                    // the items that are not in the splitter are in B_4 and remain in the same block
                 }
             });
 
