@@ -5,10 +5,8 @@ use array_tool::vec::*;
 use bit_vec::BitVec;
 use itertools::Itertools;
 use log::{debug, trace};
-use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::File;
 use std::io::{self, Write};
-use array_tool::vec::*;
 use std::{
     collections::{BTreeMap, HashMap, VecDeque},
     str::FromStr,
