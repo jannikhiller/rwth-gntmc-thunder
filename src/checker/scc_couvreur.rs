@@ -11,9 +11,10 @@ pub fn persistence_checking_with_couvreur_scc(
     state_info_map: Option<&HashMap<usize, (usize, Vec<String>)>>,
 ) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
     let mut count = 0;
-    let mut roots: VecDeque<usize> = VecDeque::new();
+    let mut roots: Vec<usize> = Vec::new();
     let mut dfsnum: HashMap<usize, usize> = HashMap::new();
     let mut current: BitVec = BitVec::from_elem(transition_system.get_num_states(), false);
+    let mut cex_stack: Vec<usize> = Vec::new();
 
     let mut found_cycle;
     for s0 in transition_system.get_initial_states() {
@@ -24,12 +25,13 @@ pub fn persistence_checking_with_couvreur_scc(
             &mut dfsnum,
             &mut roots,
             &mut current,
+            &mut cex_stack,
             transition_system,
             property,
         );
 
         if found_cycle {
-            return Err((vec![], vec![]));
+            return Err(reconstruct_path(&mut cex_stack, transition_system, state_info_map));
         }
     }
 
@@ -40,15 +42,17 @@ fn couv_dfs(
     s: usize,
     count: &mut usize,
     dfsnum: &mut HashMap<usize, usize>,
-    roots: &mut VecDeque<usize>,
+    roots: &mut Vec<usize>,
     current: &mut BitVec,
+    cex_stack: &mut Vec<usize>,
     transition_system: &TransitionSystem,
     property: &Property<String>,
 ) -> bool {
     *count += 1;
     dfsnum.insert(s, *count);
-    roots.push_back(s);
+    roots.push(s);
     current.set(s, true);
+    cex_stack.push(s);
 
     trace!("Considering state {:?}", s);
 
@@ -62,6 +66,7 @@ fn couv_dfs(
                 dfsnum,
                 roots,
                 current,
+                cex_stack,
                 transition_system,
                 property,
             ) {
@@ -71,12 +76,13 @@ fn couv_dfs(
             trace!("\tIs part of current dfs");
             let mut u;
             loop {
-                u = roots.pop_back().unwrap();
+                u = roots.pop().unwrap();
                 
                 trace!("\tConsidering root {}", u);
 
                 if !check_property_on_state(u, transition_system, property) {
                     trace!("\t\tViolates property => found cycle");
+                    cex_stack.push(*t);
                     return true;
                 }
 
@@ -85,16 +91,17 @@ fn couv_dfs(
                     break;
                 }
             }
-            roots.push_back(u);
+            roots.push(u);
         }
     }
 
-    if *roots.back().unwrap() == s {
-        roots.pop_back();
+    if *roots.last().unwrap() == s {
+        roots.pop();
         remove(s, current, transition_system);
         trace!("Done with state {}", s);
     }
 
+    cex_stack.pop();
     trace!("Didn't find an scc where the property is violated");
     false
 }
@@ -130,6 +137,31 @@ fn check_property_on_state(
     property.evaluate(&string_labels_of_current)
 }
 
+fn reconstruct_path(stack: &mut Vec<usize>,
+                    transition_system: &TransitionSystem,
+                    state_info_map: Option<&HashMap<usize, (usize, Vec<String>)>>
+) -> (Vec<Vec<String>>, Vec<usize>)  {
+    let mut trace = VecDeque::new();
+    let mut path = VecDeque::new();
+
+    while let Some(mut state) = stack.pop() {
+        if let Some(state_info) = state_info_map {
+            trace.push_front(state_info.get(&state).unwrap().1.clone())
+        } else {
+            trace.push_front(bit_vec_to_ap_strings(
+                transition_system,
+                transition_system.get_state_label(state),
+            ));
+        }
+
+        if state_info_map.is_some() {
+            state = state_info_map.unwrap().get(&state).unwrap().0;
+        }
+        path.push_front(state);
+    }
+
+    (Vec::from(trace), Vec::from(path))
+}
 
 #[cfg(test)]
 mod tests {
