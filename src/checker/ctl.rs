@@ -5,6 +5,15 @@ use bit_vec::BitVec;
 use log::{debug, trace};
 use std::collections::{HashMap, VecDeque};
 
+/// CTL-checks the given property on the given transition system.
+///
+/// # Parameters
+///
+/// - `transition_system`: The given transition system for which the property gets checked.
+/// - `property`: The given property, which gets checked.
+///
+/// # Returns
+///  if the given property holds.
 pub fn ctl_checking(
     transition_system: &TransitionSystem,
     property: &Property<String>,
@@ -13,7 +22,7 @@ pub fn ctl_checking(
 
     match &property.property_type {
         PropertyType::Ctl(formula) => {
-            debug!("Checking CTL-formula: \n{}", formula);
+            trace!("Checking CTL-formula: \n{}", formula);
             // check if all initial states are in the sat set of the given formula
             let sat_set = compute_sat_set(transition_system, &formula.clone(), &mut cache);
             // trace!("Obtained satisfaction set as bitvector: {}", sat_set);
@@ -298,18 +307,12 @@ mod tests {
         let mut label3 = BitVec::from_elem(5, false);
         label3.set(3, true);
         state_labels.push(label3.clone());
-        let mut label_state_map = HashMap::new();
-        label_state_map.insert(label0, vec![0]);
-        label_state_map.insert(label1, vec![1]);
-        label_state_map.insert(label2, vec![2]);
-        label_state_map.insert(label3, vec![3]);
         TransitionSystem::new(
             transition_matrix,
             reverse_transition_matrix,
             3,       // last_state
             vec![0], // initial_states
             state_labels,
-            label_state_map,
             ap,
         )
     }

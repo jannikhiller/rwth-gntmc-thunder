@@ -9,7 +9,9 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fmt::Debug;
 use std::hash::Hash;
+use log::trace;
 
+/// Struct to represent a partition block by a start and (exclusive) end index.
 #[derive(Debug, Copy, Clone, PartialEq)]
 struct PartitionBlock {
     start: usize,
@@ -19,12 +21,26 @@ struct PartitionBlock {
 
 #[derive(Debug)]
 pub struct Partition<T> {
+    /// Vector containing all states, ordered by their corresponding block.
     elements: Vec<T>,
+    /// Doubly-linked list of all blocks inside the partition.
     blocks: IndexList<PartitionBlock>,
+    /// Map to identify to corresponding block of a state.
     block_map: HashMap<T, ListIndex>,
 }
 
 impl Partition<usize> {
+    /// Create a partition based on the state space of a transition system and w.r.t. the
+    /// corresponding state labels.
+    ///
+    /// # Parameters
+    ///
+    /// - `transition_system`: The given transition system.
+    /// - `filter_aps`: A subset of the atomic propositions to be considered during the initial
+    ///   partitioning.
+    ///
+    /// # Returns
+    ///  The created partition.
     pub fn from_state_space_by_aps(
         transition_system: &TransitionSystem,
         filter_aps: Option<&Vec<String>>,
@@ -71,6 +87,13 @@ impl Partition<usize> {
 
 impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
     /// Create a partition from a list of vectors
+    ///
+    /// # Parameters
+    ///
+    /// - `vecs`: The vector of vectors, creating the partition.
+    ///
+    /// # Returns
+    ///  the created partition.
     pub fn from_vecs(vecs: &Vec<Vec<T>>) -> Self {
         let mut elements = Vec::new();
         let mut blocks = IndexList::new();
@@ -91,16 +114,14 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
         }
     }
 
-    fn find_in_block(&self, block_index: ListIndex, item: &T) -> usize {
-        // TODO: panics here if element is not in block
+    fn find_in_block(&self, block_index: ListIndex, item: &T) -> Option<usize> {
         let block = self.blocks.get(block_index).unwrap();
         // this is a linear search, if it becomes a bottleneck, we can consider
         // keeping each block sorted
         self.elements[block.start..block.end]
             .iter()
             .position(|e| e == item)
-            .unwrap()
-            + block.start
+            .map(|i| i + block.start)
     }
 
     /// Returns the index of the next block and the index of the moved item
@@ -121,8 +142,14 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
         (next_block_index, new_item_index)
     }
 
-    /// Refine the partition wrt a set `splitter`
-    /// Returns `true` if the partition has changed
+    /// Refine the partition w.r.t. a set `splitter`
+    ///
+    /// # Parameters
+    ///
+    /// - `splitter`: The splitter, which is used for the refinement.
+    ///
+    /// # Returns
+    ///  `true` if the partition has changed
     pub fn refine(&mut self, splitter: &[T]) -> bool {
         let mut changed_blocks = HashSet::new();
 
@@ -142,7 +169,7 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
                 changed_blocks.insert(block_index);
             }
             let item_index = self.find_in_block(block_index, splitter_item);
-            self.move_item_to_next_block(block_index, item_index);
+            self.move_item_to_next_block(block_index, item_index.unwrap());
             let block = self.blocks.get(block_index).unwrap();
             if block.start == block.end {
                 self.blocks.remove(block_index);
@@ -153,6 +180,15 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
         !changed_blocks.is_empty()
     }
 
+    /// Executes one iteration of the ternary refinement algorithm w.r.t. some C and C'.
+    ///
+    /// # Parameters
+    ///
+    /// - `pre_c`: Predecessor states of the block C.
+    /// - `pre_c_prime_diff_c`: Predecessor states of the block (C'\C)
+    ///
+    /// # Returns
+    /// True, if some block was split; False, otherwise.
     pub fn ternary_refine(&mut self, pre_c: &[T], pre_c_prime_diff_c: &[T]) -> bool {
         let mut changed_blocks = HashSet::new();
 
@@ -165,7 +201,7 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
                     Both(state, _) => (state, 1), // B_1 = B \cap Pre(C) \cap Pre(C' \setminus C)
                     Left(state) => (state, 2), // B_2 = (B \cap Pre(C)) \setminus Pre(C' \setminus C)
                     Right(state) => (state, 3), // B_3 = (B \cap Pre(C' \setminus C)) \setminus Pre(C)
-                                                // the items that are not in the splitter are in B_4 and remain in the same block
+                    // the items that are not in the splitter are in B_4 and remain in the same block
                 }
             });
 
@@ -190,7 +226,7 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
             }
 
             let mut block_index = block_index;
-            let mut item_index = self.find_in_block(block_index, &state);
+            let mut item_index = self.find_in_block(block_index, &state).unwrap();
             for _ in 0..set {
                 (block_index, item_index) = self.move_item_to_next_block(block_index, item_index);
             }
@@ -209,7 +245,9 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
                 }
                 block_index = next_block_index;
             }
+            trace!("Created {} new blocks!", 3 - num_empty_blocks);
             if num_empty_blocks != 3 {
+                trace!("Ternary refinement changed partition and created {} new blocks!", 3 - num_empty_blocks);
                 partition_changed = true;
             }
         }
@@ -217,6 +255,14 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
         partition_changed
     }
 
+    /// Calculates the block for a given partition and corresponding state.
+    ///
+    /// # Parameters
+    ///
+    /// - `state`: The given state.
+    ///
+    /// # Returns
+    /// the corresponding block.
     pub fn get_block_of_state(&self, state: &T) -> Option<&[T]> {
         let list_index = self.block_map.get(state);
 
@@ -229,7 +275,10 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
         Some(&self.elements[block.unwrap().start..block.unwrap().end])
     }
 
-    /// Return the partition as an iterator over its sets
+    /// Calculates the slices of the partition.
+    ///
+    /// # Returns
+    /// the partition as an iterator over its sets
     pub fn to_slices(&self) -> impl Iterator<Item = &[T]> {
         self.blocks
             .iter()
@@ -246,10 +295,19 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
             .collect()
     }
 
+    /// Returns the partition represented as a vector of vectors, each containing the block elements.
+    ///
+    /// # Returns
+    /// A vector of vectors representing the partition.
     pub fn to_vecs(&self) -> Vec<Vec<T>> {
         self.to_slices().map(|slice| slice.to_vec()).collect()
     }
 
+    /// Returns the number of blocks inside the partition.
+    ///
+    ///
+    /// # Returns
+    /// Number of blocks of the partition.
     pub fn num_blocks(&self) -> usize {
         self.blocks.len()
     }
@@ -288,6 +346,17 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> PartialEq for Partition<
     }
 }
 
+/// Calculates the predecessors for a given slice of states, in their given transition system.
+/// Writes them in a given result buffer.
+///
+/// # Parameters
+///
+/// - `ts`: The given transition system.
+/// - `states`: The given slice, which the predecessors get calculated for.
+/// - `result_buffer`: The buffer, which the predecessors get written into.
+///
+/// # Returns
+/// nothing, as the predecessors, get written into the given buffer.
 pub fn get_predecessors(ts: &TransitionSystem, states: &[usize], result_buffer: &mut Vec<usize>) {
     result_buffer.clear();
     result_buffer.extend(
@@ -300,6 +369,18 @@ pub fn get_predecessors(ts: &TransitionSystem, states: &[usize], result_buffer: 
     );
 }
 
+
+/// Calculates the successors for a given slice of states, in their given transition system.
+/// Writes them in a given result buffer.
+///
+/// # Parameters
+///
+/// - `ts`: The given transition system.
+/// - `states`: The given slice, which the successors get calculated for.
+/// - `result_buffer`: The buffer, which the successors get written into.
+///
+/// # Returns
+/// nothing, as the successors, get written into the given buffer.
 pub fn get_successors(ts: &TransitionSystem, states: &[usize], result_buffer: &mut Vec<usize>) {
     result_buffer.clear();
     result_buffer.extend(

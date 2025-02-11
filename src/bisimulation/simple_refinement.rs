@@ -1,6 +1,17 @@
+use log::debug;
 use crate::bisimulation::partition::*;
 use crate::common::transition_system::TransitionSystem;
 
+/// The simple selction algorithm from the lecture, to calculate S/TS for a given transition system.
+///
+/// # Parameters
+///
+/// - `transition_system`: The transition system, which S/TS gets calculated for.
+/// - `options`: The given options, aka which refinement will be used.
+/// - `ap`: The vector of atomic propositions, used for quotienting, if None all are used.
+///
+/// # Returns
+///  A partition, which represents the state space of the quotient.
 pub fn simple_selection_strategy(
     ts: &TransitionSystem,
     aps: Option<&Vec<String>>,
@@ -8,7 +19,9 @@ pub fn simple_selection_strategy(
     let mut pi = Partition::from_state_space_by_aps(ts, aps);
     let mut splitter_buffer = Vec::with_capacity(ts.get_num_states());
 
+    let mut iterations = 0;
     'outer: loop {
+        iterations += 1;
         // we have to make a copy here, because we mutate pi in the loop. to avoid this, we could
         // check if p_i is a splitter and give up the reference to pi if it is, but i think that
         // the overhead of this check would be bigger than the overhead of copying
@@ -23,6 +36,8 @@ pub fn simple_selection_strategy(
 
         break;
     }
+
+    debug!("Finished simple refinement in {} iterations!", iterations);
 
     pi
 }

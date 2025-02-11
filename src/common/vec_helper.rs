@@ -1,4 +1,4 @@
-/// v1 \ v2 = return
+/// Computes set difference (v1 \ v2) and returns a new copy as the result.
 pub fn setminus<T: PartialEq + Clone>(v1: &[T], v2: &[T]) -> Vec<T> {
     let mut result = v1.to_vec();
 

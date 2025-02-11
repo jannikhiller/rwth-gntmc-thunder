@@ -29,8 +29,6 @@ pub struct TransitionSystem {
     /// Labels associated with each state, encoded as `BitVec`.
     /// Each bit represents the presence of an atomic proposition (AP) in the state.
     state_labels: Vec<BitVec>, // labels are BitVecs encoding a set of ap indexes
-    /// Mapping from labels to the list of states that have that label.
-    label_state_map: HashMap<BitVec, Vec<usize>>,
     /// List of atomic propositions (APs) in the transition system.
     ap: Vec<String>, // this means creating a label takes linear time. We don't expect this to be an
                      // issue but if it becomes one, we can store a HashMap<String, usize>
@@ -45,7 +43,6 @@ impl TransitionSystem {
     /// - `last_state`: Name of the last state. States are modelled as list from `0 .. last_state` (inclusively).
     /// - `initial_states`: Vector of indices representing initial states.
     /// - `state_labels`: Vector of `BitVec` labels for each state.
-    /// - `label_state_map`: HashMap mapping labels to the states that have them.
     /// - `ap`: Vector of atomic propositions.
     pub fn new(
         transition_matrix: SparseMatrix<bool>,
@@ -53,7 +50,6 @@ impl TransitionSystem {
         last_state: usize,
         initial_states: Vec<usize>,
         state_labels: Vec<BitVec>,
-        label_state_map: HashMap<BitVec, Vec<usize>>,
         ap: Vec<String>,
     ) -> Self {
         TransitionSystem {
@@ -90,14 +86,13 @@ impl TransitionSystem {
             last_state,
             initial_states,
             state_labels,
-            label_state_map,
             ap,
         }
     }
 
     pub fn create_label_info(
         aps_of_state: &HashMap<usize, Vec<String>>,
-    ) -> (Vec<BitVec>, HashMap<BitVec, Vec<usize>>, Vec<String>) {
+    ) -> (Vec<BitVec>, Vec<String>) {
         let mut ap: Vec<_> = aps_of_state.values().flatten().unique().cloned().collect();
         ap.sort_unstable();
         let state_labels: Vec<_> = aps_of_state
@@ -112,14 +107,7 @@ impl TransitionSystem {
                 label
             })
             .collect();
-        let mut label_state_map: HashMap<BitVec, Vec<usize>> = HashMap::new();
-        for (state, label) in state_labels.iter().enumerate() {
-            label_state_map
-                .entry(label.clone())
-                .or_insert_with(Vec::new)
-                .push(state);
-        }
-        (state_labels, label_state_map, ap)
+        (state_labels, ap)
     }
 
     /// Returns the total number of states in the transition system.
@@ -157,28 +145,6 @@ impl TransitionSystem {
     pub fn get_num_transitions(&self) -> usize {
         self.transition_matrix.get_num_values()
     }
-
-    /// Retrieves the list of states that have a given label.
-    ///
-    /// # Parameters
-    /// - `label`: Reference to a `BitVec` representing the label.
-    ///
-    /// # Returns
-    /// A reference to a vector of state indices that have the specified label.
-    ///
-    /// # Panics
-    ///  if the label length does not match the expected length.
-    ///
-    /*
-    pub fn get_states_with_label(&self, label: &BitVec) -> &Vec<usize> {
-        if label.len() != self.ap.len() {
-            panic!("{label:?} is not a valid label as the BitVec has a different size.");
-        }
-
-        static EMPTY_VEC: Vec<usize> = vec![];
-        self.label_state_map.get(label).unwrap_or(&EMPTY_VEC)
-    }
-    */
 
     /// Returns a reference to the list of atomic propositions (APs).
     pub fn get_ap(&self) -> &Vec<String> {
@@ -431,15 +397,7 @@ impl TransitionSystem {
                 );
             }
         }
-        let new_label_state_map = HashMap::from_iter((0..ap.len() + 1).map(|label_subset| {
-            let label = BitVec::from_bytes(&label_subset.to_ne_bytes());
 
-            let states = (0..num_of_new_states)
-                .filter(|state| new_state_labels[*state] == label)
-                .collect::<Vec<_>>();
-
-            (label, states)
-        }));
         debug!("Finished computation of product.");
         trace!("Compute HashMap for counterexample");
         
@@ -457,7 +415,6 @@ impl TransitionSystem {
             num_of_new_states - 1,
             mapped_new_init_states,
             new_state_labels,
-            new_label_state_map,
             ap,
         ),
         new_state_orig_state_label)
@@ -563,7 +520,7 @@ impl FromStr for TransitionSystem {
             .map(|(from, to, _)| *from.max(to))
             .max()
             .unwrap_or(0);
-        let (state_labels, label_state_map, ap) =
+        let (state_labels, ap) =
             TransitionSystem::create_label_info(&aps_of_state);
         Ok(TransitionSystem::new(
             SparseMatrix::from_list_of_entries(last_state + 1, last_state + 1, &transitions),
@@ -578,7 +535,6 @@ impl FromStr for TransitionSystem {
             last_state,
             init_states,
             state_labels,
-            label_state_map,
             ap,
         ))
     }
@@ -616,17 +572,12 @@ mod tests {
         label2.set(0, true);
         label2.set(2, true);
         state_labels.push(label2.clone());
-        let mut label_state_map = HashMap::new();
-        label_state_map.insert(label0, vec![0]);
-        label_state_map.insert(label1, vec![1]);
-        label_state_map.insert(label2, vec![2]);
         TransitionSystem::new(
             transition_matrix,
             reverse_transition_matrix,
             2,       // last_state
             vec![0], // initial_states
             state_labels,
-            label_state_map,
             ap,
         )
     }
@@ -640,7 +591,7 @@ mod tests {
         2c -> 0a
         3a -> 1b";
 
-        let (state_labels, label_state_map, ap) =
+        let (state_labels, ap) =
             TransitionSystem::create_label_info(&HashMap::from_iter([
                 (0, vec!["a".to_string()]),
                 (1, vec!["b".to_string()]),
@@ -662,7 +613,6 @@ mod tests {
             3,
             vec![0, 3],
             state_labels,
-            label_state_map,
             ap,
         );
         assert_eq!(ts, ts_str.parse().unwrap());
@@ -822,16 +772,12 @@ mod tests {
         let mut label1 = BitVec::from_elem(1, false);
         label1.set(0, true);
         state_labels.push(label1.clone());
-        let mut label_state_map = HashMap::new();
-        label_state_map.insert(label0, vec![0, 1, 2, 4]);
-        label_state_map.insert(label1, vec![3]);
         TransitionSystem::new(
             transition_matrix,
             reverse_transition_matrix,
             4,       // last_state
             vec![0], // initial_states
             state_labels,
-            label_state_map,
             ap,
         )
     }
@@ -886,7 +832,6 @@ mod tests {
         //  2. They have the same amount of successor states
         //     (This is technically implied by Req. 3, but testing this explicitly improves runtime in case of test failure)
         //  3. All successor states are equivalent
-        // To test the equivalence of the `label_state_map`s we build a map from the states of one transition system to the other's.
         // Note: The `state_label`s are tested implicitly using our notion of equivalence.
         //       By doing so, we do not care if one transition system specifies labels that do not correspond to a state.
         // Note: While we do not require two states to have equivalent predecessors to be equivalent,
@@ -926,21 +871,6 @@ mod tests {
             let r_succs = result_ts.get_successor_states(*result_state);
             assert_eq!(c_succs.len(), r_succs.len(),
                        "Both states should have the same number of successors.. Expected: {:?} but got: {:?}", r_succs.len(),c_succs.len())
-
-            // FIXME now we would have to do the same recursively for all successors. But we cannot
-            //       really align a computed successor to a result successor because of the omitted actions.
-            //       Thus, for now we will skip this part as it is now a NP problem and not worth it to be
-            //       implemented just for this test. And because of the many other things we test and thorough
-            //       manual inspection of the computed result, we can assume the equivalence to hold
         }
-
-        // label_state_map s
-        let c_label_state_map = computed.label_state_map;
-        let r_label_state_map = result_ts.label_state_map;
-        assert_eq!(
-            c_label_state_map.len(),
-            r_label_state_map.len(),
-            "Both label_state_map s should have equal sizes"
-        );
     }
 }
