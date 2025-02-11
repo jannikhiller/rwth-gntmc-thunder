@@ -72,6 +72,7 @@ pub fn check(
 pub struct Options {
     pub persistence_algorithm: PersistenceCheckingAlgorithm,
     pub quotienting_algorithm: QuotientingAlgorithm,
+    pub visualize_cex: Option<String>,
 }
 
 impl Default for Options {
@@ -86,6 +87,7 @@ impl Options {
         Options {
             persistence_algorithm: PersistenceCheckingAlgorithm::NestedDfs,
             quotienting_algorithm: QuotientingAlgorithm::Without,
+            visualize_cex: None,
         }
     }
 
@@ -98,6 +100,10 @@ impl Options {
 
     pub fn set_quotienting_algorithm(&mut self, quotienting_algorithm: QuotientingAlgorithm) {
         self.quotienting_algorithm = quotienting_algorithm
+    }
+
+    pub fn set_visualize_cex(&mut self, visualize_cex: Option<String>) {
+        self.visualize_cex = visualize_cex;
     }
 }
 

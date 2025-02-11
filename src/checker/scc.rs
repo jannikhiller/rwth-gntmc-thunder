@@ -4,12 +4,15 @@ use crate::property::Property;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Searches for SCCs in the given transition system and checks whether it contains an SCC which
-/// contains an accepting state. Once such an SCC is found, and it is reachable within the product
-/// transition system, we know that the property is violated by the original transition system.
+/// contains an accepting state. Once such an SCC is found, and it is reachable within the transition
+/// system, we know that the property is violated.
 ///
 /// # Parameters
 ///
-/// - `product_ts`: The given product transition system which gets checked.
+/// - `transition_system`: The given transition system which gets checked.
+/// - `property`: The property to be checked on the given transition system.
+/// - `state_info_map`: Map used to translate the states of the product to the actual states in the
+///   transition system. We need this to create truthful counter-examples.
 ///
 /// # Returns
 /// A Result with `Ok` if the property is fulfilled and Err with a path and a trace otherwise.

@@ -20,6 +20,14 @@ struct Cli {
     #[arg(short, long, default_value_t, value_enum)]
     persistence: PersistenceCheckingAlgorithm,
 
+    /// Visualize the transition system
+    #[arg(long, value_name = "FILENAME")]
+    visualize_ts: Option<std::path::PathBuf>,
+
+    /// Visualize the counter-examples if some were found
+    #[arg(long, value_name = "FILENAME-PREFIX")]
+    visualize_cex: Option<std::path::PathBuf>,
+
     #[arg(short, long, default_value_t, value_enum)]
     bisimulation: QuotientingAlgorithm,
 }
@@ -108,6 +116,16 @@ fn check_properties(
             let (trace, path) = result.err().unwrap();
             println!("\tFound following path as counterexample: {:?}", path);
             println!("\tCorresponding trace: {:?}", trace);
+
+            if options.visualize_cex.is_some() {
+                checking_ts
+                    .to_dot(
+                        options.visualize_cex.clone().unwrap() + "_" + &*prop.name,
+                        Some(path),
+                    )
+                    .expect("Unable to visualize transition system with counter-example in file.");
+                println!("Exported visualization of transition system with counterexample.");
+            }
         }
 
         println!("\n#######################################################\n");
@@ -138,6 +156,14 @@ pub fn run() {
     println!("\n#######################################################\n");
 
     let (ts, props, parsing_time) = parse_model_and_properties(&args.gntmc_file);
+    if args.visualize_ts.is_some() {
+        ts.to_dot(
+            args.visualize_ts.unwrap().to_str().unwrap().to_string(),
+            None,
+        )
+        .expect("Unable to visualize transition system in file.");
+        println!("Exported visualization of transition system")
+    }
 
     println!("\n#######################################################\n");
 
@@ -146,6 +172,11 @@ pub fn run() {
     let mut options = Options::new();
     options.set_persistence_algorithm(persistence_algorithm);
     options.set_quotienting_algorithm(quotienting_algorithm);
+    if args.visualize_cex.is_some() {
+        options.set_visualize_cex(Some(
+            args.visualize_cex.unwrap().to_str().unwrap().to_string(),
+        ));
+    }
 
     let (quotienting_time, checking_time) = check_properties(&ts, &props, &options);
 

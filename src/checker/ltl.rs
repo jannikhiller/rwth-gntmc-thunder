@@ -4,13 +4,13 @@ use crate::common::transition_system::TransitionSystem;
 use crate::property::automaton::{FiniteAutomaton, LtlGnba};
 use crate::property::{Property, PropertyType};
 
-/// LTL-checks the given property on the given transition system.
+/// Checks the given LTL-property against the given transition system.
 ///
 /// # Parameters
 ///
 /// - `transition_system`: The given transition system for which the property gets checked.
 /// - `property`: The given property, which gets checked.
-/// - `options`: Given options, how the ltl checking should be done.
+/// - `options`: Given options, how the LTL checking should be done.
 ///
 /// # Returns
 ///  if the given property holds, if not a counter example will be given.

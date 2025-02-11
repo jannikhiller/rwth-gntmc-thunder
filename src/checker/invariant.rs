@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 /// Returns a boolean over the given Transition System and property.
 ///
 /// # Parameters
+/// - `transition_system`: The given transition system which gets checked.
 /// - `property`: The Invariant which gets checked.
 ///
 /// # Returns
@@ -76,7 +77,7 @@ pub fn bfs_invariant_checking(
 /// # Returns
 /// A pair consisting of the path and the trace of the counterexample.
 fn reconstruct_path(
-    ts: &TransitionSystem,
+    transition_system: &TransitionSystem,
     came_from: &HashMap<usize, usize>,
     end_state: usize,
 ) -> (Vec<Vec<String>>, Vec<usize>) {
@@ -85,12 +86,18 @@ fn reconstruct_path(
     let mut current = end_state;
 
     // push label of last state
-    path.push(bit_vec_to_ap_strings(ts, ts.get_state_label(current)));
+    path.push(bit_vec_to_ap_strings(
+        transition_system,
+        transition_system.get_state_label(current),
+    ));
     states.push(current);
 
     // reconstruct path backwards
     while let Some(&prev) = came_from.get(&current) {
-        path.push(bit_vec_to_ap_strings(ts, ts.get_state_label(prev)));
+        path.push(bit_vec_to_ap_strings(
+            transition_system,
+            transition_system.get_state_label(prev),
+        ));
         states.push(prev);
         current = prev;
     }

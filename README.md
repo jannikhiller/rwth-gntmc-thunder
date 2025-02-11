@@ -11,6 +11,7 @@ Currently, the following features are implemented:
 - Checking of LTL-formulae
 - Checking of CTL-formulae
 - Bisimulation-Quotienting (simple and advanced refinement, w.r.t. some $A \subseteq 2^{AP}$)
+- Visualization of the given transition system and counter-examples 
 
 Requirements
 ------------
@@ -36,9 +37,24 @@ thunder "filepath"
 ```
 where `"filepath"` is a path to the `gntmc`-file containing the specification of the model and properties.
 
-For model checking regular and omega regular properties the default mechanism is based on nested depth-first search.
-This can be changed to an SCC-based approach by specifing the `-p scc` option. <br /> 
-You can get further information calling `thunder --help`.
+General information about accepted arguments can be found calling `thunder --help`.
+
+#### Persistence Checking
+
+For model checking regular, omega regular and LTL-based properties the default mechanism is based on nested depth-first search.
+In total, four different algorithms are implemented:
+- basic nested dfs using `-p nested-dfs` (default)
+- improved nested dfs using `-p new-nested-dfs`
+- using SCCs via Tarjan's algorithm using `-p scc`
+- using SCCs via Couvreur algorithm using `-p scc-couvreur`
+
+The implementation of the improved nested dfs and Couvreur's algorithm are based on the paper
+"A Note on On-The-Fly Verification Algorithms" by Stefan Schwoon and Javier Esparza which can be found [here](https://archive.model.in.tum.de/um/bibdb/schwoon/dfs-tr.pdf).
+
+In general, the algorithms taken from this paper may perform better than their simpler counterparts. \
+Note, that both SCC-based algorithms are implemented recursively. Thus, they may produce stackoverflow errors on larger models.
+To increase the stack size you can compile thunder after setting the `RUSTFLAGS="-C link-args=-Wl,-zstack-size=stackSize"` environment variable,
+where `stackSize` is the size of the stack in bytes.
 
 #### Bisimulation-Quotienting
 
@@ -46,6 +62,24 @@ To apply bisimulation minimization before checking the given properties, use:
 ```bash
 -b <simple-refinement | advanced-refinement>
 ```
+
+By default, bisimulation is disabled. It can be explicitly disabled using `-b without`.
+
+#### Visualization
+Currently, we support visualizing the parsed transition system by generating a `DOT`-file by adding the flag
+```bash
+--visualize-ts <filename>
+```
+during model checking. The initial states are represented by a box in this file. Note that the produced `DOT`-file has 
+to be converted to, for example, a `PNG`-file to be human-readable.
+Additionally, we also provide the possibility to generate a visual representation of the counter-example for each
+violated property inside the given transition system by using:
+```bash
+--visualize-cex <filename-prefix>
+```
+This creates, in case of multiple violated properties, a family of files named as `filename-prefix_prop.dot`, where 
+`prop` is the name of the violated property.<br />
+Please note that this visualization heavily depends on the size of the given transition system.
 
 ### Testing
 ```bash
@@ -73,17 +107,17 @@ perf script -F +pid > test.perf
 ```
 4. Open the file in (https://profiler.firefox.com/).
 
-## Note
+#### Note
 The library is only intended to enable integration tests. Therefore, we do NOT guarantee a stable interface.
 
-## Custom Tests
+### Custom Tests
 `.gntmc`-files with/for custom tests can be found at `tests/res/`. \
 The included python code generates a `.gntmc`-file for a transition system of given size.
 A generated example is already included within the other `.gntmc`-files.
 
 Contributers
 ------------
-- Jannik Hiller `jannik.hiller@rwth-aachen.de`
 - Andreas Gerhards `andreas.gerhards@rwth-aachen.de`
+- Jannik Hiller `jannik.hiller@rwth-aachen.de`
 - Johannes Kurth `johannes.kurth@rwth-aachen.de`
 - Peter Lindner `peter.lindner@rwth-aachen.de`
