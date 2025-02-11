@@ -3,7 +3,7 @@ use crate::property::Property;
 
 use crate::checker::helper::bit_vec_to_ap_strings;
 use log::{debug, trace};
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Checks if the given transition system satisfies the given persistence property by applying the
 /// nested DFS algorithm presented in the lecture.
@@ -18,13 +18,15 @@ use std::collections::{HashSet, VecDeque};
 pub fn persistence_checking_with_nested_dfs(
     transition_system: &TransitionSystem,
     property: &Property<String>,
+    state_info_map: Option<&HashMap<usize, (usize, Vec<String>)>>,
 ) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
-    outer_dfs(transition_system, property)
+    outer_dfs(transition_system, property, state_info_map)
 }
 
 fn outer_dfs(
     transition_system: &TransitionSystem,
     property: &Property<String>,
+    state_info_map: Option<&HashMap<usize, (usize, Vec<String>)>>,
 ) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
     let mut set_u = HashSet::new(); // set U
     let mut pi = VecDeque::new(); // stack pi
@@ -77,7 +79,12 @@ fn outer_dfs(
                 {
                     trace!("{:?}", transition_system.get_state_label(s));
                     debug!("Found violation of persistence property.");
-                    return Err(reconstruct_path(&mut pi, &mut xi, transition_system));
+                    return Err(reconstruct_path(
+                        &mut pi,
+                        &mut xi,
+                        transition_system,
+                        state_info_map,
+                    ));
                 }
             }
         }
@@ -132,6 +139,7 @@ fn reconstruct_path(
     pi: &mut VecDeque<usize>,
     xi: &mut VecDeque<usize>,
     transition_system: &TransitionSystem,
+    state_info_map: Option<&HashMap<usize, (usize, Vec<String>)>>,
 ) -> (Vec<Vec<String>>, Vec<usize>) {
     trace!("Constructing counterexample...");
 
@@ -139,24 +147,41 @@ fn reconstruct_path(
     let mut path = Vec::new();
 
     while !pi.is_empty() {
-        path.push(pi.pop_front().unwrap());
+        let mut val = pi.pop_front().unwrap();
+        if let Some(state_info) = state_info_map {
+            trace.push(state_info.get(&val).unwrap().1.clone())
+        } else {
+            trace.push(bit_vec_to_ap_strings(
+                transition_system,
+                transition_system.get_state_label(val),
+            ));
+        }
+
+        if let Some(state_info) = state_info_map {
+            val = state_info.get(&val).unwrap().0;
+        }
+        path.push(val);
     }
 
     debug!("Looping part of counterexample:");
     while !xi.is_empty() {
-        let state = xi.pop_front().unwrap();
+        let mut state = xi.pop_front().unwrap();
+        if let Some(state_info) = state_info_map {
+            trace.push(state_info.get(&state).unwrap().1.clone())
+        } else {
+            trace.push(bit_vec_to_ap_strings(
+                transition_system,
+                transition_system.get_state_label(state),
+            ));
+        }
+
+        if let Some(state_info) = state_info_map {
+            state = state_info.get(&state).unwrap().0;
+        }
         debug!("{}, ", state);
         path.push(state);
     }
-
     debug!("Length of counterexample: {:?}", path.len());
-    for state in &path {
-        trace.push(bit_vec_to_ap_strings(
-            transition_system,
-            transition_system.get_state_label(*state),
-        ));
-        debug!("{:?}, ", state);
-    }
 
     (trace, path)
 }
@@ -168,7 +193,6 @@ mod tests {
     use crate::common::transition_system::TransitionSystem;
     use crate::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
     use bit_vec::BitVec;
-    use std::collections::HashMap;
 
     #[test]
     fn test_nested_dfs_true() {
@@ -188,7 +212,7 @@ mod tests {
             vec!["a".to_string()],
         );
 
-        assert!(persistence_checking_with_nested_dfs(&transition_system, &property).is_ok());
+        assert!(persistence_checking_with_nested_dfs(&transition_system, &property, None).is_ok());
     }
 
     #[test]
@@ -209,7 +233,7 @@ mod tests {
             vec!["a".to_string()],
         );
 
-        let result = persistence_checking_with_nested_dfs(&transition_system, &property);
+        let result = persistence_checking_with_nested_dfs(&transition_system, &property, None);
 
         match &result {
             Ok(_) => {

@@ -1,8 +1,8 @@
 use crate::bisimulation::partition::{get_predecessors, Partition};
 use crate::common::transition_system::TransitionSystem;
 use crate::common::vec_helper::setminus;
-use std::collections::VecDeque;
 use log::{debug, trace};
+use std::collections::VecDeque;
 
 /// Implements the advanced refinement algorithm by Paige & Tarjan from the lecture.
 /// Note that the working_queue represents the old partition.
@@ -70,7 +70,11 @@ pub fn advanced_refinement(
         get_predecessors(transition_system, &c, &mut pre_c);
         get_predecessors(transition_system, &c_prime_diff_c, &mut pre_c_prime_diff_c);
 
-        trace!("Calling ternary refinement for C ({:?}) and C'({:?})...", c, c_prime);
+        trace!(
+            "Calling ternary refinement for C ({:?}) and C'({:?})...",
+            c,
+            c_prime
+        );
         current_partition.ternary_refine(&pre_c, &pre_c_prime_diff_c);
         iterations += 1;
 

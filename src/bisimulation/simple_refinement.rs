@@ -1,6 +1,6 @@
-use log::debug;
 use crate::bisimulation::partition::*;
 use crate::common::transition_system::TransitionSystem;
+use log::debug;
 
 /// The simple selction algorithm from the lecture, to calculate S/TS for a given transition system.
 ///

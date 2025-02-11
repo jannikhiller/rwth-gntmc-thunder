@@ -3,8 +3,10 @@ pub mod helper;
 pub mod invariant;
 mod ltl;
 mod nested_dfs;
+mod new_nested_dfs;
 mod regular_safety_and_omega_property;
 mod scc;
+mod scc_couvreur;
 
 use crate::common::transition_system::TransitionSystem;
 use crate::property::{Property, PropertyType};
@@ -14,8 +16,8 @@ use ltl::ltl_checking;
 use nested_dfs::persistence_checking_with_nested_dfs;
 use regular_safety_and_omega_property::regular_safety_and_omega_checking;
 use scc::persistence_checking_with_scc;
-use std::fmt::Formatter;
 use std::fmt;
+use std::fmt::Formatter;
 
 /// Wrapper function which acts as an interface to correctly handle checking different types of
 /// properties on a given transition system.
@@ -38,10 +40,24 @@ pub fn check(
             // differentiate according to the persistence algorithm set in the options
             match options.persistence_algorithm {
                 PersistenceCheckingAlgorithm::Scc => {
-                    persistence_checking_with_scc(transition_system, property)
+                    persistence_checking_with_scc(transition_system, property, None)
                 }
                 PersistenceCheckingAlgorithm::NestedDfs => {
-                    persistence_checking_with_nested_dfs(transition_system, property)
+                    persistence_checking_with_nested_dfs(transition_system, property, None)
+                }
+                PersistenceCheckingAlgorithm::NewNestedDfs => {
+                    new_nested_dfs::persistence_checking_with_nested_dfs(
+                        transition_system,
+                        property,
+                        None,
+                    )
+                }
+                PersistenceCheckingAlgorithm::SccCouvreur => {
+                    scc_couvreur::persistence_checking_with_couvreur_scc(
+                        transition_system,
+                        property,
+                        None,
+                    )
                 }
             }
         }
@@ -79,6 +95,7 @@ impl Options {
     ) {
         self.persistence_algorithm = persistence_algorithm
     }
+
     pub fn set_quotienting_algorithm(&mut self, quotienting_algorithm: QuotientingAlgorithm) {
         self.quotienting_algorithm = quotienting_algorithm
     }
@@ -89,6 +106,8 @@ pub enum PersistenceCheckingAlgorithm {
     Scc,
     #[default]
     NestedDfs,
+    NewNestedDfs,
+    SccCouvreur,
 }
 
 #[derive(clap::ValueEnum, Default, Debug, Clone, PartialEq)]

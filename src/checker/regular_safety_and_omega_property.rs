@@ -1,6 +1,7 @@
 use crate::checker::invariant::bfs_invariant_checking;
-use crate::checker::nested_dfs::persistence_checking_with_nested_dfs;
+use crate::checker::new_nested_dfs;
 use crate::checker::scc::persistence_checking_with_scc;
+use crate::checker::{nested_dfs, scc_couvreur};
 use crate::checker::{Options, PersistenceCheckingAlgorithm};
 use crate::common::transition_system::TransitionSystem;
 use crate::property::automaton::FiniteAutomaton;
@@ -33,7 +34,7 @@ pub fn regular_safety_and_omega_checking(
         // two separate match cases
         PropertyType::RegularSafety(finite_automata) => {
             // if cloned would be needed here, the compiler would not be satisfied, and we don't need
-            // a copy anyways
+            // a copy anyway
             automaton = finite_automata;
             is_omega = false;
         }
@@ -45,7 +46,7 @@ pub fn regular_safety_and_omega_checking(
         PropertyType::Ctl(_) => panic!("Wrong Propertytype"),
     }
 
-    let product_ts = &transition_system.product_with(automaton);
+    let (product_ts, old_state_new_state_map) = &transition_system.product_with(automaton);
 
     // here we construct a property to check if every state in the reachable part of
     // the transitions system does not have a label
@@ -60,11 +61,31 @@ pub fn regular_safety_and_omega_checking(
         );
         // distinguish according to the persistence algorithm set in the options
         match options.persistence_algorithm {
-            PersistenceCheckingAlgorithm::Scc => {
-                persistence_checking_with_scc(product_ts, &empty_property)
-            }
+            PersistenceCheckingAlgorithm::Scc => persistence_checking_with_scc(
+                product_ts,
+                &empty_property,
+                Some(old_state_new_state_map),
+            ),
             PersistenceCheckingAlgorithm::NestedDfs => {
-                persistence_checking_with_nested_dfs(product_ts, &empty_property)
+                nested_dfs::persistence_checking_with_nested_dfs(
+                    product_ts,
+                    &empty_property,
+                    Some(old_state_new_state_map),
+                )
+            }
+            PersistenceCheckingAlgorithm::NewNestedDfs => {
+                new_nested_dfs::persistence_checking_with_nested_dfs(
+                    product_ts,
+                    &empty_property,
+                    Some(old_state_new_state_map),
+                )
+            }
+            PersistenceCheckingAlgorithm::SccCouvreur => {
+                scc_couvreur::persistence_checking_with_couvreur_scc(
+                    product_ts,
+                    &empty_property,
+                    Some(old_state_new_state_map),
+                )
             }
         }
     } else {

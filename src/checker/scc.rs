@@ -16,25 +16,32 @@ use std::collections::{HashMap, HashSet, VecDeque};
 pub fn find_scc_in_ts(
     transition_system: &TransitionSystem,
     property: &Property<String>,
+    state_info_map: Option<&HashMap<usize, (usize, Vec<String>)>>,
 ) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
     // wrapper struct used to find and store SCCs in the given transition system
     let mut scc = Scc::new();
     scc.find_sccs(transition_system);
 
     for cluster in scc.sccs {
-        for state in cluster {
+        for state in cluster.iter() {
             // if label is not empty, we encountered a -f state
-            if !check_property_on_state(state, transition_system, property) {
+            if !check_property_on_state(*state, transition_system, property) {
                 // we have a state which satisfies -f in a cluster
                 // check if state is reachable from start
                 if let Ok(came_from) = is_reachable(
                     transition_system,
                     transition_system.get_initial_states(),
-                    state,
+                    *state,
                 ) {
                     // if its reachable, we found an SCC containing a bad state
                     // => give counterexample
-                    return Err(reconstruct_path(transition_system, &came_from, state));
+                    return Err(reconstruct_path(
+                        transition_system,
+                        &came_from,
+                        *state,
+                        &cluster,
+                        state_info_map,
+                    ));
                 }
             }
         }
@@ -56,8 +63,9 @@ fn check_property_on_state(
 pub fn persistence_checking_with_scc(
     transition_system: &TransitionSystem,
     property: &Property<String>,
+    state_info_map: Option<&HashMap<usize, (usize, Vec<String>)>>,
 ) -> Result<bool, (Vec<Vec<String>>, Vec<usize>)> {
-    find_scc_in_ts(transition_system, property)
+    find_scc_in_ts(transition_system, property, state_info_map)
 }
 
 fn is_reachable(
@@ -100,6 +108,7 @@ struct Scc {
     stack: Vec<usize>,
     sccs: Vec<Vec<usize>>,
 }
+
 impl Scc {
     fn new() -> Self {
         Scc {
@@ -111,6 +120,7 @@ impl Scc {
             sccs: Vec::new(),
         }
     }
+
     fn tarjan(&mut self, v: usize, transition_system: &TransitionSystem) {
         self.dfs_num.insert(v, self.max_dfs);
         self.low_link.insert(v, self.max_dfs);
@@ -183,27 +193,63 @@ fn reconstruct_path(
     ts: &TransitionSystem,
     came_from: &HashMap<usize, usize>,
     end_state: usize,
+    scc: &Vec<usize>,
+    state_info_map: Option<&HashMap<usize, (usize, Vec<String>)>>,
 ) -> (Vec<Vec<String>>, Vec<usize>) {
+    let mut trace = Vec::new();
     let mut path = Vec::new();
-    let mut states = Vec::new();
     let mut current = end_state;
 
+    //push states of scc
+    for state in scc {
+        if let Some(state_info) = state_info_map {
+            trace.push(state_info.get(state).unwrap().1.clone());
+        } else {
+            trace.push(bit_vec_to_ap_strings(ts, ts.get_state_label(*state)));
+        }
+
+        if let Some(state_info) = state_info_map {
+            path.push(state_info.get(state).unwrap().0)
+        } else {
+            path.push(*state);
+        }
+    }
+
     // push label of last state
-    path.push(bit_vec_to_ap_strings(ts, ts.get_state_label(current)));
-    states.push(current);
+    if let Some(state_info) = state_info_map {
+        trace.push(state_info.get(&current).unwrap().1.clone());
+    } else {
+        trace.push(bit_vec_to_ap_strings(ts, ts.get_state_label(current)));
+    }
+
+    if let Some(state_info) = state_info_map {
+        path.push(state_info.get(&current).unwrap().0)
+    } else {
+        path.push(current);
+    }
 
     // reconstruct path backwards
     while let Some(&prev) = came_from.get(&current) {
-        path.push(bit_vec_to_ap_strings(ts, ts.get_state_label(prev)));
-        states.push(prev);
+        if let Some(state_info) = state_info_map {
+            trace.push(state_info.get(&prev).unwrap().1.clone());
+        } else {
+            trace.push(bit_vec_to_ap_strings(ts, ts.get_state_label(prev)));
+        }
+
+        if let Some(state_info) = state_info_map {
+            path.push(state_info.get(&prev).unwrap().0)
+        } else {
+            path.push(prev);
+        }
+
         current = prev;
     }
 
     // reverse path, as we have built it up from behind
+    trace.reverse();
     path.reverse();
-    states.reverse();
 
-    (path, states)
+    (trace, path)
 }
 
 #[cfg(test)]
@@ -213,7 +259,6 @@ mod tests {
     use crate::common::transition_system::TransitionSystem;
     use crate::property::{FormulaTreeNode, FormulaTreeNodeType, Property, PropertyType};
     use bit_vec::BitVec;
-    use std::collections::HashMap;
 
     #[test]
     fn test_scc_true() {
@@ -233,11 +278,11 @@ mod tests {
             vec!["a".to_string()],
         );
 
-        assert!(persistence_checking_with_scc(&transition_system, &property).is_ok());
+        assert!(persistence_checking_with_scc(&transition_system, &property, None).is_ok());
     }
 
     #[test]
-    fn test_nested_dfs_false() {
+    fn test_scc_false() {
         let transition_system = create_test_transition_system_2();
 
         // create formula with only "a"
@@ -254,7 +299,7 @@ mod tests {
             vec!["a".to_string()],
         );
 
-        let result = persistence_checking_with_scc(&transition_system, &property);
+        let result = persistence_checking_with_scc(&transition_system, &property, None);
 
         match &result {
             Ok(_) => {
