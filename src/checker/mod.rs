@@ -104,9 +104,9 @@ impl Options {
 #[derive(clap::ValueEnum, Default, Debug, Clone)]
 pub enum PersistenceCheckingAlgorithm {
     Scc,
+    #[default]
     NestedDfs,
     NewNestedDfs,
-    #[default]
     SccCouvreur,
 }
 
