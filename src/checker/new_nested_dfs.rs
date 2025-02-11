@@ -188,8 +188,6 @@ fn reconstruct_path(
     state_info_map: Option<&HashMap<usize, (usize, Vec<String>)>>,
 ) -> (Vec<Vec<String>>, Vec<usize>) {
     debug!("Constructing counterexample...");
-    println!("outer stack {:?}", outer_stack);
-    println!("inner stack {:?}", inner_stack);
 
     let mut trace = VecDeque::new();
     let mut path = VecDeque::new();
