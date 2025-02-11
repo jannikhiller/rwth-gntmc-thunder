@@ -8,7 +8,7 @@ use log::{debug, trace};
 use std::fs::File;
 use std::io::{self, Write};
 use std::{
-    collections::{BTreeMap, HashMap, VecDeque},
+    collections::{BTreeMap, HashMap, VecDeque, HashSet},
     str::FromStr,
 };
 
@@ -60,7 +60,6 @@ impl TransitionSystem {
             last_state,
             initial_states,
             state_labels,
-            label_state_map,
             ap,
         }
     }
@@ -79,7 +78,6 @@ impl TransitionSystem {
         last_state: usize,
         initial_states: Vec<usize>,
         state_labels: Vec<BitVec>,
-        label_state_map: HashMap<BitVec, Vec<usize>>,
         ap: Vec<String>,
     ) -> Self {
         TransitionSystem {
@@ -425,101 +423,52 @@ impl TransitionSystem {
     /// Exports the transition system to a Graphviz DOT file for visualization.
     ///
     /// # Parameters
-    ///
-    /// - `filename`: The name of the DOT file to create.
-    pub fn to_dot(&self, filename: &str) -> io::Result<()> {
+    /// - `filename` Filename provided by the user. Note that we append the ".dot" suffix here.
+    /// - `counter_example`: Optionally contains the path of a counter-example to visualize it
+    ///   inside the transition system.
+    pub fn to_dot(&self, filename: String, counter_example: Option<Vec<usize>>) -> io::Result<()> {
         debug!("To dot file: {}", filename);
 
-        let mut file = File::create(filename)?;
+        let mut file = File::create(filename + ".dot")?;
 
         writeln!(file, "digraph TransitionSystem {{")?;
 
-        // write initial states
-        for &init_state in &self.initial_states {
+        let mut states_of_counter_example: HashSet<usize> = HashSet::new();
+        if counter_example.is_some() {
+            counter_example
+                .iter()
+                .flatten()
+                .for_each(|v| { states_of_counter_example.insert(*v); });
+        }
+
+        let color = "black".to_string();
+        let style = "solid".to_string();
+        let cex_color = "#FF000080".to_string();
+        let cex_style = "filled".to_string();
+
+        for state in self.get_states() {
+            let is_in_cex = states_of_counter_example.contains(&state);
+
             writeln!(
                 file,
-                "    {} [style=filled, color=lightblue, label=\"{}\\n{}\"];",
-                init_state,
-                init_state,
-                self.format_label(init_state)
+                "    {} [{}style={}, color=\"{}\", label=\"{}\\n{}\"];",
+                state,
+                if self.initial_states.contains(&state) { "shape=box " } else { "" },
+                if is_in_cex { cex_style.to_string() } else if self.initial_states.contains(&state) { cex_style.to_string() } else { style.to_string() },
+                if is_in_cex { cex_color.to_string() } else if self.initial_states.contains(&state) { "lightblue".to_string() } else { color.to_string() },
+                state,
+                self.format_label(state)
             )?;
         }
 
-        // write the rest of the state space
-        for state in self.get_states() {
-            if !self.initial_states.contains(&state) {
-                writeln!(
-                    file,
-                    "    {} [label=\"{}\\n{}\"];",
-                    state,
-                    state,
-                    self.format_label(state)
-                )?;
-            }
-        }
-
-        // write transitions
         for src in self.get_states() {
             for &dst in self.get_successor_states(src) {
-                writeln!(file, "    {} -> {};", src, dst)?;
-            }
-        }
-
-        writeln!(file, "}}")?;
-        Ok(())
-    }
-
-    /// Helper function to format the labels of a state into a human-readable string.
-    fn format_label(&self, state: usize) -> String {
-        let label = self.get_state_label(state);
-        self.get_ap()
-            .iter()
-            .enumerate()
-            .filter_map(|(i, ap)| if label.get(i).unwrap() { Some(ap.clone()) } else { None })
-            .collect::<Vec<_>>()
-            .join(", ")
-    }
-
-    /// Exports the transition system to a Graphviz DOT file for visualization.
-    ///
-    /// # Parameters
-    ///
-    /// - `filename`: The name of the DOT file to create.
-    pub fn to_dot(&self, filename: &str) -> io::Result<()> {
-        debug!("To dot file: {}", filename);
-
-        let mut file = File::create(filename)?;
-
-        writeln!(file, "digraph TransitionSystem {{")?;
-
-        // write initial states
-        for &init_state in &self.initial_states {
-            writeln!(
-                file,
-                "    {} [style=filled, color=lightblue, label=\"{}\\n{}\"];",
-                init_state,
-                init_state,
-                self.format_label(init_state)
-            )?;
-        }
-
-        // write the rest of the state space
-        for state in self.get_states() {
-            if !self.initial_states.contains(&state) {
-                writeln!(
-                    file,
-                    "    {} [label=\"{}\\n{}\"];",
-                    state,
-                    state,
-                    self.format_label(state)
-                )?;
-            }
-        }
-
-        // write transitions
-        for src in self.get_states() {
-            for &dst in self.get_successor_states(src) {
-                writeln!(file, "    {} -> {};", src, dst)?;
+                if states_of_counter_example.contains(&dst) &&
+                    states_of_counter_example.contains(&src) {
+                    writeln!(file, "    {} -> {} [color=\"{}\"];", src, dst, cex_color)?;
+                } else {
+                    writeln!(file, "    {} -> {};", src, dst)?;
+                }
             }
         }
 
@@ -655,64 +604,6 @@ impl FromStr for TransitionSystem {
             state_labels,
             ap,
         ))
-    }
-
-    /// Exports the transition system to a Graphviz DOT file for visualization.
-    ///
-    /// # Parameters
-    ///
-    /// - `filename`: The name of the DOT file to create.
-    pub fn to_dot(&self, filename: &str) -> io::Result<()> {
-        debug!("To dot file: {}", filename);
-
-        let mut file = File::create(filename)?;
-
-        writeln!(file, "digraph TransitionSystem {{")?;
-
-        // write initial states
-        for &init_state in &self.initial_states {
-            writeln!(
-                file,
-                "    {} [style=filled, color=lightblue, label=\"{}\\n{}\"];",
-                init_state,
-                init_state,
-                self.format_label(init_state)
-            )?;
-        }
-
-        // write the rest of the state space
-        for state in self.get_states() {
-            if !self.initial_states.contains(&state) {
-                writeln!(
-                    file,
-                    "    {} [label=\"{}\\n{}\"];",
-                    state,
-                    state,
-                    self.format_label(state)
-                )?;
-            }
-        }
-
-        // write transitions
-        for src in self.get_states() {
-            for &dst in self.get_successor_states(src) {
-                writeln!(file, "    {} -> {};", src, dst)?;
-            }
-        }
-
-        writeln!(file, "}}")?;
-        Ok(())
-    }
-
-    /// Helper function to format the labels of a state into a human-readable string.
-    fn format_label(&self, state: usize) -> String {
-        let label = self.get_state_label(state);
-        self.get_ap()
-            .iter()
-            .enumerate()
-            .filter_map(|(i, ap)| if label.get(i).unwrap() { Some(ap.clone()) } else { None })
-            .collect::<Vec<_>>()
-            .join(", ")
     }
 }
 

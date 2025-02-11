@@ -5,6 +5,24 @@ use log::trace;
 use std::collections::{HashMap, VecDeque};
 use bit_vec::BitVec;
 
+/// Checks if the given transition system satisfies the given persistence property by applying
+/// Couvreur’s SCC algorithm as discussed by Stefan Schwoon and Javier Esparza in their
+/// paper `A Note on On-The-Fly Verification Algorithms`. <br />
+/// While the basic of the is outlined here, we refer to the corresponding paper for a
+/// more thorough explanation. <br />
+///
+/// ## Idea of the algorithm
+/// The main idea of the algorithm is a simplified variation of Tarjan's algorithm where we are able
+/// to find counter-examples early. Note that the SCCs are found by DFS.
+///
+/// # Parameters
+/// - `transition_system`: The given transition system which gets checked.
+/// - `property`: The property to be checked on the given transition system.
+/// - `state_info_map`: Map used to translate the states of the product to the actual states in the
+///   transition system. We need this to create truthful counter-examples.
+///
+/// # Returns
+/// A Result with `Ok` if the property is fulfilled and Err with a path and a trace otherwise.
 pub fn persistence_checking_with_couvreur_scc(
     transition_system: &TransitionSystem,
     property: &Property<String>,

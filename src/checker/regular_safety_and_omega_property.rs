@@ -16,6 +16,8 @@ use crate::property::*;
 ///
 /// - `transition_system`: The given transition system which gets checked.
 /// - `property`: The property to be checked on the given transition system.
+/// - `options`: Struct which contains options regarding the algorithm to be used during persistence
+///   checking.
 ///
 /// # Returns
 /// A Result with `Ok` if the property is fulfilled and Err with a path and a trace otherwise.
@@ -30,8 +32,6 @@ pub fn regular_safety_and_omega_checking(
         PropertyType::Invariant(_) | PropertyType::Persistence(_) => {
             panic!("Wrong Datatype")
         }
-        // TODO: here we can also differentiate by the acceptance criteria and hence do not need
-        // two separate match cases
         PropertyType::RegularSafety(finite_automata) => {
             // if cloned would be needed here, the compiler would not be satisfied, and we don't need
             // a copy anyway

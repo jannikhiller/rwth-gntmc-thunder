@@ -47,6 +47,22 @@ To apply bisimulation minimization before checking the given properties, use:
 -b <simple-refinement | advanced-refinement>
 ```
 
+#### Visualization
+Currently, we support visualizing the parsed transition system by generating a `DOT`-file by adding the flag \
+```bash
+--visualize-ts <filename>
+```
+during model checking. The initial states are represented by a box in this file. Note that the produced `DOT`-file has 
+to be converted to, for example, a `PNG`-file to be human-readable.
+Additionally, we also provide the possibility to generate a visual representation of the counter-example for each
+violated property inside the given transition system by using:
+```bash
+--visualize-cex <filename-prefix>
+```
+This creates, in case of multiple violated properties, a family of files named as `filename-prefix_prop.dot`, where 
+`prop` is the name of the violated property.<br />
+Please note that this visualization heavily depends on the size of the given transition system.
+
 ### Testing
 ```bash
 cargo test
@@ -81,17 +97,9 @@ The library is only intended to enable integration tests. Therefore, we do NOT g
 The included python code generates a `.gntmc`-file for a transition system of given size.
 A generated example is already included within the other `.gntmc`-files.
 
-### Visualization
-Currently, we support visualizing the parsed transition system by generating a `DOT`-file by adding the flag \
-```bash
---visualize-ts <filename>
-```
-during model checking. Note that the produced `DOT`-file has to be converted to, for example, a `PNG`-file to be 
-human-readable.
-
 Contributers
 ------------
-- Jannik Hiller `jannik.hiller@rwth-aachen.de`
 - Andreas Gerhards `andreas.gerhards@rwth-aachen.de`
+- Jannik Hiller `jannik.hiller@rwth-aachen.de`
 - Johannes Kurth `johannes.kurth@rwth-aachen.de`
 - Peter Lindner `peter.lindner@rwth-aachen.de`
