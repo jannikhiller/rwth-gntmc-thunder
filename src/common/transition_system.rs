@@ -58,7 +58,6 @@ impl TransitionSystem {
             last_state,
             initial_states,
             state_labels,
-            label_state_map,
             ap,
         }
     }
@@ -77,7 +76,6 @@ impl TransitionSystem {
         last_state: usize,
         initial_states: Vec<usize>,
         state_labels: Vec<BitVec>,
-        label_state_map: HashMap<BitVec, Vec<usize>>,
         ap: Vec<String>,
     ) -> Self {
         TransitionSystem {
