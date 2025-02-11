@@ -9,6 +9,17 @@ use crate::common::transition_system::TransitionSystem;
 use bit_vec::BitVec;
 use std::collections::HashMap;
 
+/// Calculates the quotient transition system for a given transition system.
+///
+/// # Parameters
+///
+/// - `transition_system`: The transition system, which the quotient transition system get
+///                        calculated for.
+/// - `options`: The given options, aka which refinement will be used.
+/// - `ap`: The vector of atomic propositions, used for quotienting, if None all are used.
+///
+/// # Returns
+///  the quotiened transition system.
 pub fn quotienting(
     transition_system: &TransitionSystem,
     options: &Options,
@@ -26,7 +37,6 @@ pub fn quotienting(
     let mut new_relations: Vec<(usize, usize)> = Vec::new();
     let mut new_reverse_relations: Vec<(usize, usize)> = Vec::new();
     let mut slice_to_index: HashMap<&[usize], usize> = HashMap::new();
-    let mut new_lable_state_map: HashMap<BitVec, Vec<usize>> = HashMap::new();
     let mut new_state_labels: Vec<BitVec> = Vec::new();
     let mut last_state: usize = 0;
     //initialize Hashmap for new states
@@ -39,12 +49,6 @@ pub fn quotienting(
 
         //add new index
         slice_to_index.insert(slice, k);
-        //init new_lable_state_map
-        if let Some(vector) = new_lable_state_map.get_mut(&labels) {
-            vector.push(k);
-        } else {
-            new_lable_state_map.insert(labels.clone(), vec![k]);
-        }
 
         last_state = k;
     }
@@ -104,7 +108,6 @@ pub fn quotienting(
         last_state,
         new_init_states,
         new_state_labels,
-        new_lable_state_map,
         aps,
     )
 }
