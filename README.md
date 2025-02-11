@@ -1,7 +1,7 @@
 Thunder Model Checker
 =====================
 
-This is a university project implementing different model checking algorithms in rust. 
+This is a university project implementing different model checking algorithms in Rust. 
 
 Currently, the following features are implemented:
 - Invariant checking using breadth first search

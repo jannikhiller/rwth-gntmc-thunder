@@ -136,17 +136,12 @@ mod tests {
         label2.set(0, true);
         label2.set(2, true);
         state_labels.push(label2.clone());
-        let mut label_state_map = HashMap::new();
-        label_state_map.insert(label0, vec![0]);
-        label_state_map.insert(label1, vec![1]);
-        label_state_map.insert(label2, vec![2]);
         TransitionSystem::new(
             transition_matrix,
             reverse_transition_matrix,
             2,       // last_state
             vec![0], // initial_states
             state_labels,
-            label_state_map,
             ap,
         )
     }

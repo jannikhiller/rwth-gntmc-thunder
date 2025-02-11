@@ -114,16 +114,14 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
         }
     }
 
-    fn find_in_block(&self, block_index: ListIndex, item: &T) -> usize {
-        // TODO: panics here if element is not in block
+    fn find_in_block(&self, block_index: ListIndex, item: &T) -> Option<usize> {
         let block = self.blocks.get(block_index).unwrap();
         // this is a linear search, if it becomes a bottleneck, we can consider
         // keeping each block sorted
         self.elements[block.start..block.end]
             .iter()
             .position(|e| e == item)
-            .unwrap()
-            + block.start
+            .map(|i| i + block.start)
     }
 
     /// Returns the index of the next block and the index of the moved item
@@ -171,7 +169,7 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
                 changed_blocks.insert(block_index);
             }
             let item_index = self.find_in_block(block_index, splitter_item);
-            self.move_item_to_next_block(block_index, item_index);
+            self.move_item_to_next_block(block_index, item_index.unwrap());
             let block = self.blocks.get(block_index).unwrap();
             if block.start == block.end {
                 self.blocks.remove(block_index);
@@ -228,7 +226,7 @@ impl<T: Hash + Eq + Clone + Debug + Ord + fmt::Display> Partition<T> {
             }
 
             let mut block_index = block_index;
-            let mut item_index = self.find_in_block(block_index, &state);
+            let mut item_index = self.find_in_block(block_index, &state).unwrap();
             for _ in 0..set {
                 (block_index, item_index) = self.move_item_to_next_block(block_index, item_index);
             }

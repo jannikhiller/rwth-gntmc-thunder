@@ -307,18 +307,12 @@ mod tests {
         let mut label3 = BitVec::from_elem(5, false);
         label3.set(3, true);
         state_labels.push(label3.clone());
-        let mut label_state_map = HashMap::new();
-        label_state_map.insert(label0, vec![0]);
-        label_state_map.insert(label1, vec![1]);
-        label_state_map.insert(label2, vec![2]);
-        label_state_map.insert(label3, vec![3]);
         TransitionSystem::new(
             transition_matrix,
             reverse_transition_matrix,
             3,       // last_state
             vec![0], // initial_states
             state_labels,
-            label_state_map,
             ap,
         )
     }

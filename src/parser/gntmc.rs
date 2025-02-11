@@ -561,18 +561,6 @@ fn build_ts(input: GntmcTransitionSystem) -> TransitionSystem {
 
     let state_labels: Vec<BitVec> = (0..num_states).map(get_state_label).collect();
 
-    trace!("Built state labels.");
-    let label_states = HashMap::new(); // from_iter((0 .. 2_usize.pow(atomic_props.len() as u32)).map(|label_subset| {
-                                       // The shifting pushes the labels, i.e., the bits that might be set, into the area that is not truncated in the following
-                                       //     let mut label = BitVec::from_bytes(&label_subset.shl(usize::BITS - atomic_props.len() as u32).to_be_bytes());
-                                       //     label.truncate(atomic_props.len());
-                                       //
-                                       //     let states = (0..num_states)
-                                       //         .filter(|state| state_labels[*state] == label)
-                                       //         .collect::<Vec<_>>();
-                                       //
-                                       //     (label, states)
-                                       // }));
     trace!("Built reverse state label info.");
 
     TransitionSystem::new(
@@ -581,7 +569,6 @@ fn build_ts(input: GntmcTransitionSystem) -> TransitionSystem {
         last_state,
         initial_states,
         state_labels,
-        label_states,
         atomic_props,
     )
 }
