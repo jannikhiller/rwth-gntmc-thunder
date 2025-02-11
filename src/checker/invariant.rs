@@ -86,12 +86,18 @@ fn reconstruct_path(
     let mut current = end_state;
 
     // push label of last state
-    path.push(bit_vec_to_ap_strings(transition_system, transition_system.get_state_label(current)));
+    path.push(bit_vec_to_ap_strings(
+        transition_system,
+        transition_system.get_state_label(current),
+    ));
     states.push(current);
 
     // reconstruct path backwards
     while let Some(&prev) = came_from.get(&current) {
-        path.push(bit_vec_to_ap_strings(transition_system, transition_system.get_state_label(prev)));
+        path.push(bit_vec_to_ap_strings(
+            transition_system,
+            transition_system.get_state_label(prev),
+        ));
         states.push(prev);
         current = prev;
     }

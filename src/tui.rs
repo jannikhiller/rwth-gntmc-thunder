@@ -118,7 +118,11 @@ fn check_properties(
             println!("\tCorresponding trace: {:?}", trace);
 
             if options.visualize_cex.is_some() {
-                checking_ts.to_dot(options.visualize_cex.clone().unwrap() + "_" + &*prop.name, Some(path))
+                checking_ts
+                    .to_dot(
+                        options.visualize_cex.clone().unwrap() + "_" + &*prop.name,
+                        Some(path),
+                    )
                     .expect("Unable to visualize transition system with counter-example in file.");
                 println!("Exported visualization of transition system with counterexample.");
             }
@@ -153,8 +157,11 @@ pub fn run() {
 
     let (ts, props, parsing_time) = parse_model_and_properties(&args.gntmc_file);
     if args.visualize_ts.is_some() {
-        ts.to_dot(args.visualize_ts.unwrap().to_str().unwrap().to_string(), None)
-            .expect("Unable to visualize transition system in file.");
+        ts.to_dot(
+            args.visualize_ts.unwrap().to_str().unwrap().to_string(),
+            None,
+        )
+        .expect("Unable to visualize transition system in file.");
         println!("Exported visualization of transition system")
     }
 
@@ -166,7 +173,9 @@ pub fn run() {
     options.set_persistence_algorithm(persistence_algorithm);
     options.set_quotienting_algorithm(quotienting_algorithm);
     if args.visualize_cex.is_some() {
-        options.set_visualize_cex(Some(args.visualize_cex.unwrap().to_str().unwrap().to_string()));
+        options.set_visualize_cex(Some(
+            args.visualize_cex.unwrap().to_str().unwrap().to_string(),
+        ));
     }
 
     let (quotienting_time, checking_time) = check_properties(&ts, &props, &options);

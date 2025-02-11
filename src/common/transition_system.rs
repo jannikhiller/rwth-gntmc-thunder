@@ -8,7 +8,7 @@ use log::{debug, trace};
 use std::fs::File;
 use std::io::{self, Write};
 use std::{
-    collections::{BTreeMap, HashMap, VecDeque, HashSet},
+    collections::{BTreeMap, HashMap, HashSet, VecDeque},
     str::FromStr,
 };
 
@@ -456,10 +456,9 @@ impl TransitionSystem {
 
         let mut states_of_counter_example: HashSet<usize> = HashSet::new();
         if counter_example.is_some() {
-            counter_example
-                .iter()
-                .flatten()
-                .for_each(|v| { states_of_counter_example.insert(*v); });
+            counter_example.iter().flatten().for_each(|v| {
+                states_of_counter_example.insert(*v);
+            });
         }
 
         let color = "black".to_string();
@@ -470,13 +469,30 @@ impl TransitionSystem {
         for state in self.get_states() {
             let is_in_cex = states_of_counter_example.contains(&state);
 
+            #[allow(clippy::if_same_then_else)]
             writeln!(
                 file,
                 "    {} [{}style={}, color=\"{}\", label=\"{}\\n{}\"];",
                 state,
-                if self.initial_states.contains(&state) { "shape=box " } else { "" },
-                if is_in_cex { cex_style.to_string() } else if self.initial_states.contains(&state) { cex_style.to_string() } else { style.to_string() },
-                if is_in_cex { cex_color.to_string() } else if self.initial_states.contains(&state) { "lightblue".to_string() } else { color.to_string() },
+                if self.initial_states.contains(&state) {
+                    "shape=box "
+                } else {
+                    ""
+                },
+                if is_in_cex {
+                    cex_style.to_string()
+                } else if self.initial_states.contains(&state) {
+                    cex_style.to_string()
+                } else {
+                    style.to_string()
+                },
+                if is_in_cex {
+                    cex_color.to_string()
+                } else if self.initial_states.contains(&state) {
+                    "lightblue".to_string()
+                } else {
+                    color.to_string()
+                },
                 state,
                 self.format_label(state)
             )?;
@@ -484,8 +500,9 @@ impl TransitionSystem {
 
         for src in self.get_states() {
             for &dst in self.get_successor_states(src) {
-                if states_of_counter_example.contains(&dst) &&
-                    states_of_counter_example.contains(&src) {
+                if states_of_counter_example.contains(&dst)
+                    && states_of_counter_example.contains(&src)
+                {
                     writeln!(file, "    {} -> {} [color=\"{}\"];", src, dst, cex_color)?;
                 } else {
                     writeln!(file, "    {} -> {};", src, dst)?;
@@ -503,7 +520,13 @@ impl TransitionSystem {
         self.get_ap()
             .iter()
             .enumerate()
-            .filter_map(|(i, ap)| if label.get(i).unwrap() { Some(ap.clone()) } else { None })
+            .filter_map(|(i, ap)| {
+                if label.get(i).unwrap() {
+                    Some(ap.clone())
+                } else {
+                    None
+                }
+            })
             .collect::<Vec<_>>()
             .join(", ")
     }

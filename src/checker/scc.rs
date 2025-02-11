@@ -4,7 +4,7 @@ use crate::property::Property;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Searches for SCCs in the given transition system and checks whether it contains an SCC which
-/// contains an accepting state. Once such an SCC is found, and it is reachable within the transition 
+/// contains an accepting state. Once such an SCC is found, and it is reachable within the transition
 /// system, we know that the property is violated.
 ///
 /// # Parameters
