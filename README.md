@@ -3,6 +3,8 @@ Thunder Model Checker
 
 This is a university project implementing different model checking algorithms in Rust. 
 
+The [final project presentation](docs/thunder-final-presentation.pdf) gives an overview of the implementation and evaluation.
+
 Currently, the following features are implemented:
 - Invariant checking using breadth first search
 - Persistence checking
