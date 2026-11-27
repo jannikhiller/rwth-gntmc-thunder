@@ -5,7 +5,16 @@ This is a university project implementing different model checking algorithms in
 
 The [final project presentation](docs/thunder-final-presentation.pdf) gives an overview of the implementation and evaluation.
 
-Currently, the following features are implemented:
+Jannik Hiller's contributions
+---------------------------
+Developed as a team project with Andreas Gerhards, Johannes Kurth, and Peter Lindner.
+My contributions include CTL model checking, the LTL-to-generalized-Büchi-automaton
+construction, partition data structures and simple refinement for bisimulation,
+and the command-line interface, benchmarking, and profiling setup.
+
+Features
+--------
+The following features are implemented:
 - Invariant checking using breadth first search
 - Persistence checking
 - Checking of regular properties (given as NFA)
@@ -117,7 +126,7 @@ The library is only intended to enable integration tests. Therefore, we do NOT g
 The included python code generates a `.gntmc`-file for a transition system of given size.
 A generated example is already included within the other `.gntmc`-files.
 
-Contributers
+Contributors
 ------------
 - Andreas Gerhards `andreas.gerhards@rwth-aachen.de`
 - Jannik Hiller `jannik.hiller@rwth-aachen.de`
